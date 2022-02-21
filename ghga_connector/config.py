@@ -13,7 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Subpackage defineing functions for publishing to or subscribing from
-asynchronous messaging topics.
-"""
+"""Config Parameter Modeling and Parsing"""
+
+from ghga_service_chassis_lib.config import config_from_yaml
+
+
+# Please adapt config prefix and remove unnecessary config bases:
+@config_from_yaml(prefix="ghga_connector")
+class Config:
+    """Config parameters and their defaults."""
+
+    service_name: str = "ghga_connector"
+
+
+CONFIG = Config()

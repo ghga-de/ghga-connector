@@ -6,35 +6,35 @@
     "s3_endpoint_url": {
       "title": "S3 Endpoint Url",
       "env_names": [
-        "my_microservice_s3_endpoint_url"
+        "ghga_connector_s3_endpoint_url"
       ],
       "type": "string"
     },
     "s3_access_key_id": {
       "title": "S3 Access Key Id",
       "env_names": [
-        "my_microservice_s3_access_key_id"
+        "ghga_connector_s3_access_key_id"
       ],
       "type": "string"
     },
     "s3_secret_access_key": {
       "title": "S3 Secret Access Key",
       "env_names": [
-        "my_microservice_s3_secret_access_key"
+        "ghga_connector_s3_secret_access_key"
       ],
       "type": "string"
     },
     "s3_session_token": {
       "title": "S3 Session Token",
       "env_names": [
-        "my_microservice_s3_session_token"
+        "ghga_connector_s3_session_token"
       ],
       "type": "string"
     },
     "aws_config_ini": {
       "title": "Aws Config Ini",
       "env_names": [
-        "my_microservice_aws_config_ini"
+        "ghga_connector_aws_config_ini"
       ],
       "type": "string",
       "format": "path"
@@ -42,7 +42,7 @@
     "db_url": {
       "title": "Db Url",
       "env_names": [
-        "my_microservice_db_url"
+        "ghga_connector_db_url"
       ],
       "type": "string"
     },
@@ -50,15 +50,15 @@
       "title": "Db Print Logs",
       "default": false,
       "env_names": [
-        "my_microservice_db_print_logs"
+        "ghga_connector_db_print_logs"
       ],
       "type": "boolean"
     },
     "service_name": {
       "title": "Service Name",
-      "default": "my_microservice",
+      "default": "ghga_connector",
       "env_names": [
-        "my_microservice_service_name"
+        "ghga_connector_service_name"
       ],
       "type": "string"
     },
@@ -66,7 +66,7 @@
       "title": "Rabbitmq Host",
       "default": "rabbitmq",
       "env_names": [
-        "my_microservice_rabbitmq_host"
+        "ghga_connector_rabbitmq_host"
       ],
       "type": "string"
     },
@@ -74,7 +74,7 @@
       "title": "Rabbitmq Port",
       "default": 5672,
       "env_names": [
-        "my_microservice_rabbitmq_port"
+        "ghga_connector_rabbitmq_port"
       ],
       "type": "integer"
     },
@@ -82,7 +82,7 @@
       "title": "Host",
       "default": "127.0.0.1",
       "env_names": [
-        "my_microservice_host"
+        "ghga_connector_host"
       ],
       "type": "string"
     },
@@ -90,7 +90,7 @@
       "title": "Port",
       "default": 8080,
       "env_names": [
-        "my_microservice_port"
+        "ghga_connector_port"
       ],
       "type": "integer"
     },
@@ -98,7 +98,7 @@
       "title": "Log Level",
       "default": "info",
       "env_names": [
-        "my_microservice_log_level"
+        "ghga_connector_log_level"
       ],
       "enum": [
         "critical",
@@ -114,7 +114,7 @@
       "title": "Auto Reload",
       "default": false,
       "env_names": [
-        "my_microservice_auto_reload"
+        "ghga_connector_auto_reload"
       ],
       "type": "boolean"
     },
@@ -122,7 +122,7 @@
       "title": "Workers",
       "default": 1,
       "env_names": [
-        "my_microservice_workers"
+        "ghga_connector_workers"
       ],
       "type": "integer"
     },
@@ -130,7 +130,7 @@
       "title": "Api Root Path",
       "default": "/",
       "env_names": [
-        "my_microservice_api_root_path"
+        "ghga_connector_api_root_path"
       ],
       "type": "string"
     },
@@ -138,7 +138,7 @@
       "title": "Openapi Url",
       "default": "/openapi.json",
       "env_names": [
-        "my_microservice_openapi_url"
+        "ghga_connector_openapi_url"
       ],
       "type": "string"
     },
@@ -146,14 +146,14 @@
       "title": "Docs Url",
       "default": "/docs",
       "env_names": [
-        "my_microservice_docs_url"
+        "ghga_connector_docs_url"
       ],
       "type": "string"
     },
     "cors_allowed_origins": {
       "title": "Cors Allowed Origins",
       "env_names": [
-        "my_microservice_cors_allowed_origins"
+        "ghga_connector_cors_allowed_origins"
       ],
       "type": "array",
       "items": {
@@ -163,14 +163,14 @@
     "cors_allow_credentials": {
       "title": "Cors Allow Credentials",
       "env_names": [
-        "my_microservice_cors_allow_credentials"
+        "ghga_connector_cors_allow_credentials"
       ],
       "type": "boolean"
     },
     "cors_allowed_methods": {
       "title": "Cors Allowed Methods",
       "env_names": [
-        "my_microservice_cors_allowed_methods"
+        "ghga_connector_cors_allowed_methods"
       ],
       "type": "array",
       "items": {
@@ -180,7 +180,7 @@
     "cors_allowed_headers": {
       "title": "Cors Allowed Headers",
       "env_names": [
-        "my_microservice_cors_allowed_headers"
+        "ghga_connector_cors_allowed_headers"
       ],
       "type": "array",
       "items": {
@@ -191,7 +191,7 @@
       "title": "Language",
       "default": "Croatian",
       "env_names": [
-        "my_microservice_language"
+        "ghga_connector_language"
       ],
       "enum": [
         "Greek",

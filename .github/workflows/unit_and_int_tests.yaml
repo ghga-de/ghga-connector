@@ -1,0 +1,27 @@
+name: Unit and Integration Tests
+
+on: push
+
+jobs:
+  unit_and_int_tests:
+    runs-on: ubuntu-latest
+    name: Unit and Integration Tests
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - id: common
+        uses: ghga-de/gh-action-common@v1
+
+      - name: Run pytest
+        run: |
+          export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
+          pytest \
+            --cov="${{ steps.common.outputs.MAIN_SRC_DIR }}" \
+            --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true

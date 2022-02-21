@@ -16,11 +16,12 @@
 """Config Parameter Modeling and Parsing"""
 
 from ghga_service_chassis_lib.config import config_from_yaml
+from ghga_service_chassis_lib.s3 import S3ConfigBase
 
 
 # Please adapt config prefix and remove unnecessary config bases:
 @config_from_yaml(prefix="ghga_connector")
-class Config:
+class Config(S3ConfigBase):
     """Config parameters and their defaults."""
 
     service_name: str = "ghga_connector"

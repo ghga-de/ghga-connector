@@ -39,21 +39,6 @@
       "type": "string",
       "format": "path"
     },
-    "db_url": {
-      "title": "Db Url",
-      "env_names": [
-        "ghga_connector_db_url"
-      ],
-      "type": "string"
-    },
-    "db_print_logs": {
-      "title": "Db Print Logs",
-      "default": false,
-      "env_names": [
-        "ghga_connector_db_print_logs"
-      ],
-      "type": "boolean"
-    },
     "service_name": {
       "title": "Service Name",
       "default": "ghga_connector",
@@ -61,152 +46,12 @@
         "ghga_connector_service_name"
       ],
       "type": "string"
-    },
-    "rabbitmq_host": {
-      "title": "Rabbitmq Host",
-      "default": "rabbitmq",
-      "env_names": [
-        "ghga_connector_rabbitmq_host"
-      ],
-      "type": "string"
-    },
-    "rabbitmq_port": {
-      "title": "Rabbitmq Port",
-      "default": 5672,
-      "env_names": [
-        "ghga_connector_rabbitmq_port"
-      ],
-      "type": "integer"
-    },
-    "host": {
-      "title": "Host",
-      "default": "127.0.0.1",
-      "env_names": [
-        "ghga_connector_host"
-      ],
-      "type": "string"
-    },
-    "port": {
-      "title": "Port",
-      "default": 8080,
-      "env_names": [
-        "ghga_connector_port"
-      ],
-      "type": "integer"
-    },
-    "log_level": {
-      "title": "Log Level",
-      "default": "info",
-      "env_names": [
-        "ghga_connector_log_level"
-      ],
-      "enum": [
-        "critical",
-        "error",
-        "warning",
-        "info",
-        "debug",
-        "trace"
-      ],
-      "type": "string"
-    },
-    "auto_reload": {
-      "title": "Auto Reload",
-      "default": false,
-      "env_names": [
-        "ghga_connector_auto_reload"
-      ],
-      "type": "boolean"
-    },
-    "workers": {
-      "title": "Workers",
-      "default": 1,
-      "env_names": [
-        "ghga_connector_workers"
-      ],
-      "type": "integer"
-    },
-    "api_root_path": {
-      "title": "Api Root Path",
-      "default": "/",
-      "env_names": [
-        "ghga_connector_api_root_path"
-      ],
-      "type": "string"
-    },
-    "openapi_url": {
-      "title": "Openapi Url",
-      "default": "/openapi.json",
-      "env_names": [
-        "ghga_connector_openapi_url"
-      ],
-      "type": "string"
-    },
-    "docs_url": {
-      "title": "Docs Url",
-      "default": "/docs",
-      "env_names": [
-        "ghga_connector_docs_url"
-      ],
-      "type": "string"
-    },
-    "cors_allowed_origins": {
-      "title": "Cors Allowed Origins",
-      "env_names": [
-        "ghga_connector_cors_allowed_origins"
-      ],
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "cors_allow_credentials": {
-      "title": "Cors Allow Credentials",
-      "env_names": [
-        "ghga_connector_cors_allow_credentials"
-      ],
-      "type": "boolean"
-    },
-    "cors_allowed_methods": {
-      "title": "Cors Allowed Methods",
-      "env_names": [
-        "ghga_connector_cors_allowed_methods"
-      ],
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "cors_allowed_headers": {
-      "title": "Cors Allowed Headers",
-      "env_names": [
-        "ghga_connector_cors_allowed_headers"
-      ],
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "language": {
-      "title": "Language",
-      "default": "Croatian",
-      "env_names": [
-        "ghga_connector_language"
-      ],
-      "enum": [
-        "Greek",
-        "Croatian",
-        "French",
-        "German"
-      ],
-      "type": "string"
     }
   },
   "required": [
     "s3_endpoint_url",
     "s3_access_key_id",
-    "s3_secret_access_key",
-    "db_url"
+    "s3_secret_access_key"
   ],
   "additionalProperties": false
 }

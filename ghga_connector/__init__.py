@@ -13,4 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""DAO interface implementation to connect to the database."""
+"""
+CLI - Client to perform up- and download operations to and from a local ghga instance
+"""
+
+__version__ = "0.1.0"

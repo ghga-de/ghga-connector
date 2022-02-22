@@ -13,19 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.9.6-buster
+"""Config Parameter Modeling and Parsing"""
 
-COPY . /service
-WORKDIR /service
+from ghga_service_chassis_lib.config import config_from_yaml
+from pydantic import BaseSettings
 
-RUN pip install .
 
-# create new user and execute as that user
-RUN useradd --create-home appuser
-WORKDIR /home/appuser
-USER appuser
+@config_from_yaml(prefix="ghga_connector")
+class Config(BaseSettings):
+    """Config parameters and their defaults."""
 
-ENV PYTHONUNBUFFERED=1
+    dummy_param: str
 
-# Please adapt to package name:
-ENTRYPOINT ["my-microservice"]
+
+CONFIG = Config()

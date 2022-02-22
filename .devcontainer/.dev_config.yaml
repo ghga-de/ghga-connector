@@ -1,2 +1,2 @@
 # Please only mention the non-default settings here:
-service_name: "test_ghga_connector"
+dummy_param: "some_value"

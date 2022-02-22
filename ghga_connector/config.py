@@ -23,7 +23,7 @@ from pydantic import BaseSettings
 class Config(BaseSettings):
     """Config parameters and their defaults."""
 
-    service_name: str = "ghga_connector"
+    dummy_param: str
 
 
 CONFIG = Config()

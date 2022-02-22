@@ -16,7 +16,6 @@ docs/README.md
 
 example_data
 
-Dockerfile
 config_schema.json
 example_config.yaml
 README.md

@@ -3,42 +3,6 @@
   "description": "Modifies the orginal Settings class provided by the user",
   "type": "object",
   "properties": {
-    "s3_endpoint_url": {
-      "title": "S3 Endpoint Url",
-      "env_names": [
-        "ghga_connector_s3_endpoint_url"
-      ],
-      "type": "string"
-    },
-    "s3_access_key_id": {
-      "title": "S3 Access Key Id",
-      "env_names": [
-        "ghga_connector_s3_access_key_id"
-      ],
-      "type": "string"
-    },
-    "s3_secret_access_key": {
-      "title": "S3 Secret Access Key",
-      "env_names": [
-        "ghga_connector_s3_secret_access_key"
-      ],
-      "type": "string"
-    },
-    "s3_session_token": {
-      "title": "S3 Session Token",
-      "env_names": [
-        "ghga_connector_s3_session_token"
-      ],
-      "type": "string"
-    },
-    "aws_config_ini": {
-      "title": "Aws Config Ini",
-      "env_names": [
-        "ghga_connector_aws_config_ini"
-      ],
-      "type": "string",
-      "format": "path"
-    },
     "service_name": {
       "title": "Service Name",
       "default": "ghga_connector",
@@ -48,10 +12,5 @@
       "type": "string"
     }
   },
-  "required": [
-    "s3_endpoint_url",
-    "s3_access_key_id",
-    "s3_secret_access_key"
-  ],
   "additionalProperties": false
 }

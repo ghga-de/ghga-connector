@@ -1,7 +1,2 @@
-aws_config_ini: null
-s3_access_key_id: test
-s3_endpoint_url: http://localstack:4566
-s3_secret_access_key: test
-s3_session_token: null
-service_name: ghga_connector
+service_name: test_ghga_connector
 

@@ -2,67 +2,47 @@
 [![codecov](https://codecov.io/gh/ghga-de/ghga-connector/branch/main/graph/badge.svg?token=GYH99Y71CK)](https://codecov.io/gh/ghga-de/ghga-connector)
 # GHGA-Connector
 
-A CLI - Client to perform up- and download operations to and from a local ghga instance.
+A CLI - Client to perform up- and download operations to and from a local GHGA Node.
 
 ## Documentation:
 
 An extensive documentation can be found [here](...) (coming soon).
 
-## Quick Start
+## Quick Start:
 ### Installation
-We recommend using the provided Docker container.
+This package is available at PyPI: https://pypi.org/project/ghga_connector
 
-A pre-build version is available at [docker hub](https://hub.docker.com/repository/docker/ghga/ghga-connector):
-```bash
-# Please feel free to choose the version as needed:
-docker pull ghga/ghga-connector:<version>
+You can install it from there using:
+
+```
+pip install ghga_connector
 ```
 
-Or you can build the container yourself from the [`./Dockerfile`](./Dockerfile):
-```bash
-# Execute in the repo's root dir:
-# (Please feel free to adapt the name/tag.)
-docker build -t ghga/ghga-connector:<version> .
+### Using the CLI:
+
+To get help on the command line interface, type:
 ```
-
-For production-ready deployment, we recommend using Kubernetes, however,
-for simple use cases, you could execute the service using docker
-on a single server:
-```bash
-# The entrypoint is preconfigured:
-docker run -p 8080:8080 ghga/ghga-connector:<version>
-```
-
-If you prefer not to use containers, you may install the service from source:
-```bash
-# Execute in the repo's root dir:
-pip install .
-
-# to run the service:
-ghga-connector
+ghga_connector --help
 ```
 
 ### Configuration:
 The [`./example-config.yaml`](./example-config.yaml) gives an overview of the available configuration options.
 Please adapt it and choose one of the following options for injecting it into the service:
-- specify the path to via the `ghga_connector_CONFIG_YAML` env variable
+- specify the path to via the `GHGA_CONNECTOR_CONFIG_YAML` env variable
 - rename it to `.ghga_connector.yaml` and place it into one of the following locations:
   - the current working directory were you are execute the service (on unix: `./.ghga_connector.yaml`)
   - your home directory (on unix: `~/.ghga_connector.yaml`)
 
 The config yaml will be automatically parsed by the service.
 
-**Important: If you are using containers, the locations refer to paths within the container.**
-
 All parameters mentioned in the [`./example-config.yaml`](./example-config.yaml)
 could also be set using environment variables or file secrets.
 
-For naming the environment variables, just prefix the parameter name with `ghga_connector_`,
-e.g. for the `host` set an environment variable named `ghga_connector_HOST`
+For naming the environment variables, just prefix the parameter name with `ghga_connector_`
 (you may use both upper or lower cases, however, it is standard to define all env
 variables in upper cases).
 
-To using file secrets please refer to the
+For using file secrets please refer to the
 [corresponding section](https://pydantic-docs.helpmanual.io/usage/settings/#secret-support)
 of the pydantic documentation.
 

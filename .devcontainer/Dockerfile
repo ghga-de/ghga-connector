@@ -19,7 +19,7 @@ RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "umask 0002 && . /usr/l
 
 # Install additional OS packages.
 RUN apt update \
-    && apt install -y libcurl4-openssl-dev libssl-dev
+    && apt install -y curl
 
 # Copy install and launcher script to bin:
 COPY ./dev_install /bin

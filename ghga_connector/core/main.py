@@ -12,18 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Config Parameter Modeling and Parsing"""
+"""Main domain logic."""
 
-from ghga_service_chassis_lib.config import config_from_yaml
-from pydantic import BaseSettings
-
-
-@config_from_yaml(prefix="ghga_connector")
-class Config(BaseSettings):
-    """Config parameters and their defaults."""
-
-    dummy_param: str
+import pycurl
 
 
-CONFIG = Config()
+def check_url(api_url, wait_time=1000) -> bool:
+    """
+    Checks, if an url is reachable within a certain time
+    """
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, api_url)
+    curl.setopt(curl.CONNECTTIMEOUT_MS, wait_time)
+    try:
+        curl.perform_rb()
+    except pycurl.error:
+        return False
+    return True

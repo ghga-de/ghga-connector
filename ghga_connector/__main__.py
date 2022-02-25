@@ -17,5 +17,11 @@
 
 from ghga_connector.cli import cli
 
-if __name__ == "__main__":
+
+def run():
+    """Run the application (used in setup.cfg)."""
     cli()
+
+
+if __name__ == "__main__":
+    run()

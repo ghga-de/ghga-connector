@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Unit and Integration Tests
 
-    steps:    
+    steps:
       - name: install system packages
         run: sudo apt install libcurl4-openssl-dev libssl-dev
 

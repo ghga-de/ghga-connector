@@ -14,10 +14,10 @@ jobs:
         ports:
           - 5672:5672
           - 15672:15672
-    steps:      
+    steps:
       - name: install system packages
         run: sudo apt install libcurl4-openssl-dev libssl-dev
-      
+
       - uses: actions/checkout@v2
 
       - name: Set up Python 3.9

@@ -10,6 +10,13 @@ An extensive documentation can be found [here](...) (coming soon).
 
 ## Quick Start:
 ### Installation
+
+This package uses PycURL and thus has curl (https://curl.se/) as a dependency. You can install cURL using:
+
+```
+sudo apt install libcurl4-openssl-dev libssl-dev
+```
+
 This package is available at PyPI: https://pypi.org/project/ghga_connector
 
 You can install it from there using:

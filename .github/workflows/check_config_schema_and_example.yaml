@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: install system packages
-        run: apt install libcurl4-openssl-dev libssl-dev
+        run: sudo apt install libcurl4-openssl-dev libssl-dev
 
       - uses: actions/checkout@v1
 

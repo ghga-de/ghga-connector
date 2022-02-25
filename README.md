@@ -32,28 +32,6 @@ To get help on the command line interface, type:
 ghga_connector --help
 ```
 
-### Configuration:
-The [`./example-config.yaml`](./example-config.yaml) gives an overview of the available configuration options.
-Please adapt it and choose one of the following options for injecting it into the service:
-- specify the path to via the `GHGA_CONNECTOR_CONFIG_YAML` env variable
-- rename it to `.ghga_connector.yaml` and place it into one of the following locations:
-  - the current working directory were you are execute the service (on unix: `./.ghga_connector.yaml`)
-  - your home directory (on unix: `~/.ghga_connector.yaml`)
-
-The config yaml will be automatically parsed by the service.
-
-All parameters mentioned in the [`./example-config.yaml`](./example-config.yaml)
-could also be set using environment variables or file secrets.
-
-For naming the environment variables, just prefix the parameter name with `ghga_connector_`
-(you may use both upper or lower cases, however, it is standard to define all env
-variables in upper cases).
-
-For using file secrets please refer to the
-[corresponding section](https://pydantic-docs.helpmanual.io/usage/settings/#secret-support)
-of the pydantic documentation.
-
-
 ## Development
 For setting up the development environment, we rely on the
 [devcontainer feature](https://code.visualstudio.com/docs/remote/containers) of vscode

@@ -15,57 +15,7 @@
 
 """Entrypoint of the package"""
 
-
-from os import path
-
-import typer
-
-from ghga_connector.core.main import check_url
-
-app = typer.Typer()
-
-
-@app.command()
-def upload(
-    api_url: str = typer.Option(..., help="Url to the upload contoller"),
-    file_id: str = typer.Option(..., help="The id if the file to upload"),
-    file_path: str = typer.Option(..., help="The path to the file to upload"),
-):
-    """
-    Command to upload a file
-    """
-    if not path.isfile(file_path):
-        typer.echo(f"The file {file_path} does not exist.")
-        raise typer.Abort()
-
-    if not check_url(api_url):
-        typer.echo(f"The url {api_url} is currently not reachable.")
-        raise typer.Abort()
-
-    typer.echo(f"Upload of file with id '{file_id}' has been completed.")
-
-
-@app.command()
-def download(
-    api_url: str = typer.Option(..., help="Url to the DRS3"),
-    file_id: str = typer.Option(..., help="The id if the file to upload"),
-    output_dir: str = typer.Option(
-        ..., help="The directory to put the downloaded file"
-    ),
-):
-    """
-    Command to download a file
-    """
-    if not path.isdir(output_dir):
-        typer.echo(f"The directory {output_dir} does not exist.")
-        raise typer.Abort()
-
-    if not check_url(api_url):
-        typer.echo(f"The url {api_url} is currently not reachable.")
-        raise typer.Abort()
-
-    typer.echo(f"Download of file with id '{file_id}' has been completed.")
-
+from ghga_connector.cli import cli
 
 if __name__ == "__main__":
-    app()
+    cli()

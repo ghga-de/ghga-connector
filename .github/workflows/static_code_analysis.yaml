@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Static Code Analysis
     steps:
+      - name: install system packages
+        run: apt install libcurl4-openssl-dev libssl-dev
       - uses: actions/checkout@v1
       - name: Retrieve main src dir
         id: main_src_dir

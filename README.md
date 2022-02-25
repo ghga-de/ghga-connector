@@ -11,7 +11,7 @@ An extensive documentation can be found [here](...) (coming soon).
 ## Quick Start:
 ### Installation
 
-This package uses PycURL and thus has curl (https://curl.se/) as a dependency. You can install cURL using:
+This package uses PycURL and thus has curl (https://curl.se/) as a dependency. On Debian-based Linux distributions, you can install cURL using:
 
 ```
 sudo apt install libcurl4-openssl-dev libssl-dev

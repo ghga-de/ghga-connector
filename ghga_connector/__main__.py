@@ -18,8 +18,9 @@
 
 from os import path
 
-import pycurl
 import typer
+
+from ghga_connector.core.main import check_url
 
 app = typer.Typer()
 
@@ -64,20 +65,6 @@ def download(
         raise typer.Abort()
 
     typer.echo(f"Download of file with id '{file_id}' has been completed.")
-
-
-def check_url(api_url, wait_time=1000) -> bool:
-    """
-    Checks, if an url is reachable within a certain time
-    """
-    curl = pycurl.Curl()
-    curl.setopt(curl.URL, api_url)
-    curl.setopt(curl.CONNECTTIMEOUT_MS, wait_time)
-    try:
-        curl.perform_rb()
-    except pycurl.error:
-        return False
-    return True
 
 
 if __name__ == "__main__":

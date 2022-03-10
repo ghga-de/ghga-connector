@@ -20,7 +20,7 @@ from os import path
 
 import typer
 
-from ghga_connector.core.main import check_url
+from ghga_connector.core import check_url
 
 cli = typer.Typer()
 

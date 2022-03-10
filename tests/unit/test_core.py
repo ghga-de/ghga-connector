@@ -12,10 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""
-This sub-package contains the main business functionality of this service.
-It should not contain any service API-related code.
-"""
+"""Tests for the download functions of the cli"""
 
-from .main import check_url  # noqa: F401
+import pytest
+
+from ghga_connector.core import check_url
+
+
+@pytest.mark.parametrize(
+    "api_url,wait_time,expected_response",
+    [("https://www.ghga.de/", 1000, True), ("https://bad_url", 1000, False)],
+)
+def test_check_url(api_url, wait_time, expected_response):
+    response = check_url(api_url, wait_time)
+    assert response == expected_response

@@ -17,13 +17,17 @@
 """Tests for the up- and download functions of the cli"""
 
 import pytest
+import typer
 
 from ghga_connector.cli import download, upload
 
 
 @pytest.mark.parametrize(
     "api_url,file_id,output_dir,expected_exception",
-    [("https://www.ghga.de", 1, "/workspace/example_data/", None)],
+    [
+        ("https://www.ghga.de", 1, "/workspace/example_data/", None),
+        ("https://www.ghga.de", 1, "/this_path/", typer.Abort()),
+    ],
 )
 def test_download(api_url, file_id, output_dir, expected_exception):
 
@@ -39,7 +43,10 @@ def test_download(api_url, file_id, output_dir, expected_exception):
 
 @pytest.mark.parametrize(
     "api_url,file_id,file_path,expected_exception",
-    [("https://www.ghga.de", 1, "/workspace/example_data/file1.test", None)],
+    [
+        ("https://www.ghga.de", 1, "/workspace/example_data/file1.test", None),
+        ("https://www.ghga.de", 1, "/this_path/does_not_exist.test", typer.Abort()),
+    ],
 )
 def test_upload(api_url, file_id, file_path, expected_exception):
 

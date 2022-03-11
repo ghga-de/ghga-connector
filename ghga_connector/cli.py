@@ -16,8 +16,12 @@
 
 """ CLI-specific wrappers around core functions."""
 
+import json
+import urllib
+from io import BytesIO
 from os import path
 
+import pycurl
 import typer
 
 from ghga_connector.core import check_url
@@ -42,7 +46,35 @@ def upload(
         typer.echo(f"The url {api_url} is currently not reachable.")
         raise typer.Abort()
 
-    typer.echo(f"Upload of file with id '{file_id}' has been completed.")
+    # build curl URL
+    params = {"presigned_post": file_id}
+    url = api_url + urllib.parse.urlencode(params)
+
+    # Make function call to get upload url
+    curl = pycurl.Curl()
+    data = BytesIO()
+    curl.setopt(pycurl.URL, url)
+    curl.setopt(pycurl.WRITEFUNCTION, data.write)
+
+    curl.setopt(
+        pycurl.HTTPHEADER,
+        ["Accept: application/json", "Content-Type: application/json"],
+    )
+    curl.setopt(pycurl.GET, 1)
+    try:
+        curl.perform()
+    except pycurl.error:
+        typer.Abort()
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+
+    if status_code != 200:
+        typer.Abort()
+
+    dictionary = json.loads(data.getvalue())
+    response_url = dictionary[0]
+
+    typer.echo(f"File with id '{file_id}' can be uploaded via {response_url}.")
 
 
 @cli.command()
@@ -64,4 +96,31 @@ def download(
         typer.echo(f"The url {api_url} is currently not reachable.")
         raise typer.Abort()
 
-    typer.echo(f"Download of file with id '{file_id}' has been completed.")
+    # build curl URL
+    params = {"objects": file_id}
+    url = api_url + urllib.parse.urlencode(params)
+
+    # Make function call to get upload url
+    curl = pycurl.Curl()
+    data = BytesIO()
+    curl.setopt(pycurl.URL, url)
+    curl.setopt(pycurl.WRITEFUNCTION, data.write)
+    curl.setopt(
+        pycurl.HTTPHEADER,
+        ["Accept: application/json", "Content-Type: application/json"],
+    )
+    curl.setopt(pycurl.GET, 1)
+    try:
+        curl.perform()
+    except pycurl.error:
+        typer.Abort()
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+
+    if status_code != 200:
+        typer.Abort()
+
+    dictionary = json.loads(data.getvalue())
+    response_url = dictionary["access_methods"]["s3"]["access_url"]
+
+    typer.echo(f"File with id '{file_id}' can be downloaded via {response_url}.")

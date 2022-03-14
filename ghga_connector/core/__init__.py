@@ -18,4 +18,5 @@ This sub-package contains the main business functionality of this service.
 It should not contain any service API-related code.
 """
 
-from .main import check_url  # noqa: F401
+from .api_calls import download_api_call, upload_api_call  # noqa: F401
+from .main import BadResponseCodeError, RequestFailedError, check_url  # noqa: F401

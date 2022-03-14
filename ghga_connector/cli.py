@@ -16,15 +16,17 @@
 
 """ CLI-specific wrappers around core functions."""
 
-import json
-import urllib
-from io import BytesIO
 from os import path
 
-import pycurl
 import typer
 
-from ghga_connector.core import check_url
+from ghga_connector.core import (
+    BadResponseCodeError,
+    RequestFailedError,
+    check_url,
+    download_api_call,
+    upload_api_call,
+)
 
 cli = typer.Typer()
 
@@ -46,33 +48,14 @@ def upload(
         typer.echo(f"The url {api_url} is currently not reachable.")
         raise typer.Abort()
 
-    # build curl URL
-    params = {"presigned_post": file_id}
-    url = api_url + urllib.parse.urlencode(params)
-
-    # Make function call to get upload url
-    curl = pycurl.Curl()
-    data = BytesIO()
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(pycurl.WRITEFUNCTION, data.write)
-
-    curl.setopt(
-        pycurl.HTTPHEADER,
-        ["Accept: application/json", "Content-Type: application/json"],
-    )
-    curl.setopt(pycurl.GET, 1)
     try:
-        curl.perform()
-    except pycurl.error:
-        typer.Abort()
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-
-    if status_code != 200:
-        typer.Abort()
-
-    dictionary = json.loads(data.getvalue())
-    response_url = dictionary[0]
+        response_url = upload_api_call(api_url, file_id)
+    except BadResponseCodeError as error:
+        typer.echo("The request was invalid and returnd a wrong HTTP status code.")
+        raise typer.Abort() from error
+    except RequestFailedError as error:
+        typer.echo("The request has failed.")
+        raise typer.Abort() from error
 
     typer.echo(f"File with id '{file_id}' can be uploaded via {response_url}.")
 
@@ -96,31 +79,16 @@ def download(
         typer.echo(f"The url {api_url} is currently not reachable.")
         raise typer.Abort()
 
-    # build curl URL
-    params = {"objects": file_id}
-    url = api_url + urllib.parse.urlencode(params)
-
-    # Make function call to get upload url
-    curl = pycurl.Curl()
-    data = BytesIO()
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(pycurl.WRITEFUNCTION, data.write)
-    curl.setopt(
-        pycurl.HTTPHEADER,
-        ["Accept: application/json", "Content-Type: application/json"],
-    )
-    curl.setopt(pycurl.GET, 1)
     try:
-        curl.perform()
-    except pycurl.error:
-        typer.Abort()
+        response_url = download_api_call(api_url, file_id)
+    except BadResponseCodeError as error:
+        typer.echo("The request was invalid and returnd a wrong HTTP status code.")
+        raise typer.Abort() from error
+    except RequestFailedError as error:
+        typer.echo("The request has failed.")
+        raise typer.Abort() from error
 
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    if response_url is not None:
+        typer.echo(f"File with id '{file_id}' can be downloaded via {response_url}.")
 
-    if status_code != 200:
-        typer.Abort()
-
-    dictionary = json.loads(data.getvalue())
-    response_url = dictionary["access_methods"]["s3"]["access_url"]
-
-    typer.echo(f"File with id '{file_id}' can be downloaded via {response_url}.")
+    # otherwise do nothing, waiting on a 202 will be implemented later

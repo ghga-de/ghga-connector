@@ -97,6 +97,7 @@ async def test_download(api_url, file_id, output_dir, expected_exception, server
     assert expected_exception is None
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "api_url,file_id,file_path,expected_exception",
     [

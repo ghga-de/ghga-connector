@@ -81,8 +81,22 @@ async def server():
 @pytest.mark.parametrize(
     "api_url,file_id,output_dir,expected_exception",
     [
-        ("https://localhost:8080", 1, "/workspace/example_data/", None),
-        ("https://localhost:8080", 1, "/this_path/", typer.Abort()),
+        (
+            "https://no_real_url:8080",
+            "1",
+            "/workspace/example_data/file1.test",
+            typer.Abort(),
+        ),
+        (
+            "https://no_real_url:8080",
+            1,
+            "/workspace/example_data/file1.test",
+            typer.Abort(),
+        ),
+        ("https://localhost:8080", "1", "/workspace/example_data/", None),
+        ("https://localhost:8080", "2", "/workspace/example_data/", None),
+        ("https://localhost:8080", "1m", "/workspace/example_data/", None),
+        ("https://localhost:8080", "1", "/this_path/", typer.Abort()),
     ],
 )
 async def test_download(api_url, file_id, output_dir, expected_exception, server):
@@ -101,8 +115,20 @@ async def test_download(api_url, file_id, output_dir, expected_exception, server
 @pytest.mark.parametrize(
     "api_url,file_id,file_path,expected_exception",
     [
-        ("https://localhost:8080", 1, "/workspace/example_data/file1.test", None),
-        ("https://localhost:8080", 1, "/this_path/does_not_exist.test", typer.Abort()),
+        (
+            "https://no_real_url:8080",
+            "1",
+            "/workspace/example_data/file1.test",
+            typer.Abort(),
+        ),
+        ("https://localhost:8080", "1", "/workspace/example_data/file1.test", None),
+        ("https://localhost:8080", "2", "/workspace/example_data/file2.test", None),
+        (
+            "https://localhost:8080",
+            "1",
+            "/this_path/does_not_exist.test",
+            typer.Abort(),
+        ),
     ],
 )
 async def test_upload(api_url, file_id, file_path, expected_exception, server):

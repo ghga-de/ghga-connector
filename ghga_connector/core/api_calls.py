@@ -127,3 +127,13 @@ def confirm_api_call(api_url, file_id):
 
     # Set to patch, since postfields sets to POST automatically
     curl.setopt(curl.CUSTOMREQUEST, "PATCH")
+
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+
+    if status_code != 200:
+        raise BadResponseCodeError(url, status_code)

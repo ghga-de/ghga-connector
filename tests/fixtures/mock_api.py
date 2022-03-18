@@ -34,7 +34,7 @@ app = FastAPI()
 
 
 @app.get("/objects/{file_id}", summary="drs3_mock")
-def drs3_objects(file_id: str):
+async def drs3_objects(file_id: str):
 
     """
     Mock for the drs3 /objects/{file_id} call
@@ -70,7 +70,7 @@ def drs3_objects(file_id: str):
 @app.get(
     "/presigned_post/{file_id}", summary="ulc_presigned_post_mock", status_code=200
 )
-def ulc_presigned_post(file_id: str):
+async def ulc_presigned_post(file_id: str):
 
     """
     Mock for the ulc /presigned_post/{file_id} call.
@@ -90,7 +90,7 @@ def ulc_presigned_post(file_id: str):
 @app.patch(
     "/confirm_upload/{file_id}", summary="ulc_confirm_upload_mock", status_code=204
 )
-def ulc_confirm_upload(file_id: str, state: State):
+async def ulc_confirm_upload(file_id: str, state: State):
 
     """
     Mock for the drs3 /confirm_upload/{file_id} call

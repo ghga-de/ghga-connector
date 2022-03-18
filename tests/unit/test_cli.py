@@ -31,7 +31,6 @@ def server():
     """
     Runs the fastapi server
     """
-    print("Test1234")
     proc = Process(target=run_server, args=(), daemon=True)
     proc.start()
     yield

@@ -44,7 +44,7 @@ def server():
         ("https://localhost:8080", 1, "/this_path/", typer.Abort()),
     ],
 )
-def test_download(api_url, file_id, output_dir, expected_exception, server):
+async def test_download(api_url, file_id, output_dir, expected_exception, server):
 
     """Test the download of a file, expects Abort, if the file was not found"""
 
@@ -63,7 +63,7 @@ def test_download(api_url, file_id, output_dir, expected_exception, server):
         ("https://localhost:8080", 1, "/this_path/does_not_exist.test", typer.Abort()),
     ],
 )
-def test_upload(api_url, file_id, file_path, expected_exception, server):
+async def test_upload(api_url, file_id, file_path, expected_exception, server):
 
     """Test the upload of a file, expects Abort, if the file was not found"""
 

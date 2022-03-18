@@ -16,27 +16,68 @@
 
 """Tests for the up- and download functions of the cli"""
 
-from multiprocessing import Process
+import asyncio
+from typing import List, Optional
 
 import pytest
+import pytest_asyncio
 import typer
+import uvicorn
 
 from ghga_connector.cli import download, upload
 
-from ..fixtures.mock_api import run_server
+from ..fixtures.mock_api import app
 
 
-@pytest.fixture(scope="module")
-def server():
+class UvicornTestServer(uvicorn.Server):
+    """Uvicorn test server
+
+    Usage:
+        @pytest.fixture
+        server = UvicornTestServer()
+        await server.up()
+        yield
+        await server.down()
     """
-    Runs the fastapi server
-    """
-    proc = Process(target=run_server, args=(), daemon=True)
-    proc.start()
-    yield proc
-    proc.kill()  # Cleanup after test
+
+    def __init__(self, app=app, host="127.0.0.1", port=8080):
+        """Create a Uvicorn test server
+
+        Args:
+            app (FastAPI, optional): the FastAPI app. Defaults to main.app.
+            host (str, optional): the host ip. Defaults to '127.0.0.1'.
+            port (int, optional): the port. Defaults to PORT.
+        """
+        self._startup_done = asyncio.Event()
+        super().__init__(config=uvicorn.Config(app, host=host, port=port))
+
+    async def startup(self, sockets: Optional[List] = None) -> None:
+        """Override uvicorn startup"""
+        await super().startup(sockets=sockets)
+        self.config.setup_event_loop()
+        self._startup_done.set()
+
+    async def up(self) -> None:
+        """Start up server asynchronously"""
+        self._serve_task = asyncio.create_task(self.serve())
+        await self._startup_done.wait()
+
+    async def down(self) -> None:
+        """Shut down server asynchronously"""
+        self.should_exit = True
+        await self._serve_task
 
 
+@pytest_asyncio.fixture
+async def server():
+    """Start server as test fixture and tear down after test"""
+    server = UvicornTestServer()
+    await server.up()
+    yield
+    await server.down()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "api_url,file_id,output_dir,expected_exception",
     [

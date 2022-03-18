@@ -23,7 +23,6 @@ All other file_ids will fail
 
 from datetime import datetime, timezone
 
-import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 
@@ -113,17 +112,4 @@ async def ulc_confirm_upload(file_id: str, state: State):
             'The file with id "{file_id}" is registered for upload'
             + " but its content was not found in the inbox."
         ),
-    )
-
-
-def run_server():
-    """
-    Runs the fastapi instance
-    """
-
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port="8080",
-        log_level="info",
     )

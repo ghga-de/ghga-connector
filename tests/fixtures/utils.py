@@ -15,6 +15,23 @@
 
 """Utils for Fixture handling"""
 
+from enum import Enum
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.resolve()
+
+# fmt: off
+class UploadState(Enum):
+
+    """
+    The current upload state. Can be registered (no information),
+    pending (the user has requested an upload url),
+    uploaded (the user has confirmed the upload),
+    or registered (the file has been registered with the internal-file-registry).
+    """
+
+    REGISTERED = "registered"
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+    COMPLETED = "completed"
+# fmt: on

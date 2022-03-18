@@ -60,7 +60,7 @@ def upload_api_call(api_url: str, file_id: str) -> str:
         raise BadResponseCodeError(url, status_code)
 
     dictionary = json.loads(data.getvalue())
-    response_url = dictionary[0]
+    response_url = dictionary["presigned_post"]
 
     return response_url
 

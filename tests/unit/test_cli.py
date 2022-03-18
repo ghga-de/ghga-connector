@@ -16,20 +16,36 @@
 
 """Tests for the up- and download functions of the cli"""
 
+from multiprocessing import Process
+
 import pytest
 import typer
 
 from ghga_connector.cli import download, upload
 
+from ..fixtures.mock_api import run_server
+
+
+@pytest.fixture
+def server():
+    """
+    Runs the fastapi server
+    """
+    print("Test1234")
+    proc = Process(target=run_server, args=(), daemon=True)
+    proc.start()
+    yield
+    proc.kill()  # Cleanup after test
+
 
 @pytest.mark.parametrize(
     "api_url,file_id,output_dir,expected_exception",
     [
-        ("https://www.ghga.de", 1, "/workspace/example_data/", None),
-        ("https://www.ghga.de", 1, "/this_path/", typer.Abort()),
+        ("https://localhost:8080", 1, "/workspace/example_data/", None),
+        ("https://localhost:8080", 1, "/this_path/", typer.Abort()),
     ],
 )
-def test_download(api_url, file_id, output_dir, expected_exception):
+def test_download(api_url, file_id, output_dir, expected_exception, server):
 
     """Test the download of a file, expects Abort, if the file was not found"""
 
@@ -44,11 +60,11 @@ def test_download(api_url, file_id, output_dir, expected_exception):
 @pytest.mark.parametrize(
     "api_url,file_id,file_path,expected_exception",
     [
-        ("https://www.ghga.de", 1, "/workspace/example_data/file1.test", None),
-        ("https://www.ghga.de", 1, "/this_path/does_not_exist.test", typer.Abort()),
+        ("https://localhost:8080", 1, "/workspace/example_data/file1.test", None),
+        ("https://localhost:8080", 1, "/this_path/does_not_exist.test", typer.Abort()),
     ],
 )
-def test_upload(api_url, file_id, file_path, expected_exception):
+def test_upload(api_url, file_id, file_path, expected_exception, server):
 
     """Test the upload of a file, expects Abort, if the file was not found"""
 

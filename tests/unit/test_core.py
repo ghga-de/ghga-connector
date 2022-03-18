@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-"""Tests for the download functions of the cli"""
+"""Tests for the core functions of the cli"""
 
 import pytest
 
@@ -26,5 +26,8 @@ from ghga_connector.core import check_url
     [("https://www.ghga.de/", 1000, True), ("https://bad_url", 1000, False)],
 )
 def test_check_url(api_url, wait_time, expected_response):
+    """
+    Test the check_url function
+    """
     response = check_url(api_url, wait_time)
     assert response == expected_response

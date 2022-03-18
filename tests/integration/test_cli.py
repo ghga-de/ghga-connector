@@ -25,6 +25,11 @@ import typer
 import uvicorn
 
 from ghga_connector.cli import download, upload
+from ghga_connector.core import (
+    BadResponseCodeError,
+    RequestFailedError,
+    confirm_api_call,
+)
 
 from ..fixtures.mock_api import app
 
@@ -139,5 +144,25 @@ async def test_upload(api_url, file_id, file_path, expected_exception, server):
         upload(api_url, file_id, file_path)
     except Exception as exception:
         assert exception == expected_exception
+
+    assert expected_exception is None
+
+
+@pytest.mark.parametrize(
+    "api_url,file_id,expected_exception",
+    [
+        ("https://localhost:8080", "1", None),
+        ("https://localhost:8080", "2", BadResponseCodeError),
+        ("https://bad_url", "1", RequestFailedError),
+    ],
+)
+def test_confirm_api_call(api_url, file_id, expected_exception):
+    """
+    Test the confirm_api_call function
+    """
+    try:
+        confirm_api_call(api_url=api_url, file_id=file_id)
+    except Exception as exception:
+        assert expected_exception == exception
 
     assert expected_exception is None

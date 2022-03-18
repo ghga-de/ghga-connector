@@ -26,14 +26,14 @@ from ghga_connector.cli import download, upload
 from ..fixtures.mock_api import run_server
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def server():
     """
     Runs the fastapi server
     """
     proc = Process(target=run_server, args=(), daemon=True)
     proc.start()
-    yield
+    yield proc
     proc.kill()  # Cleanup after test
 
 

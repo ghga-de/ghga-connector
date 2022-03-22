@@ -16,9 +16,27 @@
 
 """Contain models for the mock api calls"""
 
+from enum import Enum
 from typing import List, Literal
 
 from pydantic import BaseModel
+
+
+# fmt: off
+class UploadState(Enum):
+
+    """
+    The current upload state. Can be registered (no information),
+    pending (the user has requested an upload url),
+    uploaded (the user has confirmed the upload),
+    or registered (the file has been registered with the internal-file-registry).
+    """
+
+    REGISTERED = "registered"
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+    COMPLETED = "completed"
+# fmt: on
 
 
 class State(BaseModel):

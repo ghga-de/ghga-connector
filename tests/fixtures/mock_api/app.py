@@ -21,15 +21,89 @@ The drs3 mock sends back a "wait 1 minute" for file_id == "1m"
 All other file_ids will fail
 """
 
+import os
 from datetime import datetime, timezone
+from enum import Enum
+from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
-from .models import AccessMethod, AccessURL, Checksum, DrsObjectServe, State
-from .utils import UploadState
+
+# fmt: off
+class UploadState(Enum):
+
+    """
+    The current upload state. Can be registered (no information),
+    pending (the user has requested an upload url),
+    uploaded (the user has confirmed the upload),
+    or registered (the file has been registered with the internal-file-registry).
+    """
+
+    REGISTERED = "registered"
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+    COMPLETED = "completed"
+# fmt: on
+
+
+class State(BaseModel):
+    """
+    Model containing a state parameter. Needed for the ULC confirm api call
+    """
+
+    state: str
+
+
+class Checksum(BaseModel):
+    """
+    A Checksum as per the DRS OpenApi specs.
+    """
+
+    checksum: str
+    type: Literal["md5", "sha-256"]
+
+
+class AccessURL(BaseModel):
+    """Describes the URL for accessing the actual bytes of the object as per the
+    DRS OpenApi spec."""
+
+    url: str
+
+
+class AccessMethod(BaseModel):
+    """A AccessMethod as per the DRS OpenApi spec."""
+
+    access_url: AccessURL
+    type: Literal["s3"] = "s3"  # currently only s3 is supported
+
+
+class DrsObjectServe(BaseModel):
+    """
+    A model containing a DrsObject as per the DRS OpenApi specs.
+    This is used to serve metadata on a DrsObject (including the access methods) to the
+    user.
+    """
+
+    file_id: str  # the file ID
+    self_uri: str
+    size: int
+    created_time: str
+    updated_time: str
+    checksums: List[Checksum]
+    access_methods: List[AccessMethod]
+
 
 app = FastAPI()
+
+
+@app.get("/ready", summary="readyness_probe")
+async def ready():
+    """
+    Readyness probe.
+    """
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/objects/{file_id}", summary="drs3_mock")
@@ -46,7 +120,7 @@ async def drs3_objects(file_id: str):
 
     if file_id == "1":
 
-        download_url = "test"
+        download_url = os.environ["MOCK_DOWNLOAD_URL"]
 
         return DrsObjectServe(
             file_id=file_id,
@@ -62,7 +136,7 @@ async def drs3_objects(file_id: str):
 
     raise HTTPException(
         status_code=404,
-        detail=('The DRSObject with the id "{file_id}" does not exist.'),
+        detail=(f'The DRSObject with the id "{file_id}" does not exist.'),
     )
 
 
@@ -82,7 +156,7 @@ async def ulc_presigned_post(file_id: str):
 
     raise HTTPException(
         status_code=404,
-        detail=('The file with the file_id "{file_id}" does not exist.'),
+        detail=(f'The file with the file_id "{file_id}" does not exist.'),
     )
 
 
@@ -97,19 +171,17 @@ async def ulc_confirm_upload(file_id: str, state: State):
 
     if file_id == "1":
         if state.state == UploadState.REGISTERED:
-            return status.HTTP_204_NO_CONTENT
+            return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(
             status_code=400,
-            detail=(
-                'The file with id "{file_id}" can`t be set to "{file_info_patch.state}"'
-            ),
+            detail=(f'The file with id "{file_id}" can`t be set to "{state}"'),
         )
 
     raise HTTPException(
         status_code=400,
         detail=(
-            'The file with id "{file_id}" is registered for upload'
+            f'The file with id "{file_id}" is registered for upload'
             + " but its content was not found in the inbox."
         ),
     )

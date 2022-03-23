@@ -35,17 +35,11 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
         (
             True,
             "1",
-            "/workspace/example_data/file1.test",
-            typer.Abort,
-        ),
-        (
-            True,
-            1,
-            "/workspace/example_data/file1.test",
+            "/workspace/example_data/",
             typer.Abort,
         ),
         (False, "1", "/workspace/example_data/", None),
-        (False, "2", "/workspace/example_data/", None),
+        (False, "2", "/workspace/example_data/", typer.Abort),
         (False, "1m", "/workspace/example_data/", None),
         (False, "1", "/this_path/", typer.Abort),
     ],
@@ -73,7 +67,7 @@ def test_download(bad_url, file_id, output_dir, expected_exception):
             typer.Abort,
         ),
         (False, "1", "/workspace/example_data/file1.test", None),
-        (False, "2", "/workspace/example_data/file2.test", None),
+        (False, "2", "/workspace/example_data/file2.test", typer.Abort),
         (
             False,
             "1",

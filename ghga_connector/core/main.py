@@ -27,6 +27,14 @@ class RequestFailedError(RuntimeError):
         super().__init__(message)
 
 
+class NoS3AccessMethod(RuntimeError):
+    """Thrown, when a request returns the desired response code, but no S3 Access Method"""
+
+    def __init__(self, url: str):
+        message = f"The request to {url} did not return an S3 Access Method."
+        super().__init__(message)
+
+
 class BadResponseCodeError(RuntimeError):
     """Thrown, when a request returns a non-desired response code (e.g. 400)"""
 

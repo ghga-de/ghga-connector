@@ -27,20 +27,8 @@ APP_MODULE_PATH = Path(__file__).parent.resolve() / "app.py"
 
 class MockAPIContainer(DockerContainer):
     """
-    Test container for RabbitMQ.
+    Test container for FastAPI.
 
-    Example
-    -------
-    The example spins up a RabbitMQ broker and uses the `pika` client library
-    (https://pypi.org/project/pika/) establish a connection to the broker.
-    ::
-        from testcontainer.rabbitmq import RabbitMqContainer
-        import pika
-
-        with RabbitMqContainer("rabbitmq:3.9.10") as rabbitmq:
-
-            connection = pika.BlockingConnection(rabbitmq.get_connection_params())
-            channel = connection.channel()
     """
 
     def __init__(
@@ -49,17 +37,13 @@ class MockAPIContainer(DockerContainer):
         port: int = 8000,
         download_url: str = "http://test.test/test.fastq",
     ) -> None:
-        """Initialize the RabbitMQ test container.
+        """Initialize the Fastapi test container.
 
         Args:
             image (str, optional):
-                The docker image from docker hub. Defaults to "rabbitmq:latest".
+                The docker image from docker hub. Defaults to "ghga/fastapi_essentials:0.73.0".
             port (int, optional):
-                The port to reach the AMQP API. Defaults to 5672.
-            username (str, optional):
-                Overwrite the default username which is "guest".
-            password (str, optional):
-                Overwrite the default username which is "guest".
+                The port to reach the FastAPI. Defaults to 8000.
         """
         super(MockAPIContainer, self).__init__(image=image)
 

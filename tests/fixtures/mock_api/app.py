@@ -53,7 +53,7 @@ class State(BaseModel):
     Model containing a state parameter. Needed for the ULC confirm api call
     """
 
-    state: str
+    state: UploadState
 
 
 class Checksum(BaseModel):

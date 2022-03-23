@@ -16,6 +16,8 @@
 
 """Tests for the up- and download functions of the cli"""
 
+from os import path
+
 import pytest
 import typer
 
@@ -27,20 +29,18 @@ from ghga_connector.core import (
 )
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
+from ..fixtures.utils import BASE_DIR
+
+EXAMPLE_FOLDER = path.join(BASE_DIR, "/workspace/example_data/")
 
 
 @pytest.mark.parametrize(
     "bad_url,file_id,output_dir,expected_exception",
     [
-        (
-            True,
-            "1",
-            "/workspace/example_data/",
-            typer.Abort,
-        ),
-        (False, "1", "/workspace/example_data/", None),
-        (False, "2", "/workspace/example_data/", typer.Abort),
-        (False, "1m", "/workspace/example_data/", None),
+        (True, "1", EXAMPLE_FOLDER, typer.Abort),
+        (False, "1", EXAMPLE_FOLDER, None),
+        (False, "2", EXAMPLE_FOLDER, typer.Abort),
+        (False, "1m", EXAMPLE_FOLDER, None),
         (False, "1", "/this_path/", typer.Abort),
     ],
 )
@@ -63,11 +63,11 @@ def test_download(bad_url, file_id, output_dir, expected_exception):
         (
             True,
             "1",
-            "/workspace/example_data/file1.test",
+            EXAMPLE_FOLDER,
             typer.Abort,
         ),
-        (False, "1", "/workspace/example_data/file1.test", None),
-        (False, "2", "/workspace/example_data/file2.test", typer.Abort),
+        (False, "1", path.join(EXAMPLE_FOLDER, "file1.test"), None),
+        (False, "2", path.join(EXAMPLE_FOLDER, "file2.test"), typer.Abort),
         (
             False,
             "1",

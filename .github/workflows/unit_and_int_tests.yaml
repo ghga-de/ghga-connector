@@ -8,6 +8,9 @@ jobs:
     name: Unit and Integration Tests
 
     steps:
+      - name: install system packages
+        run: sudo apt install libcurl4-openssl-dev libssl-dev
+
       - uses: actions/checkout@v1
 
       - id: common

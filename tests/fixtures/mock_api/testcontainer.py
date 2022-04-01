@@ -21,6 +21,7 @@ from pathlib import Path
 import requests
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_container_is_ready
+from testcontainers.localstack import LocalStackContainer
 
 APP_MODULE_PATH = Path(__file__).parent.resolve() / "app.py"
 
@@ -78,3 +79,24 @@ class MockAPIContainer(DockerContainer):
         super().start()
         self.readiness_probe()
         return self
+
+
+class MockS3Container(LocalStackContainer):
+
+    """
+    Test container for S3.
+    """
+
+    def __init__(
+        self,
+        image: str = "localstack/localstack:0.14.1",
+        port: int = 8080,
+        access_key_id: str = "test",
+        secret_access_key: str = "test",
+    ) -> None:
+
+        super(MockS3Container, self).__init__(image=image)
+        self.port = port
+        self.access_key_id = access_key_id
+        self.secret_access_key = secret_access_key
+        self.endpoint_url = self.get_url()

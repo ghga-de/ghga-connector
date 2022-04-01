@@ -20,11 +20,45 @@ Contains API calls to the API of the GHGA Storage implementation
 
 import json
 from io import BytesIO
-from typing import Optional
+from typing import Optional, Tuple
 
 import pycurl
 
 from .main import BadResponseCodeError, NoS3AccessMethod, RequestFailedError
+
+headers = {}
+
+
+def header_function(header_line):
+    """
+    Function used to decode headers from HTTP Responses
+    """
+
+    # HTTP standard specifies that headers are encoded in iso-8859-1.
+    header_line = header_line.decode("iso-8859-1")
+
+    # Header lines include the first status line (HTTP/1.x ...).
+    # We are going to ignore all lines that don't have a colon in them.
+    # This will botch headers that are split on multiple lines...
+    if ":" not in header_line:
+        return
+
+    # Break the header line into header name and value.
+    name, value = header_line.split(":", 1)
+
+    # Remove whitespace that may be present.
+    # Header lines include the trailing newline, and there may be whitespace
+    # around the colon.
+    name = name.strip()
+    value = value.strip()
+
+    # Header names are case insensitive.
+    # Lowercase name here.
+    name = name.lower()
+
+    # Now we can actually record the header name and value.
+    # Note: this only works when headers are not duplicated, see below.
+    headers[name] = value
 
 
 def upload_api_call(api_url: str, file_id: str) -> str:
@@ -65,7 +99,7 @@ def upload_api_call(api_url: str, file_id: str) -> str:
     return response_url
 
 
-def download_api_call(api_url: str, file_id: str) -> Optional[str]:
+def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
 
     """
     Perform a RESTful API call to retrieve a presigned download URL
@@ -83,20 +117,30 @@ def download_api_call(api_url: str, file_id: str) -> Optional[str]:
         curl.HTTPHEADER,
         ["Accept: application/json", "Content-Type: application/json"],
     )
+    curl.setopt(curl.HEADERFUNCTION, header_function)
     # GET is the standard, but setting it here explicitely nonetheless
     curl.setopt(curl.HTTPGET, 1)
     try:
         curl.perform()
+        curl.close()
+
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
 
     status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
 
     if status_code != 200:
         if status_code != 202:
             raise BadResponseCodeError(url, status_code)
-        return None
+
+        retry_after = headers.get("Retry-After")
+
+        if retry_after is None:
+            retry_after = 0
+        else:
+            retry_after = int(retry_after)
+
+        return None, retry_after
 
     dictionary = json.loads(data.getvalue())
 
@@ -110,7 +154,7 @@ def download_api_call(api_url: str, file_id: str) -> Optional[str]:
     if download_url is None:
         raise NoS3AccessMethod(url)
 
-    return download_url
+    return download_url, 0
 
 
 def confirm_api_call(api_url, file_id):
@@ -119,7 +163,6 @@ def confirm_api_call(api_url, file_id):
     """
 
     # build url
-
     url = api_url + "/confirm_upload/" + file_id
 
     post_data = {"state": "registered"}

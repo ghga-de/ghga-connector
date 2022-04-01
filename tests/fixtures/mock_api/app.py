@@ -113,9 +113,9 @@ async def drs3_objects(file_id: str):
     Mock for the drs3 /objects/{file_id} call
     """
 
-    if file_id == "1m":
+    if file_id == "10s":
         return JSONResponse(
-            status_code=status.HTTP_202_ACCEPTED, content={"retry_after": 60}
+            status_code=status.HTTP_202_ACCEPTED, content={"retry_after": 10}
         )
 
     if file_id == "1":

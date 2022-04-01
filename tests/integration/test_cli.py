@@ -35,23 +35,28 @@ EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
 
 
 @pytest.mark.parametrize(
-    "bad_url,file_id,output_dir,expected_exception",
+    "bad_url,file_id,output_dir,max_wait_time,expected_exception, ",
     [
-        (True, "1", EXAMPLE_FOLDER, typer.Abort),
-        (False, "1", EXAMPLE_FOLDER, None),
-        (False, "2", EXAMPLE_FOLDER, typer.Abort),
-        (False, "1m", EXAMPLE_FOLDER, None),
-        (False, "1", "/this_path/", typer.Abort),
+        (True, "1", EXAMPLE_FOLDER, 60, typer.Abort),
+        (False, "1", EXAMPLE_FOLDER, 60, None),
+        (False, "2", EXAMPLE_FOLDER, 60, typer.Abort),
+        (False, "1m", EXAMPLE_FOLDER, 60, None),
+        (False, "1", "/this_path/", 60, typer.Abort),
     ],
 )
-def test_download(bad_url, file_id, output_dir, expected_exception):
+def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exception):
 
     """Test the download of a file, expects Abort, if the file was not found"""
     with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
-            download(api_url, file_id, output_dir)
+            download(
+                api_url=api_url,
+                file_id=file_id,
+                output_dir=output_dir,
+                max_wait_time=max_wait_time,
+            )
             assert expected_exception is None
         except Exception as exception:
             assert isinstance(exception, expected_exception)

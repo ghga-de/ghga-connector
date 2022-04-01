@@ -34,7 +34,7 @@ from ghga_connector.core import (
     confirm_api_call,
 )
 
-from ..fixtures.mock_api.testcontainer import MockAPIContainer
+from ..fixtures.mock_api.testcontainer import MockAPIContainer  # , MockS3Container
 from ..fixtures.utils import BASE_DIR
 
 EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")

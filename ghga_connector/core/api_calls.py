@@ -122,25 +122,19 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
     curl.setopt(curl.HTTPGET, 1)
     try:
         curl.perform()
-        curl.close()
-
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
 
     status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
 
     if status_code != 200:
         if status_code != 202:
             raise BadResponseCodeError(url, status_code)
 
-        retry_after = headers.get("Retry-After")
+        retry_after = headers.get("Retry-After", 0)
 
-        if retry_after is None:
-            retry_after = 0
-        else:
-            retry_after = int(retry_after)
-
-        return None, retry_after
+        return None, int(retry_after)
 
     dictionary = json.loads(data.getvalue())
 

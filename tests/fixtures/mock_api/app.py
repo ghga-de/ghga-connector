@@ -115,7 +115,7 @@ async def drs3_objects(file_id: str):
 
     if file_id == "10s":
         return JSONResponse(
-            status_code=status.HTTP_202_ACCEPTED, content={"retry_after": 10}
+            status_code=status.HTTP_202_ACCEPTED, content={"Retry-After": 10}
         )
 
     if file_id == "1":

@@ -40,7 +40,7 @@ EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
         (True, "1", EXAMPLE_FOLDER, "60", typer.Abort),
         (False, "1", EXAMPLE_FOLDER, "60", None),
         (False, "2", EXAMPLE_FOLDER, "60", typer.Abort),
-        (False, "1m", EXAMPLE_FOLDER, "60", None),
+        (False, "10s", EXAMPLE_FOLDER, "60", None),
         (False, "1", "/this_path/", "60", typer.Abort),
     ],
 )

@@ -108,6 +108,4 @@ def download(
         sleep(retry_time)
 
     # perform the download:
-    typer.echo(
-        f"Would download from the following url, but not implemented, yet: {download_url}"
-    )
+    typer.echo(f"File with id '{file_id}' can be download via {download_url}.")

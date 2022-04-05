@@ -24,7 +24,12 @@ from typing import Optional, Tuple
 
 import pycurl
 
-from .main import BadResponseCodeError, NoS3AccessMethod, RequestFailedError
+from .exceptions import (
+    BadResponseCodeError,
+    NoS3AccessMethod,
+    RequestFailedError,
+    RetryTimeExpectedError,
+)
 
 
 def header_function_factory(headers: dict):
@@ -136,9 +141,10 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
         if status_code != 202:
             raise BadResponseCodeError(url, status_code)
 
-        retry_after = headers.get("Retry-After", 0)
+        if "retry-after" not in headers:
+            raise RetryTimeExpectedError(url)
 
-        return None, int(retry_after)
+        return None, int(headers["retry-after"])
 
     # look for an access method of type s3 in the response:
     dictionary = json.loads(data.getvalue())

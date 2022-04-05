@@ -21,7 +21,13 @@ from os import path
 import pytest
 import typer
 
-from ghga_connector.cli import download, upload
+from ghga_connector.cli import (
+    ApiNotReachable,
+    DirectoryNotExist,
+    MaxWaitTimeExceeded,
+    download,
+    upload,
+)
 from ghga_connector.core import (
     BadResponseCodeError,
     RequestFailedError,
@@ -37,11 +43,11 @@ EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
 @pytest.mark.parametrize(
     "bad_url,file_id,output_dir,max_wait_time,expected_exception",
     [
-        (True, "1", EXAMPLE_FOLDER, "60", typer.Abort),
+        (True, "1", EXAMPLE_FOLDER, "60", ApiNotReachable),
         (False, "1", EXAMPLE_FOLDER, "60", None),
-        (False, "2", EXAMPLE_FOLDER, "60", typer.Abort),
-        (False, "10s", EXAMPLE_FOLDER, "60", None),
-        (False, "1", "/this_path/", "60", typer.Abort),
+        (False, "2", EXAMPLE_FOLDER, "60", BadResponseCodeError),
+        (False, "10s", EXAMPLE_FOLDER, "60", MaxWaitTimeExceeded),
+        (False, "1", "/this_path/", "60", DirectoryNotExist),
     ],
 )
 def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exception):

@@ -29,6 +29,31 @@ from ghga_connector.core import (
     upload_api_call,
 )
 
+
+class DirectoryNotExist(RuntimeError):
+    """Thrown, when the specified directory does not exist."""
+
+    def __init__(self, output_dir: str):
+        message = f"The directory {output_dir} does not exist."
+        super().__init__(message)
+
+
+class ApiNotReachable(RuntimeError):
+    """Thrown, when the api is not reachable."""
+
+    def __init__(self, api_url: str):
+        message = f"The url {api_url} is currently not reachable."
+        super().__init__(message)
+
+
+class MaxWaitTimeExceeded(RuntimeError):
+    """Thrown, when the specified wait time has been exceeded."""
+
+    def __init__(self, max_wait_time: int):
+        message = f"Exceeded maximum wait time of {max_wait_time} seconds."
+        super().__init__(message)
+
+
 cli = typer.Typer()
 
 
@@ -76,40 +101,33 @@ def download(
     Command to download a file
     """
     if not path.isdir(output_dir):
-        typer.echo(f"The directory {output_dir} does not exist.")
-        raise typer.Abort()
+        raise DirectoryNotExist(output_dir)
 
     if not check_url(api_url):
-        typer.echo(f"The url {api_url} is currently not reachable.")
-        raise typer.Abort()
+        raise ApiNotReachable(api_url)
 
-    retry_time = 1
+    # get the download_url, wait if needed
     wait_time = 0
-
-    while retry_time > 0:
+    while True:
 
         try:
-            response_url, retry_time = download_api_call(api_url, file_id)
+            download_url, retry_time = download_api_call(api_url, file_id)
         except BadResponseCodeError as error:
             typer.echo("The request was invalid and returnd a wrong HTTP status code.")
-            raise typer.Abort() from error
+            raise error
         except RequestFailedError as error:
             typer.echo("The request has failed.")
-            raise typer.Abort() from error
+            raise error
+
+        if download_url is not None:
+            break
 
         wait_time += retry_time
-
         if wait_time > max_wait_time:
-            typer.echo(f"Exceeded maximum wait time of {max_wait_time} seconds.")
-            typer.Abort()
+            raise MaxWaitTimeExceeded(max_wait_time)
 
-        if response_url is None:
-            typer.echo(
-                f"File staging, will try to download again in {retry_time} seconds"
-            )
-            sleep(retry_time)
+        typer.echo(f"File staging, will try to download again in {retry_time} seconds")
+        sleep(retry_time)
 
-        else:
-            typer.echo(
-                f"File with id '{file_id}' can be downloaded via {response_url}."
-            )
+    # perform the download:
+    typer.echo(f"File with id '{file_id}' can be download via {download_url}.")

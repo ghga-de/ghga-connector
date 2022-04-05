@@ -106,3 +106,8 @@ def download(
 
         typer.echo(f"File staging, will try to download again in {retry_time} seconds")
         sleep(retry_time)
+
+    # perform the download:
+    typer.echo(
+        f"Would download from the following url, but not implemented, yet: {download_url}"
+    )

@@ -114,7 +114,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
     # Make function call to get upload url
     curl = pycurl.Curl()
     data = BytesIO()
-    headers = {}
+    headers: dict[str, str] = {}
     curl.setopt(curl.URL, url)
     curl.setopt(curl.WRITEFUNCTION, data.write)
     curl.setopt(
@@ -152,7 +152,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
     if download_url is None:
         raise NoS3AccessMethod(url)
 
-    return download_url, None
+    return download_url, 0
 
 
 def confirm_api_call(api_url, file_id):

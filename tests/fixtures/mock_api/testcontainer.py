@@ -62,7 +62,7 @@ class MockAPIContainer(DockerContainer):
         port = self.get_exposed_port(self._port)
         return f"http://{ip}:{port}"
 
-    @wait_container_is_ready(requests.exceptions.ConnectionError)
+    @wait_container_is_ready()
     def readiness_probe(self):
         """Test if the RabbitMQ broker is ready."""
         connection_url = self.get_connection_url()

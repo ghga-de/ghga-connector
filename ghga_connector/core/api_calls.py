@@ -26,39 +26,42 @@ import pycurl
 
 from .main import BadResponseCodeError, NoS3AccessMethod, RequestFailedError
 
-headers = {}
 
+def header_function_factory(headers: dict):
+    """Creates a header function that updates the specified headers dict."""
 
-def header_function(header_line):
-    """
-    Function used to decode headers from HTTP Responses
-    """
+    def header_function(header_line):
+        """
+        Function used to decode headers from HTTP Responses
+        """
 
-    # HTTP standard specifies that headers are encoded in iso-8859-1.
-    header_line = header_line.decode("iso-8859-1")
+        # HTTP standard specifies that headers are encoded in iso-8859-1.
+        header_line = header_line.decode("iso-8859-1")
 
-    # Header lines include the first status line (HTTP/1.x ...).
-    # We are going to ignore all lines that don't have a colon in them.
-    # This will botch headers that are split on multiple lines...
-    if ":" not in header_line:
-        return
+        # Header lines include the first status line (HTTP/1.x ...).
+        # We are going to ignore all lines that don't have a colon in them.
+        # This will botch headers that are split on multiple lines...
+        if ":" not in header_line:
+            return
 
-    # Break the header line into header name and value.
-    name, value = header_line.split(":", 1)
+        # Break the header line into header name and value.
+        name, value = header_line.split(":", 1)
 
-    # Remove whitespace that may be present.
-    # Header lines include the trailing newline, and there may be whitespace
-    # around the colon.
-    name = name.strip()
-    value = value.strip()
+        # Remove whitespace that may be present.
+        # Header lines include the trailing newline, and there may be whitespace
+        # around the colon.
+        name = name.strip()
+        value = value.strip()
 
-    # Header names are case insensitive.
-    # Lowercase name here.
-    name = name.lower()
+        # Header names are case insensitive.
+        # Lowercase name here.
+        name = name.lower()
 
-    # Now we can actually record the header name and value.
-    # Note: this only works when headers are not duplicated, see below.
-    headers[name] = value
+        # Now we can actually record the header name and value.
+        # Note: this only works when headers are not duplicated, see below.
+        headers[name] = value
+
+    return header_function
 
 
 def upload_api_call(api_url: str, file_id: str) -> str:
@@ -111,13 +114,14 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
     # Make function call to get upload url
     curl = pycurl.Curl()
     data = BytesIO()
+    headers = {}
     curl.setopt(curl.URL, url)
     curl.setopt(curl.WRITEFUNCTION, data.write)
     curl.setopt(
         curl.HTTPHEADER,
         ["Accept: application/json", "Content-Type: application/json"],
     )
-    curl.setopt(curl.HEADERFUNCTION, header_function)
+    curl.setopt(curl.HEADERFUNCTION, header_function_factory(headers))
     # GET is the standard, but setting it here explicitely nonetheless
     curl.setopt(curl.HTTPGET, 1)
     try:
@@ -136,19 +140,19 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
 
         return None, int(retry_after)
 
+    # look for an access method of type s3 in the response:
     dictionary = json.loads(data.getvalue())
-
     download_url = None
-
     access_methods = dictionary["access_methods"]
     for access_method in access_methods:
         if access_method["type"] == "s3":
             download_url = access_method["access_url"]["url"]
+            break
 
     if download_url is None:
         raise NoS3AccessMethod(url)
 
-    return download_url, 0
+    return download_url, None
 
 
 def confirm_api_call(api_url, file_id):

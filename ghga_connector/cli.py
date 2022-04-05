@@ -83,13 +83,12 @@ def download(
         typer.echo(f"The url {api_url} is currently not reachable.")
         raise typer.Abort()
 
-    retry_time = 1
+    # get the download_url, wait if needed
     wait_time = 0
-
-    while retry_time > 0:
+    while True:
 
         try:
-            response_url, retry_time = download_api_call(api_url, file_id)
+            download_url, retry_time = download_api_call(api_url, file_id)
         except BadResponseCodeError as error:
             typer.echo("The request was invalid and returnd a wrong HTTP status code.")
             raise typer.Abort() from error
@@ -97,19 +96,13 @@ def download(
             typer.echo("The request has failed.")
             raise typer.Abort() from error
 
-        wait_time += retry_time
+        if download_url is not None:
+            break
 
+        wait_time += retry_time
         if wait_time > max_wait_time:
             typer.echo(f"Exceeded maximum wait time of {max_wait_time} seconds.")
-            typer.Abort()
+            raise typer.Abort()
 
-        if response_url is None:
-            typer.echo(
-                f"File staging, will try to download again in {retry_time} seconds"
-            )
-            sleep(retry_time)
-
-        else:
-            typer.echo(
-                f"File with id '{file_id}' can be downloaded via {response_url}."
-            )
+        typer.echo(f"File staging, will try to download again in {retry_time} seconds")
+        sleep(retry_time)

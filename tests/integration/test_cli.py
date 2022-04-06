@@ -59,6 +59,7 @@ def test_download(
     output_dir,
     max_wait_time,
     expected_exception,
+<<<<<<< HEAD
     s3_fixture,  # noqa F811
 ):
     """Test the download of a file, expects Abort, if the file was not found"""
@@ -66,6 +67,13 @@ def test_download(
     with MockAPIContainer(
         s3_download_url=get_presigned_download_url(s3_config=s3_fixture.config)
     ) as api:
+=======
+    s3_fixture,  # noqa: F811
+):
+    """Test the download of a file, expects Abort, if the file was not found"""
+
+    with MockAPIContainer(s3_config=s3_fixture.config) as api:
+>>>>>>> bd04d8e (WIP)
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -104,6 +112,7 @@ def test_upload(
     file_id,
     file_path,
     expected_exception,
+<<<<<<< HEAD
     s3_fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
@@ -111,6 +120,13 @@ def test_upload(
     with MockAPIContainer(
         s3_upload_url=get_presigned_upload_url(s3_config=s3_fixture.config)
     ) as api:
+=======
+    s3_fixture,  # noqa: F811
+):
+    """Test the upload of a file, expects Abort, if the file was not found"""
+
+    with MockAPIContainer(config=s3_fixture.config) as api:
+>>>>>>> bd04d8e (WIP)
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -132,11 +148,15 @@ def test_confirm_api_call(
     bad_url,
     file_id,
     expected_exception,
+<<<<<<< HEAD
+=======
+    s3_config,  # noqa: F811
+>>>>>>> bd04d8e (WIP)
 ):
     """
     Test the confirm_api_call function
     """
-    with MockAPIContainer() as api:
+    with MockAPIContainer(s3_config=s3_fixture.config) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:

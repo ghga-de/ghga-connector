@@ -21,13 +21,16 @@ The drs3 mock sends back a "wait 1 minute" for file_id == "1m"
 All other file_ids will fail
 """
 
-import os
+# import json
+# import os
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
+
+# from ghga_service_chassis_lib.s3 import ObjectStorageS3 as ObjectStorage
 from pydantic import BaseModel
 
 

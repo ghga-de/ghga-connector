@@ -43,11 +43,11 @@ EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
 @pytest.mark.parametrize(
     "bad_url,file_id,output_dir,max_wait_time,expected_exception",
     [
-        (True, "1", EXAMPLE_FOLDER, "60", ApiNotReachable),
-        (False, "1", EXAMPLE_FOLDER, "60", None),
-        (False, "2", EXAMPLE_FOLDER, "60", BadResponseCodeError),
-        (False, "10s", EXAMPLE_FOLDER, "60", MaxWaitTimeExceeded),
-        (False, "1", "/this_path/", "60", DirectoryNotExist),
+        (True, "downloadable", EXAMPLE_FOLDER, "60", ApiNotReachable),
+        (False, "downloadable", EXAMPLE_FOLDER, "60", None),
+        (False, "not_downloadable", EXAMPLE_FOLDER, "60", BadResponseCodeError),
+        (False, "retry", EXAMPLE_FOLDER, "60", MaxWaitTimeExceeded),
+        (False, "downloadable", "/this_path/", "60", DirectoryNotExist),
     ],
 )
 def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exception):
@@ -73,12 +73,12 @@ def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exceptio
     [
         (
             True,
-            "1",
+            "uploadable",
             EXAMPLE_FOLDER,
             typer.Abort,
         ),
-        (False, "1", path.join(EXAMPLE_FOLDER, "file1.test"), None),
-        (False, "2", path.join(EXAMPLE_FOLDER, "file2.test"), typer.Abort),
+        (False, "uploadable", path.join(EXAMPLE_FOLDER, "file1.test"), None),
+        (False, "not_uploadable", path.join(EXAMPLE_FOLDER, "file2.test"), typer.Abort),
         (
             False,
             "1",
@@ -103,9 +103,9 @@ def test_upload(bad_url, file_id, file_path, expected_exception):
 @pytest.mark.parametrize(
     "bad_url,file_id,expected_exception",
     [
-        (False, "1", None),
-        (False, "2", BadResponseCodeError),
-        (True, "1", RequestFailedError),
+        (False, "uploaded", None),
+        (False, "not_uploaded", BadResponseCodeError),
+        (True, "uploaded", RequestFailedError),
     ],
 )
 def test_confirm_api_call(bad_url, file_id, expected_exception):

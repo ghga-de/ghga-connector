@@ -113,12 +113,12 @@ async def drs3_objects(file_id: str):
     Mock for the drs3 /objects/{file_id} call
     """
 
-    if file_id == "10s":
+    if file_id == "retry":
         return Response(
             status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
         )
 
-    if file_id == "1":
+    if file_id == "downloadable":
 
         download_url = os.environ["MOCK_DOWNLOAD_URL"]
 
@@ -151,7 +151,7 @@ async def ulc_presigned_post(file_id: str):
 
     upload_url = "test"
 
-    if file_id == "1":
+    if file_id == "uploadable":
         return {"presigned_post": upload_url}
 
     raise HTTPException(
@@ -169,7 +169,7 @@ async def ulc_confirm_upload(file_id: str, state: State):
     Mock for the drs3 /confirm_upload/{file_id} call
     """
 
-    if file_id == "1":
+    if file_id == "uploaded":
         if state.state == UploadState.REGISTERED:
             return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 

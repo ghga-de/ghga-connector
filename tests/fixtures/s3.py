@@ -15,25 +15,25 @@
 
 """Fixtures for testing the storage DAO"""
 
-# from typing import List
+from typing import List
 
-# from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
-# from ghga_service_chassis_lib.s3_testing import s3_fixture_factory
+from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
+from ghga_service_chassis_lib.s3_testing import s3_fixture_factory
 
-# from . import state
+from . import state
 
-# existing_buckets: List[str] = ["inbox, outbox"]
-# existing_objects: List[ObjectFixture] = []
+existing_buckets: List[str] = ["inbox, outbox"]
+existing_objects: List[ObjectFixture] = []
 
-# for file in state.FILES.values():
-#     if file.populate_storage:
-#         for storage_object in file.storage_objects:
-#             if storage_object.bucket_id not in existing_buckets:
-#                 existing_buckets.append(storage_object.bucket_id)
-#             existing_objects.append(storage_object)
+for file in state.FILES.values():
+    if file.populate_storage:
+        for storage_object in file.storage_objects:
+            if storage_object.bucket_id not in existing_buckets:
+                existing_buckets.append(storage_object.bucket_id)
+            existing_objects.append(storage_object)
 
 
-# s3_fixture = s3_fixture_factory(
-#     existing_buckets=existing_buckets,
-#     existing_objects=existing_objects,
-# )
+s3_fixture = s3_fixture_factory(
+    existing_buckets=existing_buckets,
+    existing_objects=existing_objects,
+)

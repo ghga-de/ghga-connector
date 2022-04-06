@@ -32,7 +32,6 @@ for file in state.FILES.values():
                 existing_buckets.append(storage_object.bucket_id)
             existing_objects.append(storage_object)
 
-
 s3_fixture = s3_fixture_factory(
     existing_buckets=existing_buckets,
     existing_objects=existing_objects,

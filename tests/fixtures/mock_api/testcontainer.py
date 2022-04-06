@@ -16,12 +16,13 @@
 
 """A testcontainer for running the mock app in the background."""
 
+import json
 from pathlib import Path
 
 import requests
+from ghga_service_chassis_lib.s3 import S3ConfigBase
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_container_is_ready
-from testcontainers.localstack import LocalStackContainer
 
 APP_MODULE_PATH = Path(__file__).parent.resolve() / "app.py"
 
@@ -34,9 +35,9 @@ class MockAPIContainer(DockerContainer):
 
     def __init__(
         self,
+        s3_config: S3ConfigBase = None,
         image: str = "ghga/fastapi_essentials:0.73.0",
         port: int = 8000,
-        download_url: str = "http://test.test/test.fastq",
     ) -> None:
         """Initialize the Fastapi test container.
 
@@ -51,7 +52,8 @@ class MockAPIContainer(DockerContainer):
         self._port = port
 
         self.with_exposed_ports(self._port)
-        self.with_env("MOCK_DOWNLOAD_URL", download_url)
+        if s3_config is not None:
+            self.with_env("S3_CONFIG_BASE", json.dumps(s3_config))
         self.with_volume_mapping(host=str(APP_MODULE_PATH), container="/app.py")
         self.with_command(
             f"python3 -m uvicorn --host 0.0.0.0 --port {self._port} --app-dir / app:app"
@@ -77,24 +79,3 @@ class MockAPIContainer(DockerContainer):
         super().start()
         self.readiness_probe()
         return self
-
-
-class MockS3Container(LocalStackContainer):
-
-    """
-    Test container for S3.
-    """
-
-    def __init__(
-        self,
-        image: str = "localstack/localstack:0.14.1",
-        port: int = 8080,
-        access_key_id: str = "test",
-        secret_access_key: str = "test",
-    ) -> None:
-
-        super(MockS3Container, self).__init__(image=image)
-        self.port = port
-        self.access_key_id = access_key_id
-        self.secret_access_key = secret_access_key
-        self.endpoint_url = self.get_url()

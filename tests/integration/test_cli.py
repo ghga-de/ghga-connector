@@ -34,7 +34,8 @@ from ghga_connector.core import (
     confirm_api_call,
 )
 
-from ..fixtures.mock_api.testcontainer import MockAPIContainer  # , MockS3Container
+from ..fixtures import s3_fixture
+from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
 EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
@@ -50,10 +51,17 @@ EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
         (False, "downloadable", "/this_path/", "60", DirectoryNotExist),
     ],
 )
-def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exception):
-
+def test_download(
+    bad_url,
+    file_id,
+    output_dir,
+    max_wait_time,
+    expected_exception,
+    s3_fixture,  # noqa: F811
+):
     """Test the download of a file, expects Abort, if the file was not found"""
-    with MockAPIContainer() as api:
+
+    with MockAPIContainer(s3_config=s3_fixture.config) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -87,10 +95,16 @@ def test_download(bad_url, file_id, output_dir, max_wait_time, expected_exceptio
         ),
     ],
 )
-def test_upload(bad_url, file_id, file_path, expected_exception):
-
+def test_upload(
+    bad_url,
+    file_id,
+    file_path,
+    expected_exception,
+    s3_fixture,  # noqa: F811
+):
     """Test the upload of a file, expects Abort, if the file was not found"""
-    with MockAPIContainer() as api:
+
+    with MockAPIContainer(config=s3_fixture.config) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -108,11 +122,16 @@ def test_upload(bad_url, file_id, file_path, expected_exception):
         (True, "uploaded", RequestFailedError),
     ],
 )
-def test_confirm_api_call(bad_url, file_id, expected_exception):
+def test_confirm_api_call(
+    bad_url,
+    file_id,
+    expected_exception,
+    s3_config,  # noqa: F811
+):
     """
     Test the confirm_api_call function
     """
-    with MockAPIContainer() as api:
+    with MockAPIContainer(s3_config=s3_fixture.config) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:

@@ -19,7 +19,6 @@
 from pathlib import Path
 
 import requests
-from ghga_service_chassis_lib.s3 import S3ConfigBase
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_container_is_ready
 

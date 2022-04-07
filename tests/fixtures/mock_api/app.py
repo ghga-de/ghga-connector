@@ -28,9 +28,9 @@ from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
-from ghga_service_chassis_lib.s3 import ObjectStorageS3 as ObjectStorage
-from ghga_service_chassis_lib.s3_testing import S3ConfigBase
 from pydantic import BaseModel
+
+from ..state import FILES
 
 
 # fmt: off
@@ -169,7 +169,7 @@ async def ulc_confirm_upload(file_id: str, state: State):
     Mock for the drs3 /confirm_upload/{file_id} call
     """
 
-    if file_id == "uploaded":
+    if file_id == state.FILES["file_in_inbox"]:
         if state.state == UploadState.REGISTERED:
             return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -184,20 +184,4 @@ async def ulc_confirm_upload(file_id: str, state: State):
             f'The file with id "{file_id}" is registered for upload'
             + " but its content was not found in the inbox."
         ),
-    )
-
-
-def build_config_from_env() -> S3ConfigBase:
-
-    """
-    Builds the s3 config base from the environment varibles
-    injected into the mock API container
-    """
-
-    return S3ConfigBase(
-        s3_endpoint_url=os.environ["S3_KEY_ID"],
-        s3_access_key_id=os.environ["S3_SECRET_KEY"],
-        s3_secret_access_key=os.environ["S3_ENPOINT_URL"],
-        s3_session_token=None,
-        aws_config_ini=None,
     )

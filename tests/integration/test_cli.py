@@ -132,12 +132,11 @@ def test_confirm_api_call(
     bad_url,
     file_id,
     expected_exception,
-    s3_fixture,  # noqa: F811
 ):
     """
     Test the confirm_api_call function
     """
-    with MockAPIContainer(s3_config=s3_fixture.config) as api:
+    with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:

@@ -30,8 +30,6 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from ..state import FILES
-
 
 # fmt: off
 class UploadState(Enum):
@@ -120,7 +118,7 @@ async def drs3_objects(file_id: str):
             status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
         )
 
-    if file_id == FILES["file_in_outbox"].file_id:
+    if file_id == "downloadable":
 
         return DrsObjectServe(
             file_id=file_id,
@@ -151,7 +149,7 @@ async def ulc_presigned_post(file_id: str):
     Mock for the ulc /presigned_post/{file_id} call.
     """
 
-    if file_id == FILES["file_can_be_uploaded"].file_id:
+    if file_id == "uploadable":
         return {"presigned_post": os.environ["s3_upload_url"]}
 
     raise HTTPException(
@@ -169,7 +167,7 @@ async def ulc_confirm_upload(file_id: str, state: State):
     Mock for the drs3 /confirm_upload/{file_id} call
     """
 
-    if file_id == state.FILES["file_in_inbox"]:
+    if file_id == "uploaded":
         if state.state == UploadState.REGISTERED:
             return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 

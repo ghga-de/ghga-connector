@@ -30,8 +30,6 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from ..state import FILES
-
 
 # fmt: off
 class UploadState(Enum):
@@ -169,7 +167,7 @@ async def ulc_confirm_upload(file_id: str, state: State):
     Mock for the drs3 /confirm_upload/{file_id} call
     """
 
-    if file_id == state.FILES["file_in_inbox"]:
+    if file_id == "uploaded":
         if state.state == UploadState.REGISTERED:
             return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
 

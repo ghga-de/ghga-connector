@@ -140,7 +140,7 @@ def test_confirm_api_call(
             assert isinstance(exception, expected_exception)
 
 
-def get_presigned_download_url(s3_fixture) -> str:  # noqa F811
+def get_presigned_download_url(s3_fixture=s3_fixture) -> str:  # noqa F811
 
     """
     Returns the presigned url for download
@@ -158,7 +158,7 @@ def get_presigned_download_url(s3_fixture) -> str:  # noqa F811
     return download_url
 
 
-def get_presigned_upload_url(s3_fixture) -> str:  # noqa F811
+def get_presigned_upload_url(s3_fixture=s3_fixture) -> str:  # noqa F811
 
     """
     Returns the presigned url for upload

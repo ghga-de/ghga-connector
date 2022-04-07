@@ -16,7 +16,6 @@
 
 """A testcontainer for running the mock app in the background."""
 
-import json
 from pathlib import Path
 
 import requests

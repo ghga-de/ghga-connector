@@ -34,7 +34,7 @@ from ghga_connector.core import (
     confirm_api_call,
 )
 
-from ..fixtures import s3_fixture
+from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
@@ -126,7 +126,7 @@ def test_confirm_api_call(
     bad_url,
     file_id,
     expected_exception,
-    s3_config,  # noqa: F811
+    s3_fixture,  # noqa: F811
 ):
     """
     Test the confirm_api_call function

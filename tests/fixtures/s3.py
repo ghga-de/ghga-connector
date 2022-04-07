@@ -22,7 +22,7 @@ from ghga_service_chassis_lib.s3_testing import s3_fixture_factory
 
 from . import state
 
-existing_buckets: List[str] = ["inbox, outbox"]
+existing_buckets: List[str] = ["inbox", "outbox"]
 existing_objects: List[ObjectFixture] = []
 
 for file in state.FILES.values():

@@ -16,7 +16,6 @@
 
 """A testcontainer for running the mock app in the background."""
 
-import json
 from pathlib import Path
 
 import requests
@@ -35,7 +34,7 @@ class MockAPIContainer(DockerContainer):
 
     def __init__(
         self,
-        s3_config: S3ConfigBase = None,
+        s3_config: S3ConfigBase,
         image: str = "ghga/fastapi_essentials:0.73.0",
         port: int = 8000,
     ) -> None:
@@ -52,8 +51,9 @@ class MockAPIContainer(DockerContainer):
         self._port = port
 
         self.with_exposed_ports(self._port)
-        if s3_config is not None:
-            self.with_env("S3_CONFIG_BASE", json.dumps(s3_config))
+        self.with_env("S3_KEY_ID", s3_config.s3_access_key_id)
+        self.with_env("S3_SECRET_KEY", s3_config.s3_secret_access_key)
+        self.with_env("S3_ENPOINT_URL", s3_config.s3_endpoint_url)
         self.with_volume_mapping(host=str(APP_MODULE_PATH), container="/app.py")
         self.with_command(
             f"python3 -m uvicorn --host 0.0.0.0 --port {self._port} --app-dir / app:app"

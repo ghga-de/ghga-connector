@@ -104,7 +104,7 @@ def test_upload(
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
-    with MockAPIContainer(config=s3_fixture.config) as api:
+    with MockAPIContainer(s3_config=s3_fixture.config) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:

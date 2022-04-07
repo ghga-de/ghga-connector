@@ -68,19 +68,13 @@ FILES: Dict[str, FileState] = {
     "file_in_inbox": FileState(
         file_id="uploaded",
         grouping_label="inbox",
-        file_path=TEST_FILE_PATHS[0],
+        file_path=TEST_FILE_PATHS[1],
         populate_storage=True,
     ),
     "file_in_outbox": FileState(
         file_id="downloadable",
         grouping_label="outbox",
-        file_path=TEST_FILE_PATHS[1],
-        populate_storage=True,
-    ),
-    "file_known_to_drs3": FileState(
-        file_id="retry",
-        grouping_label="outbox",
         file_path=TEST_FILE_PATHS[2],
-        populate_storage=False,
+        populate_storage=True,
     ),
 }

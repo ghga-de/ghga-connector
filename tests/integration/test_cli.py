@@ -20,6 +20,7 @@ from os import path
 
 import pytest
 import typer
+from ghga_service_chassis_lib.s3 import ObjectStorageS3 as ObjectStorage
 
 from ghga_connector.cli import (
     ApiNotReachable,
@@ -35,6 +36,7 @@ from ghga_connector.core import (
 )
 
 from ..fixtures import s3_fixture  # noqa: F401
+from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
@@ -57,11 +59,10 @@ def test_download(
     output_dir,
     max_wait_time,
     expected_exception,
-    s3_fixture,  # noqa: F811
 ):
     """Test the download of a file, expects Abort, if the file was not found"""
 
-    with MockAPIContainer(s3_config=s3_fixture.config) as api:
+    with MockAPIContainer(s3_download_url=get_presigned_download_url()) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -100,11 +101,10 @@ def test_upload(
     file_id,
     file_path,
     expected_exception,
-    s3_fixture,  # noqa: F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
-    with MockAPIContainer(s3_config=s3_fixture.config) as api:
+    with MockAPIContainer(s3_upload_url=get_presigned_upload_url()) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -126,12 +126,11 @@ def test_confirm_api_call(
     bad_url,
     file_id,
     expected_exception,
-    s3_fixture,  # noqa: F811
 ):
     """
     Test the confirm_api_call function
     """
-    with MockAPIContainer(s3_config=s3_fixture.config) as api:
+    with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -139,3 +138,39 @@ def test_confirm_api_call(
             assert expected_exception is None
         except Exception as exception:
             assert isinstance(exception, expected_exception)
+
+
+def get_presigned_download_url(s3_fixture) -> str:  # noqa F811
+
+    """
+    Returns the presigned url for download
+    """
+
+    download_file = state.FILES["file_in_outbox"]
+
+    with ObjectStorage(config=s3_fixture.config) as storage:
+        download_url = storage.get_object_download_url(
+            bucket_id=download_file.grouping_label,
+            object_id=download_file.file_id,
+            expires_after=60,
+        )
+
+    return download_url
+
+
+def get_presigned_upload_url(s3_fixture) -> str:  # noqa F811
+
+    """
+    Returns the presigned url for upload
+    """
+
+    upload_file = state.FILES["file_can_be_uploaded"]
+
+    with ObjectStorage(config=s3_fixture.config) as storage:
+        upload_url = storage.get_object_upload_url(
+            bucket_id=upload_file.grouping_label,
+            object_id=upload_file.file_id,
+            expires_after=60,
+        )
+
+    return upload_url

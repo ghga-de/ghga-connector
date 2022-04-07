@@ -164,7 +164,7 @@ def get_presigned_download_url(s3_config) -> str:
     return download_url
 
 
-def get_presigned_upload_url(s3_config) -> str:  # noqa F811
+def get_presigned_upload_url(s3_config) -> str:
 
     """
     Returns the presigned url for upload

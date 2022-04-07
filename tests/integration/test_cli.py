@@ -59,10 +59,13 @@ def test_download(
     output_dir,
     max_wait_time,
     expected_exception,
+    s3_fixture,  # noqa F811
 ):
     """Test the download of a file, expects Abort, if the file was not found"""
 
-    with MockAPIContainer(s3_download_url=get_presigned_download_url()) as api:
+    with MockAPIContainer(
+        s3_download_url=get_presigned_download_url(s3_config=s3_fixture.config)
+    ) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -101,10 +104,13 @@ def test_upload(
     file_id,
     file_path,
     expected_exception,
+    s3_fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
-    with MockAPIContainer(s3_upload_url=get_presigned_upload_url()) as api:
+    with MockAPIContainer(
+        s3_upload_url=get_presigned_upload_url(s3_config=s3_fixture.config)
+    ) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -140,7 +146,7 @@ def test_confirm_api_call(
             assert isinstance(exception, expected_exception)
 
 
-def get_presigned_download_url(s3_fixture=s3_fixture) -> str:  # noqa F811
+def get_presigned_download_url(s3_config) -> str:
 
     """
     Returns the presigned url for download
@@ -148,7 +154,7 @@ def get_presigned_download_url(s3_fixture=s3_fixture) -> str:  # noqa F811
 
     download_file = state.FILES["file_in_outbox"]
 
-    with ObjectStorage(config=s3_fixture.config) as storage:
+    with ObjectStorage(config=s3_config) as storage:
         download_url = storage.get_object_download_url(
             bucket_id=download_file.grouping_label,
             object_id=download_file.file_id,
@@ -158,7 +164,7 @@ def get_presigned_download_url(s3_fixture=s3_fixture) -> str:  # noqa F811
     return download_url
 
 
-def get_presigned_upload_url(s3_fixture=s3_fixture) -> str:  # noqa F811
+def get_presigned_upload_url(s3_config) -> str:  # noqa F811
 
     """
     Returns the presigned url for upload
@@ -166,7 +172,7 @@ def get_presigned_upload_url(s3_fixture=s3_fixture) -> str:  # noqa F811
 
     upload_file = state.FILES["file_can_be_uploaded"]
 
-    with ObjectStorage(config=s3_fixture.config) as storage:
+    with ObjectStorage(config=s3_config) as storage:
         upload_url = storage.get_object_upload_url(
             bucket_id=upload_file.grouping_label,
             object_id=upload_file.file_id,

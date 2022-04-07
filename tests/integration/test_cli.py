@@ -132,6 +132,7 @@ def test_confirm_api_call(
     bad_url,
     file_id,
     expected_exception,
+    s3_fixture,  # noqa: F811
 ):
     """
     Test the confirm_api_call function

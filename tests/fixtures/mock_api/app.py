@@ -129,7 +129,7 @@ async def drs3_objects(file_id: str):
             checksums=[Checksum(checksum="1", type="md5")],
             access_methods=[
                 AccessMethod(
-                    access_url=AccessURL(url=os.environ["s3_download_url"]), type="s3"
+                    access_url=AccessURL(url=os.environ["S3_DOWNLOAD_URL"]), type="s3"
                 )
             ],
         )
@@ -150,7 +150,7 @@ async def ulc_presigned_post(file_id: str):
     """
 
     if file_id == "uploadable":
-        return {"presigned_post": os.environ["s3_upload_url"]}
+        return {"presigned_post": os.environ["S3_UPLOAD_URL"]}
 
     raise HTTPException(
         status_code=404,

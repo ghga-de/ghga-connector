@@ -33,8 +33,8 @@ class MockAPIContainer(DockerContainer):
 
     def __init__(
         self,
-        s3_download_url: str = "test_download_url",
-        s3_upload_url: str = "test_upload_url",
+        s3_download_url: str = "test://download.url",
+        s3_upload_url: str = "test://upload.url",
         image: str = "ghga/fastapi_essentials:0.73.0",
         port: int = 8000,
     ) -> None:

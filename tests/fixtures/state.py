@@ -43,17 +43,13 @@ class FileState:
         self.file_path = file_path
         self.populate_storage = populate_storage
 
-        # computed attributes:
-        with open(self.file_path, "rb") as file:
-            self.content = file.read()
-
         self.storage_objects: List[ObjectFixture] = []
         if self.populate_storage:
             self.storage_objects.append(
                 ObjectFixture(
                     file_path=self.file_path,
                     bucket_id=self.grouping_label,
-                    object_id=str(self.file_id),
+                    object_id=self.file_id,
                 )
             )
 

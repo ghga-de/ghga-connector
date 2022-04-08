@@ -28,6 +28,7 @@ from ghga_connector.core import (
     download_api_call,
     upload_api_call,
 )
+from ghga_connector.core.file_operations import download_file
 
 
 class DirectoryNotExist(RuntimeError):
@@ -83,11 +84,12 @@ def upload(
         typer.echo("The request has failed.")
         raise typer.Abort() from error
 
+    # Upload File
     typer.echo(f"File with id '{file_id}' can be uploaded via {response_url}.")
 
 
 @cli.command()
-def download(
+def download(  # noqa C901
     api_url: str = typer.Option(..., help="Url to the DRS3"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     output_dir: str = typer.Option(
@@ -108,7 +110,8 @@ def download(
 
     # get the download_url, wait if needed
     wait_time = 0
-    while True:
+    download_url = None
+    while download_url is None:
 
         try:
             download_url, retry_time = download_api_call(api_url, file_id)
@@ -130,4 +133,17 @@ def download(
         sleep(retry_time)
 
     # perform the download:
-    typer.echo(f"File with id '{file_id}' can be download via {download_url}.")
+    output_file = path.join(output_dir, file_id)
+
+    try:
+        download_file(download_url=download_url, output_file=output_file)
+    except BadResponseCodeError as error:
+        typer.echo(
+            "The download request was invalid and returnd a wrong HTTP status code."
+        )
+        raise error
+    except RequestFailedError as error:
+        typer.echo("The download request has failed.")
+        raise error
+
+    typer.echo(f"File with id '{file_id}' has been successfully downloaded.")

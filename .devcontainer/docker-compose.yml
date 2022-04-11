@@ -38,8 +38,6 @@ services:
 
   localstack:
     image: localstack/localstack
-    ports:
-      - "4566:4566"
     environment:
       SERVICES: s3
       DEFAULT_REGION: eu-west-1
@@ -55,6 +53,6 @@ services:
         target: /tmp/localstack
         volume:
           nocopy: true
-
+    # useful ports: 4566 - AWS API
 volumes:
   s3_fs: {}

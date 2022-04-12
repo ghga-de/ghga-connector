@@ -18,15 +18,17 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
+import os
+
 import pycurl
 
 from .exceptions import BadResponseCodeError, RequestFailedError
 
 
-def download_file(download_url, output_file):
+def download_file(download_url, output_file_path):
     """Download File"""
 
-    with open(output_file, "wb") as file:
+    with open(output_file_path, "wb") as file:
         curl = pycurl.Curl()
         curl.setopt(curl.URL, download_url)
         curl.setopt(curl.WRITEDATA, file)
@@ -42,3 +44,25 @@ def download_file(download_url, output_file):
         return
 
     raise BadResponseCodeError(url=download_url, response_code=status_code)
+
+
+def upload_file(upload_url, upload_file_path):
+    """Upload File"""
+
+    file_size = os.path.getsize(upload_file_path)
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, upload_url)
+    curl.setopt(curl.POSTFIELDS, upload_file_path)
+    curl.setopt(curl.CURLOPT_POSTFIELDSIZE, file_size)
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(upload_url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
+
+    if status_code == 200:
+        return
+
+    raise BadResponseCodeError(url=upload_url, response_code=status_code)

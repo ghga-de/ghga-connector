@@ -28,7 +28,7 @@ from ghga_connector.core import (
     download_api_call,
     upload_api_call,
 )
-from ghga_connector.core.file_operations import download_file
+from ghga_connector.core.file_operations import download_file, upload_file
 
 
 class DirectoryNotExist(RuntimeError):
@@ -76,7 +76,7 @@ def upload(
         raise typer.Abort()
 
     try:
-        response_url = upload_api_call(api_url, file_id)
+        upload_url = upload_api_call(api_url, file_id)
     except BadResponseCodeError as error:
         typer.echo("The request was invalid and returnd a wrong HTTP status code.")
         raise typer.Abort() from error
@@ -85,7 +85,17 @@ def upload(
         raise typer.Abort() from error
 
     # Upload File
-    typer.echo(f"File with id '{file_id}' can be uploaded via {response_url}.")
+    try:
+        upload_file(upload_url=upload_url, upload_file_path=file_path)
+    except BadResponseCodeError as error:
+        typer.echo(
+            "The upload request was invalid and returnd a wrong HTTP status code."
+        )
+        raise error
+    except RequestFailedError as error:
+        typer.echo("The upload request has failed.")
+        raise error
+    typer.echo(f"File with id '{file_id}' has been successfully uploaded.")
 
 
 @cli.command()
@@ -136,7 +146,7 @@ def download(  # noqa C901
     output_file = path.join(output_dir, file_id)
 
     try:
-        download_file(download_url=download_url, output_file=output_file)
+        download_file(download_url=download_url, output_file_path=output_file)
     except BadResponseCodeError as error:
         typer.echo(
             "The download request was invalid and returnd a wrong HTTP status code."

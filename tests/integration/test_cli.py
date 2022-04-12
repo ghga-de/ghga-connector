@@ -85,7 +85,7 @@ def test_download(
 
 
 @pytest.mark.parametrize(
-    "bad_url,file_id,file_path,expected_exception",
+    "bad_url,file_id,expected_exception",
     [
         (True, "file_uploadable", typer.Abort),
         (False, "file_uploadeable", None),

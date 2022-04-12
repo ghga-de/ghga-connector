@@ -165,6 +165,7 @@ def get_presigned_download_url(s3_config) -> str:
 
 
 def get_presigned_upload_url(s3_config) -> str:
+
     """
     Returns the presigned url for upload
     """

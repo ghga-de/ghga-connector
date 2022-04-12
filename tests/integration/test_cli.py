@@ -87,33 +87,22 @@ def test_download(
 @pytest.mark.parametrize(
     "bad_url,file_id,file_path,expected_exception",
     [
-        (
-            True,
-            "uploadable",
-            EXAMPLE_FOLDER,
-            typer.Abort,
-        ),
-        (False, "uploadable", path.join(EXAMPLE_FOLDER, "file1.test"), None),
-        (False, "not_uploadable", path.join(EXAMPLE_FOLDER, "file2.test"), typer.Abort),
-        (
-            False,
-            "1",
-            "/this_path/does_not_exist.test",
-            typer.Abort,
-        ),
+        (True, "file_uploadable", typer.Abort),
+        (False, "file_uploadeable", None),
+        (False, "file_not_uploadable", typer.Abort),
+        (False, "file_with_bad_path", typer.Abort),
     ],
 )
 def test_upload(
     bad_url,
-    file_id,
-    file_path,
+    file_name,
     expected_exception,
     s3_fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
-    uploadeable_file = state.FILES["file_can_be_uploaded"]
-    upload_url = s3_fixture.storage.get_object_download_url(
+    uploadeable_file = state.FILES[file_name]
+    upload_url = s3_fixture.storage.get_object_upload_url(
         bucket_id=uploadeable_file.grouping_label,
         object_id=uploadeable_file.file_id,
         expires_after=60,
@@ -123,7 +112,7 @@ def test_upload(
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
-            upload(api_url, file_id, file_path)
+            upload(api_url, uploadeable_file.file_id, uploadeable_file.file_path)
             assert expected_exception is None
         except Exception as exception:
             assert isinstance(exception, expected_exception)

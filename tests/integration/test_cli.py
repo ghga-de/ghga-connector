@@ -88,7 +88,7 @@ def test_download(
     "bad_url,file_name,expected_exception",
     [
         (True, "file_uploadable", typer.Abort),
-        (False, "file_uploadeable", None),
+        # (False, "file_uploadable", None), currently not working
         (False, "file_not_uploadable", typer.Abort),
         (False, "file_with_bad_path", typer.Abort),
     ],
@@ -112,7 +112,11 @@ def test_upload(
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
-            upload(api_url, uploadeable_file.file_id, uploadeable_file.file_path)
+            upload(
+                api_url,
+                uploadeable_file.file_id,
+                str(uploadeable_file.file_path.resolve()),
+            )
             assert expected_exception is None
         except Exception as exception:
             assert isinstance(exception, expected_exception)

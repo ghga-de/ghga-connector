@@ -55,20 +55,20 @@ class FileState:
 
 
 FILES: Dict[str, FileState] = {
-    "file_uploadeable": FileState(
+    "file_uploadable": FileState(
         file_id="uploadable",
         grouping_label="inbox",
         file_path=TEST_FILE_PATHS[0],
         populate_storage=False,
     ),
     "file_not_uploadable": FileState(
-        file_id="not_uploadable",
+        file_id="not-uploadable",
         grouping_label="inbox",
         file_path=TEST_FILE_PATHS[1],
         populate_storage=False,
     ),
     "file_with_bad_path": FileState(
-        file_id="bad_path",
+        file_id="bad-path",
         grouping_label="inbox",
         file_path=Path("/bad/path.xyz"),
         populate_storage=False,

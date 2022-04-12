@@ -76,7 +76,7 @@ def upload(
         raise typer.Abort()
 
     try:
-        upload_url = upload_api_call(api_url, file_id)
+        presigned_post = upload_api_call(api_url, file_id)
     except BadResponseCodeError as error:
         typer.echo("The request was invalid and returnd a wrong HTTP status code.")
         raise typer.Abort() from error
@@ -86,7 +86,7 @@ def upload(
 
     # Upload File
     try:
-        upload_file(upload_url=upload_url, upload_file_path=file_path)
+        upload_file(presigned_post=presigned_post, upload_file_path=file_path)
     except BadResponseCodeError as error:
         typer.echo(
             "The upload request was invalid and returnd a wrong HTTP status code."

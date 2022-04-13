@@ -26,9 +26,10 @@ from ghga_connector.core import (
     RequestFailedError,
     check_url,
     download_api_call,
+    download_file,
     upload_api_call,
+    upload_file,
 )
-from ghga_connector.core.file_operations import download_file, upload_file
 
 
 class DirectoryNotExist(RuntimeError):

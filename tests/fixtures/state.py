@@ -79,7 +79,7 @@ FILES: Dict[str, FileState] = {
         file_path=TEST_FILE_PATHS[2],
         populate_storage=True,
     ),
-    "file_in_outbox": FileState(
+    "file_downloadable": FileState(
         file_id="downloadable",
         grouping_label="outbox",
         file_path=TEST_FILE_PATHS[3],

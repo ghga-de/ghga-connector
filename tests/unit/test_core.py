@@ -17,7 +17,7 @@
 """Tests for the core functions of the cli"""
 
 from filecmp import cmp
-from os import path
+from os import path, remove
 
 import pytest
 
@@ -27,7 +27,14 @@ from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.utils import BASE_DIR
 
-EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "temp")
+EXAMPLE_File = path.join(BASE_DIR.parent.parent.resolve(), "temp/downloadable")
+
+
+def teardown_module():
+    """
+    Delete the downloaded file
+    """
+    remove(EXAMPLE_File)
 
 
 @pytest.mark.parametrize(
@@ -80,8 +87,6 @@ def test_download_file(
         expires_after=60,
     )
 
-    example_file = path.join(EXAMPLE_FOLDER, "downloadable.test")
+    download_file(download_url, EXAMPLE_File)
 
-    download_file(download_url, example_file)
-
-    assert cmp(example_file, downloadable_file.file_path)
+    assert cmp(EXAMPLE_File, downloadable_file.file_path)

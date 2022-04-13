@@ -17,7 +17,7 @@
 """Tests for the up- and download functions of the cli"""
 
 from filecmp import cmp
-from os import path
+from os import path, remove
 
 import pytest
 import typer
@@ -41,6 +41,13 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
 EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "temp")
+
+
+def teardown_module():
+    """
+    Delete the downloaded file
+    """
+    remove(path.join(EXAMPLE_FOLDER, "downloadable"))
 
 
 @pytest.mark.parametrize(

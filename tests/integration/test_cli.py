@@ -40,7 +40,7 @@ from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
-EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "temp")
+EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
 
 
 def teardown_module():

@@ -27,7 +27,7 @@ from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.utils import BASE_DIR
 
-EXAMPLE_File = path.join(BASE_DIR.parent.parent.resolve(), "temp/downloadable")
+EXAMPLE_File = path.join(BASE_DIR.parent.parent.resolve(), "example_data/downloadable")
 
 
 def teardown_module():

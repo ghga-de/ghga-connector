@@ -16,22 +16,18 @@
 
 """Tests for the core functions of the cli"""
 
+from filecmp import cmp
 from os import path
 
 import pytest
 
-from ghga_connector.core import (
-    RequestFailedError,
-    check_url,
-    download_file,
-    upload_file,
-)
+from ghga_connector.core import check_url, download_file, upload_file
 
 from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.utils import BASE_DIR
 
-EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
+EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "temp")
 
 
 @pytest.mark.parametrize(
@@ -47,33 +43,27 @@ def test_check_url(api_url, wait_time, expected_response):
     assert response == expected_response
 
 
-@pytest.mark.parametrize(
-    "file_name, expected_exception",
-    [("file_uploadable", None), ("file_with_bad_path", RequestFailedError)],
-)
 def test_upload_file(
-    file_name,
-    expected_exception,
     s3_fixture,  # noqa F811
 ):
     """
     Test the upload_url function
     """
 
-    uploadeable_file = state.FILES[file_name]
+    uploadable_file = state.FILES["file_uploadable"]
     presigned_post = s3_fixture.storage.get_object_upload_url(
-        bucket_id=uploadeable_file.grouping_label,
-        object_id=uploadeable_file.file_id,
+        bucket_id=uploadable_file.grouping_label,
+        object_id=uploadable_file.file_id,
         expires_after=60,
     )
-    try:
-        upload_file(
-            presigned_post=presigned_post,
-            upload_file_path=str(uploadeable_file.file_path.resolve()),
-        )
-        assert expected_exception is None
-    except Exception as exception:
-        assert isinstance(exception, expected_exception)
+    upload_file(
+        presigned_post=presigned_post,
+        upload_file_path=str(uploadable_file.file_path.resolve()),
+    )
+    assert s3_fixture.storage.does_object_exist(
+        bucket_id=uploadable_file.grouping_label,
+        object_id=uploadable_file.file_id,
+    )
 
 
 def test_download_file(
@@ -90,4 +80,8 @@ def test_download_file(
         expires_after=60,
     )
 
-    download_file(download_url, EXAMPLE_FOLDER)
+    example_file = path.join(EXAMPLE_FOLDER, "downloadable.test")
+
+    download_file(download_url, example_file)
+
+    assert cmp(example_file, downloadable_file.file_path)

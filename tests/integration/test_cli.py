@@ -16,6 +16,7 @@
 
 """Tests for the up- and download functions of the cli"""
 
+from filecmp import cmp
 from os import path
 
 import pytest
@@ -39,7 +40,7 @@ from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 from ..fixtures.utils import BASE_DIR
 
-EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
+EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "temp")
 
 
 @pytest.mark.parametrize(
@@ -80,6 +81,7 @@ def test_download(
                 max_wait_time=int(max_wait_time),
             )
             assert expected_exception is None
+            assert cmp(path.join(output_dir, file_id), downloadable_file.file_path)
         except Exception as exception:
             assert isinstance(exception, expected_exception)
 
@@ -101,10 +103,10 @@ def test_upload(
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
-    uploadeable_file = state.FILES[file_name]
+    uploadable_file = state.FILES[file_name]
     upload_url = s3_fixture.storage.get_object_upload_url(
-        bucket_id=uploadeable_file.grouping_label,
-        object_id=uploadeable_file.file_id,
+        bucket_id=uploadable_file.grouping_label,
+        object_id=uploadable_file.file_id,
         expires_after=60,
     )
 
@@ -116,10 +118,14 @@ def test_upload(
         try:
             upload(
                 api_url,
-                uploadeable_file.file_id,
-                str(uploadeable_file.file_path.resolve()),
+                uploadable_file.file_id,
+                str(uploadable_file.file_path.resolve()),
             )
             assert expected_exception is None
+            assert s3_fixture.storage.does_object_exist(
+                bucket_id=uploadable_file.grouping_label,
+                object_id=uploadable_file.file_id,
+            )
         except Exception as exception:
             assert isinstance(exception, expected_exception)
 

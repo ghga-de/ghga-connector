@@ -49,18 +49,12 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
     """Upload File"""
 
     url = presigned_post.url
-    fields = presigned_post.fields
-
-    url = presigned_post.url
     curl = pycurl.Curl()
     curl.setopt(curl.URL, url)
-    curl.setopt(curl.CUSTOMREQUEST, "PUT")
+    curl.setopt(curl.POST, 1)
     fields = presigned_post.fields
-    fields.update({"fileupload": (curl.FORM_FILE, upload_file_path)})
-    curl.setopt(
-        curl.HTTPPOST,
-        list(fields.items()),
-    )
+    fields.update({"file": (curl.FORM_FILE, upload_file_path)})
+    curl.setopt(curl.HTTPPOST, list(fields.items()))
 
     try:
         curl.perform()
@@ -70,7 +64,7 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
     status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     curl.close()
 
-    if status_code == 200:
+    if status_code == 204:
         return
 
     raise BadResponseCodeError(url=url, response_code=status_code)

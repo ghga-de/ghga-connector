@@ -18,7 +18,7 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
-import os
+import json
 
 import pycurl
 from ghga_service_chassis_lib.s3 import PresignedPostURL
@@ -51,13 +51,25 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
     """Upload File"""
 
     url = presigned_post.url
-    header_fields = presigned_post.fields
-    file_size = os.path.getsize(upload_file_path)
+    fields = presigned_post.fields
+    postfields = json.dumps(fields)
     curl = pycurl.Curl()
     curl.setopt(curl.URL, url)
-    curl.setopt(curl.HTTPHEADER, header_fields)
-    curl.setopt(curl.POSTFIELDS, upload_file_path)
-    curl.setopt(curl.POSTFIELDSIZE, file_size)
+    curl.setopt(curl.UPLOAD, 1)
+    curl.setopt(
+        curl.HTTPPOST,
+        [
+            (
+                "fileupload",
+                (
+                    curl.FORM_FILE,
+                    upload_file_path,
+                ),
+            )
+        ],
+    )
+    curl.setopt(curl.POSTFIELDS, postfields)
+
     try:
         curl.perform()
     except pycurl.error as pycurl_error:

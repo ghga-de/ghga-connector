@@ -105,7 +105,7 @@ def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
     dictionary = json.loads(data.getvalue())
     presigned_post = dictionary["presigned_post"]
 
-    return presigned_post
+    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
 
 
 def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:

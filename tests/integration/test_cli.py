@@ -88,7 +88,7 @@ def test_download(
     "bad_url,file_name,expected_exception",
     [
         (True, "file_uploadable", typer.Abort),
-        # (False, "file_uploadable", None), currently not working
+        (False, "file_uploadable", None),
         (False, "file_not_uploadable", typer.Abort),
         (False, "file_with_bad_path", typer.Abort),
     ],
@@ -108,7 +108,9 @@ def test_upload(
         expires_after=60,
     )
 
-    with MockAPIContainer(s3_upload_url=upload_url) as api:
+    with MockAPIContainer(
+        s3_upload_url=upload_url.url, s3_upload_fields=upload_url.fields
+    ) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:

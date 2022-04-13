@@ -18,8 +18,6 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
-import json
-
 import pycurl
 from ghga_service_chassis_lib.s3 import PresignedPostURL
 
@@ -52,23 +50,17 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
 
     url = presigned_post.url
     fields = presigned_post.fields
-    postfields = json.dumps(fields)
+
+    url = presigned_post.url
     curl = pycurl.Curl()
     curl.setopt(curl.URL, url)
-    curl.setopt(curl.UPLOAD, 1)
+    curl.setopt(curl.CUSTOMREQUEST, "PUT")
+    fields = presigned_post.fields
+    fields.update({"fileupload": (curl.FORM_FILE, upload_file_path)})
     curl.setopt(
         curl.HTTPPOST,
-        [
-            (
-                "fileupload",
-                (
-                    curl.FORM_FILE,
-                    upload_file_path,
-                ),
-            )
-        ],
+        list(fields.items()),
     )
-    curl.setopt(curl.POSTFIELDS, postfields)
 
     try:
         curl.perform()

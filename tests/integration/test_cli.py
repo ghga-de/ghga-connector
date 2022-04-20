@@ -17,7 +17,7 @@
 """Tests for the up- and download functions of the cli"""
 
 from filecmp import cmp
-from os import path, remove
+from pathlib import Path
 
 import pytest
 import typer
@@ -38,38 +38,36 @@ from ghga_connector.core import (
 from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
-from ..fixtures.utils import BASE_DIR
-
-EXAMPLE_FOLDER = path.join(BASE_DIR.parent.parent.resolve(), "example_data")
-
-
-def teardown_module():
-    """
-    Delete the downloaded file
-    """
-    remove(path.join(EXAMPLE_FOLDER, "downloadable"))
 
 
 @pytest.mark.parametrize(
-    "bad_url,file_id,output_dir,max_wait_time,expected_exception",
+    "bad_url,bad_outdir,file_id,max_wait_time,expected_exception",
     [
-        (True, "downloadable", EXAMPLE_FOLDER, "60", ApiNotReachable),
-        (False, "downloadable", EXAMPLE_FOLDER, "60", None),
-        (False, "not_downloadable", EXAMPLE_FOLDER, "60", BadResponseCodeError),
-        (False, "retry", EXAMPLE_FOLDER, "60", MaxWaitTimeExceeded),
-        (False, "downloadable", "/this_path/", "60", DirectoryNotExist),
+        (True, False, "downloadable", "60", ApiNotReachable),
+        (False, False, "downloadable", "60", None),
+        (
+            False,
+            False,
+            "not_downloadable",
+            "60",
+            BadResponseCodeError,
+        ),
+        (False, False, "retry", "60", MaxWaitTimeExceeded),
+        (False, True, "downloadable", "60", DirectoryNotExist),
     ],
 )
 def test_download(
     bad_url,
+    bad_outdir,
     file_id,
-    output_dir,
     max_wait_time,
     expected_exception,
     s3_fixture,  # noqa F811
+    tmp_path,
 ):
     """Test the download of a file, expects Abort, if the file was not found"""
 
+    output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
     downloadable_file = state.FILES["file_downloadable"]
     download_url = s3_fixture.storage.get_object_download_url(
         bucket_id=downloadable_file.grouping_label,
@@ -88,7 +86,7 @@ def test_download(
                 max_wait_time=int(max_wait_time),
             )
             assert expected_exception is None
-            assert cmp(path.join(output_dir, file_id), downloadable_file.file_path)
+            assert cmp(output_dir / file_id, downloadable_file.file_path)
         except Exception as exception:
             assert isinstance(exception, expected_exception)
 

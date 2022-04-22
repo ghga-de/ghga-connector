@@ -51,6 +51,32 @@ def download_file_part(
     raise BadResponseCodeError(url=download_url, response_code=status_code)
 
 
+def download_file_part(download_url, output_file_path, part_size, part_number):
+    """Download File"""
+
+    offset = part_number * part_size
+
+    with open(output_file_path, "wb") as file:
+        file.seek(offset)
+        curl = pycurl.Curl()
+
+        # ODO: Add Header with Range (based on part size)
+        curl.setopt(curl.URL, download_url)
+        curl.setopt(curl.WRITEDATA, file)
+        try:
+            curl.perform()
+        except pycurl.error as pycurl_error:
+            raise RequestFailedError(download_url) from pycurl_error
+
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+        curl.close()
+
+    if status_code == 200:
+        return
+
+    raise BadResponseCodeError(url=download_url, response_code=status_code)
+
+
 def upload_file(presigned_post: PresignedPostURL, upload_file_path):
     """Upload File"""
 

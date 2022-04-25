@@ -24,27 +24,6 @@ from ghga_service_chassis_lib.s3 import PresignedPostURL
 from .exceptions import BadResponseCodeError, RequestFailedError
 
 
-def download_file(download_url, output_file_path):
-    """Download File in a single part download"""
-
-    with open(output_file_path, "wb") as file:
-        curl = pycurl.Curl()
-        curl.setopt(curl.URL, download_url)
-        curl.setopt(curl.WRITEDATA, file)
-        try:
-            curl.perform()
-        except pycurl.error as pycurl_error:
-            raise RequestFailedError(download_url) from pycurl_error
-
-        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        curl.close()
-
-    if status_code == 200:
-        return
-
-    raise BadResponseCodeError(url=download_url, response_code=status_code)
-
-
 def download_file_part(download_url, output_file_path, part_offset, part_end):
     """Download File"""
 

@@ -51,16 +51,18 @@ def download_file_part(
     raise BadResponseCodeError(url=download_url, response_code=status_code)
 
 
-def download_file_part(download_url, output_file_path, part_size, part_number):
+def download_file_part(download_url, output_file_path, part_offset, part_end):
     """Download File"""
 
-    offset = part_number * part_size
-
     with open(output_file_path, "wb") as file:
-        file.seek(offset)
+
+        file.seek(part_offset)
         curl = pycurl.Curl()
 
-        # ODO: Add Header with Range (based on part size)
+        curl.setopt(
+            curl.HTTPHEADER,
+            [f"Range: {part_offset}-{part_end}"],
+        )
         curl.setopt(curl.URL, download_url)
         curl.setopt(curl.WRITEDATA, file)
         try:

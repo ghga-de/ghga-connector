@@ -26,7 +26,7 @@ from ghga_connector.core import (
     RequestFailedError,
     check_url,
     download_api_call,
-    download_file,
+    download_file_part,
     upload_api_call,
     upload_file,
 )
@@ -100,14 +100,21 @@ def upload(
 
 
 @cli.command()
-def download(  # noqa C901
+def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branches
     api_url: str = typer.Option(..., help="Url to the DRS3"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     output_dir: str = typer.Option(
         ..., help="The directory to put the downloaded file"
     ),
     max_wait_time: int = typer.Argument(
-        3600, help="Maximal time in seconds to wait before quitting without a download."
+        3600,
+        help="Maximal time in seconds to wait before quitting without a download. ",
+    ),
+    part_size: int = typer.Argument(
+        16777216, help="Part size of the downloaded chunks."
+    ),
+    max_retries: int = typer.Argument(
+        3, help="Maximum number of tries to download a single file part."
     ),
 ):
     """
@@ -125,7 +132,7 @@ def download(  # noqa C901
     while download_url is None:
 
         try:
-            download_url, retry_time = download_api_call(api_url, file_id)
+            download_url, retry_time, file_size = download_api_call(api_url, file_id)
         except BadResponseCodeError as error:
             typer.echo("The request was invalid and returnd a wrong HTTP status code.")
             raise error
@@ -146,15 +153,38 @@ def download(  # noqa C901
     # perform the download:
     output_file = path.join(output_dir, file_id)
 
-    try:
-        download_file(download_url=download_url, output_file_path=output_file)
-    except BadResponseCodeError as error:
-        typer.echo(
-            "The download request was invalid and returnd a wrong HTTP status code."
-        )
-        raise error
-    except RequestFailedError as error:
-        typer.echo("The download request has failed.")
-        raise error
+    retries = 0
+    part_offset = 0
+
+    while part_offset < file_size:
+
+        # Calculetes end of byte range of the file
+        part_end = part_offset + part_size - 1
+        if part_end > file_size:
+            part_end = file_size - 1
+
+        try:
+            download_file_part(
+                download_url=download_url,
+                output_file_path=output_file,
+                part_offset=part_offset,
+                part_end=part_end,
+            )
+
+            # If part download was successfull, set retries to 0 and go to next part
+            retries = 0
+            part_offset += part_size
+        except BadResponseCodeError as error:
+            typer.echo(
+                "The download request was invalid and returnd a wrong HTTP status code."
+            )
+            retries += 1
+            if retries >= max_retries:
+                raise error
+        except RequestFailedError as error:
+            typer.echo("The download request has failed.")
+            retries += 1
+            if retries >= max_retries:
+                raise error
 
     typer.echo(f"File with id '{file_id}' has been successfully downloaded.")

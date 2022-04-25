@@ -108,7 +108,7 @@ def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
     return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
 
 
-def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
+def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, int]:
 
     """
     Perform a RESTful API call to retrieve a presigned download URL
@@ -145,7 +145,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
         if "retry-after" not in headers:
             raise RetryTimeExpectedError(url)
 
-        return None, int(headers["retry-after"])
+        return None, int(headers["retry-after"]), 0
 
     # look for an access method of type s3 in the response:
     dictionary = json.loads(data.getvalue())
@@ -154,12 +154,13 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int]:
     for access_method in access_methods:
         if access_method["type"] == "s3":
             download_url = access_method["access_url"]["url"]
+            file_size = dictionary["size"]
             break
 
     if download_url is None:
         raise NoS3AccessMethod(url)
 
-    return download_url, 0
+    return download_url, 0, file_size
 
 
 def confirm_api_call(api_url, file_id):

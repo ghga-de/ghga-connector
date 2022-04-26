@@ -84,6 +84,8 @@ def test_download(
                 file_id=file_id,
                 output_dir=output_dir,
                 max_wait_time=int(max_wait_time),
+                part_size=16777216,
+                max_retries=0,
             )
             assert expected_exception is None
             assert cmp(output_dir / file_id, downloadable_file.file_path)

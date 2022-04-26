@@ -133,7 +133,7 @@ async def drs3_objects(file_id: str):
         return DrsObjectServe(
             file_id=file_id,
             self_uri=f"drs://localhost:8080//{file_id}",
-            size=1000,
+            size=146,
             created_time=datetime.now(timezone.utc).isoformat(),
             updated_time=datetime.now(timezone.utc).isoformat(),
             checksums=[Checksum(checksum="1", type="md5")],

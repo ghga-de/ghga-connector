@@ -107,14 +107,14 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
         ..., help="The directory to put the downloaded file"
     ),
     max_wait_time: int = typer.Argument(
-        3600,
+        "60",
         help="Maximal time in seconds to wait before quitting without a download. ",
     ),
     part_size: int = typer.Argument(
-        16777216, help="Part size of the downloaded chunks."
+        "16777216", help="Part size of the downloaded chunks."
     ),
     max_retries: int = typer.Argument(
-        3, help="Maximum number of tries to download a single file part."
+        "3", help="Maximum number of tries to download a single file part."
     ),
 ):
     """

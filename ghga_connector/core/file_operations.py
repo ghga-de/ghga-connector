@@ -59,10 +59,7 @@ def download_file_part(download_url, output_file_path, part_offset, part_end):
         file.seek(part_offset)
         curl = pycurl.Curl()
 
-        curl.setopt(
-            curl.HTTPHEADER,
-            [f"Range: {part_offset}-{part_end}"],
-        )
+        # curl.setopt(curl.RANGE, f"{part_offset}-{part_end}")
         curl.setopt(curl.URL, download_url)
         curl.setopt(curl.WRITEDATA, file)
         try:

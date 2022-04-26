@@ -84,7 +84,7 @@ def test_download_file(
     download_url = s3_fixture.storage.get_object_download_url(
         bucket_id=downloadable_file.grouping_label,
         object_id=downloadable_file.file_id,
-        expires_after=60,
+        expires_after=3600,
     )
 
     # Try to download the whole test file in one part. Should be fairly small.

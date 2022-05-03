@@ -153,7 +153,6 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
     # perform the download:
     output_file = path.join(output_dir, file_id)
 
-    retries = 0
     part_offset = 0
 
     while part_offset < file_size:
@@ -163,28 +162,27 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
         if part_end > file_size:
             part_end = file_size - 1
 
-        try:
-            download_file_part(
-                download_url=download_url,
-                output_file_path=output_file,
-                part_offset=part_offset,
-                part_end=part_end,
-            )
-
-            # If part download was successfull, set retries to 0 and go to next part
-            retries = 0
-            part_offset += part_size
-        except BadResponseCodeError as error:
-            typer.echo(
-                "The download request was invalid and returnd a wrong HTTP status code."
-            )
-            retries += 1
-            if retries >= max_retries:
-                raise error
-        except RequestFailedError as error:
-            typer.echo("The download request has failed.")
-            retries += 1
-            if retries >= max_retries:
-                raise error
+        for retries in range(0, max_retries):
+            try:
+                download_file_part(
+                    download_url=download_url,
+                    output_file_path=output_file,
+                    part_offset=part_offset,
+                    part_end=part_end,
+                )
+            
+            except BadResponseCodeError as error:
+                typer.echo(
+                    "The download request was invalid and returnd a wrong HTTP status code."
+                )
+                if retries >= max_retries-1:
+                    raise error
+            except RequestFailedError as error:
+                typer.echo("The download request has failed.")
+                if retries >= max_retries-1:
+                    raise error
+    
+        # If part download was successfull, go to the next part
+        part_offset += part_size
 
     typer.echo(f"File with id '{file_id}' has been successfully downloaded.")

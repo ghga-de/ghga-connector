@@ -15,9 +15,10 @@ scripts/update_static_files.py
 scripts/license_checker.py
 scripts/get_package_name.py
 scripts/check_mandatory_and_static_files.py
+scripts/check_mandatory_and_static_files.py
 scripts/README.md
 
-.github/workflows/check_pr_target.yaml
+.github/workflows/unit_and_int_tests.yaml
 .github/workflows/check_mandatory_and_static_files.yaml
 
 example_data/README.md
@@ -28,7 +29,6 @@ example_data/README.md
 .gitignore
 .pre-commit-config.yaml
 .pylintrc
-codecov.yml
 
 LICENSE
 requirements.txt

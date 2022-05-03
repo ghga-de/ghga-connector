@@ -170,18 +170,18 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
                     part_offset=part_offset,
                     part_end=part_end,
                 )
-            
+
             except BadResponseCodeError as error:
                 typer.echo(
                     "The download request was invalid and returnd a wrong HTTP status code."
                 )
-                if retries >= max_retries-1:
+                if retries >= max_retries - 1:
                     raise error
             except RequestFailedError as error:
                 typer.echo("The download request has failed.")
-                if retries >= max_retries-1:
+                if retries >= max_retries - 1:
                     raise error
-    
+
         # If part download was successfull, go to the next part
         part_offset += part_size
 

@@ -21,8 +21,6 @@ from typing import Dict, List
 from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
 from ghga_service_chassis_lib.utils import TEST_FILE_PATHS
 
-from .utils import BASE_DIR
-
 
 class FileState:
     """_
@@ -87,10 +85,10 @@ FILES: Dict[str, FileState] = {
         file_path=TEST_FILE_PATHS[3],
         populate_storage=True,
     ),
-    "file_big": FileState(
-        file_id="big-downloadable",
-        grouping_label="outbox",
-        file_path=BASE_DIR / "sample_files/big_file.test",
-        populate_storage=True,
-    ),
+    # "file_big": FileState(
+    #     file_id="big-downloadable",
+    #     grouping_label="outbox",
+    #     file_path=BASE_DIR / "sample_files/big_file.test",
+    #     populate_storage=True,
+    # ),
 }

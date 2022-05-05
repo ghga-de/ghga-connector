@@ -115,6 +115,51 @@ def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
     return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
 
 
+def initiate_upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
+    """
+    Perform a RESTful API call to retrieve initiate a multipart upload
+    """
+
+    # build url
+    url = api_url + "/presigned_post/" + file_id
+
+    # Make function call to get upload url
+    curl = pycurl.Curl()
+    data = BytesIO()
+    curl.setopt(curl.URL, url)
+    curl.setopt(curl.WRITEFUNCTION, data.write)
+
+    curl.setopt(
+        curl.HTTPHEADER,
+        ["Accept: application/json", "Content-Type: application/json"],
+    )
+
+    # GET is the standard, but setting it here explicitely nonetheless
+    curl.setopt(curl.HTTPGET, 1)
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
+
+    if status_code != 200:
+        raise BadResponseCodeError(url, status_code)
+
+    dictionary = json.loads(data.getvalue())
+    presigned_post = dictionary["presigned_post"]
+
+    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
+
+
+def part_upload_api_call():
+    """
+    Docstring, because pylint complained
+    """
+    ...
+
+
 def download_api_call(
     api_url: str, file_id: str
 ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:

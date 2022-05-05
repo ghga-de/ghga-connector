@@ -21,8 +21,6 @@ from typing import Dict, List
 from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
 from ghga_service_chassis_lib.utils import TEST_FILE_PATHS
 
-from .utils import BASE_DIR
-
 
 class FileState:
     """_

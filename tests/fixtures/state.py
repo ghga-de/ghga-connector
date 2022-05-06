@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
-from ghga_service_chassis_lib.utils import TEST_FILE_PATHS
+from ghga_service_chassis_lib.utils import TEST_FILE_PATHS, big_temp_file
 
 
 class FileState:
@@ -54,41 +54,49 @@ class FileState:
             )
 
 
-FILES: Dict[str, FileState] = {
-    "file_uploadable": FileState(
-        file_id="uploadable",
-        grouping_label="inbox",
-        file_path=TEST_FILE_PATHS[0],
-        populate_storage=False,
-    ),
-    "file_not_uploadable": FileState(
-        file_id="not-uploadable",
-        grouping_label="inbox",
-        file_path=TEST_FILE_PATHS[1],
-        populate_storage=False,
-    ),
-    "file_with_bad_path": FileState(
-        file_id="bad-path",
-        grouping_label="inbox",
-        file_path=Path("/bad/path.xyz"),
-        populate_storage=False,
-    ),
-    "file_uploaded": FileState(
-        file_id="uploaded",
-        grouping_label="inbox",
-        file_path=TEST_FILE_PATHS[2],
-        populate_storage=True,
-    ),
-    "file_downloadable": FileState(
-        file_id="downloadable",
-        grouping_label="outbox",
-        file_path=TEST_FILE_PATHS[3],
-        populate_storage=True,
-    ),
-    # "file_big": FileState(
-    #     file_id="big-downloadable",
-    #     grouping_label="outbox",
-    #     file_path=BASE_DIR / "sample_files/big_file.test",
-    #     populate_storage=True,
-    # ),
-}
+with big_temp_file(size=20 * 1024 * 1024) as big_file:
+
+    FILES: Dict[str, FileState] = {
+        "file_uploadable": FileState(
+            file_id="uploadable",
+            grouping_label="inbox",
+            file_path=TEST_FILE_PATHS[0],
+            populate_storage=False,
+        ),
+        "file_not_uploadable": FileState(
+            file_id="not-uploadable",
+            grouping_label="inbox",
+            file_path=TEST_FILE_PATHS[1],
+            populate_storage=False,
+        ),
+        "file_with_bad_path": FileState(
+            file_id="bad-path",
+            grouping_label="inbox",
+            file_path=Path("/bad/path.xyz"),
+            populate_storage=False,
+        ),
+        "file_uploaded": FileState(
+            file_id="uploaded",
+            grouping_label="inbox",
+            file_path=TEST_FILE_PATHS[2],
+            populate_storage=True,
+        ),
+        "file_downloadable": FileState(
+            file_id="downloadable",
+            grouping_label="outbox",
+            file_path=TEST_FILE_PATHS[3],
+            populate_storage=True,
+        ),
+        "big_file_downloadable": FileState(
+            file_id="big_downloadable",
+            grouping_label="outbox",
+            file_path=big_file.name,
+            populate_storage=True,
+        ),
+        "big_file_uploadable": FileState(
+            file_id="big_downloadable",
+            grouping_label="inbox",
+            file_path=big_file.name,
+            populate_storage=False,
+        ),
+    }

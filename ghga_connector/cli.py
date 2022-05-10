@@ -164,7 +164,7 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
         if part_end > file_size:
             part_end = file_size - 1
 
-        for retries in range(0, max_retries):
+        for retries in range(0, max_retries + 1):
             try:
                 download_file_part(
                     download_url=download_url,

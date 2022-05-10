@@ -129,12 +129,11 @@ async def drs3_objects(file_id: str):
         )
 
     if file_id == "downloadable" or file_id == "big-downloadable":
-        size = 146 if file_id == "downloadable" else 20 * 1024 * 1024
 
         return DrsObjectServe(
             file_id=file_id,
             self_uri=f"drs://localhost:8080//{file_id}",
-            size=size,
+            size=int(os.environ["S3_DOWNLOAD_FIELD_SIZE"]),
             created_time=datetime.now(timezone.utc).isoformat(),
             updated_time=datetime.now(timezone.utc).isoformat(),
             checksums=[Checksum(checksum="1", type="md5")],

@@ -88,21 +88,13 @@ FILES: Dict[str, FileState] = {
     "file_not_downloadable": FileState(
         file_id="not-downloadable",
         grouping_label="outbox",
-<<<<<<< HEAD
         file_path=TEST_FILE_PATHS[1],
-=======
-        file_path=TEST_FILE_PATHS[4],
->>>>>>> be5a8e1 (Fix)
         populate_storage=False,
     ),
     "file_retry": FileState(
         file_id="retry",
         grouping_label="outbox",
-<<<<<<< HEAD
         file_path=TEST_FILE_PATHS[1],
-=======
-        file_path=TEST_FILE_PATHS[5],
->>>>>>> be5a8e1 (Fix)
         populate_storage=False,
     ),
 }

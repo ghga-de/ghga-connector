@@ -158,8 +158,8 @@ def test_download(
     file_name,
     max_wait_time,
     expected_exception,
-    s3_fixture,  # noqa F811
     add_big_file,  # noqa F811
+    s3_fixture,  # noqa F811
     tmp_path,
 ):
     """Test the download of a file"""

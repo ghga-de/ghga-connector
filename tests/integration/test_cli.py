@@ -24,6 +24,7 @@ import typer
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import (
+    DEFAULT_PART_SIZE,
     ApiNotReachable,
     DirectoryNotExist,
     MaxWaitTimeExceeded,
@@ -110,7 +111,7 @@ def test_download(
                 file_id=file_id,
                 output_dir=output_dir,
                 max_wait_time=int(max_wait_time),
-                part_size=16777216,
+                part_size=DEFAULT_PART_SIZE,
                 max_retries=0,
             )
             assert expected_exception is None

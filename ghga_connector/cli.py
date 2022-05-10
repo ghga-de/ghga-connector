@@ -31,6 +31,8 @@ from ghga_connector.core import (
     upload_file,
 )
 
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
+
 
 class DirectoryNotExist(RuntimeError):
     """Thrown, when the specified directory does not exist."""
@@ -111,7 +113,7 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
         help="Maximal time in seconds to wait before quitting without a download. ",
     ),
     part_size: int = typer.Argument(
-        "16777216", help="Part size of the downloaded chunks."
+        DEFAULT_PART_SIZE, help="Part size of the downloaded chunks."
     ),
     max_retries: int = typer.Argument(
         "3", help="Maximum number of tries to download a single file part."

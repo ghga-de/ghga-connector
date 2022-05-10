@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pytest
 import typer
-from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import (
     DEFAULT_PART_SIZE,
@@ -41,28 +40,30 @@ from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
+# from ghga_service_chassis_lib.utils import big_temp_file
 
-@pytest.fixture
-def add_big_file():
 
-    """
-    Teporarely adds a big file to the file states
-    """
+# @pytest.fixture
+# def add_big_file():
 
-    with big_temp_file(size=20 * 1024 * 1024) as big_file:
+#     """
+#     Teporarely adds a big file to the file states
+#     """
 
-        big_file_state = state.FileState(
-            file_id="big-downloadable",
-            grouping_label="outbox",
-            file_path=big_file.name,
-            populate_storage=True,
-        )
+#     with big_temp_file(size=20 * 1024 * 1024) as big_file:
 
-        state.FILES["file_big_downloadable"] = big_file_state
+#         big_file_state = state.FileState(
+#             file_id="big-downloadable",
+#             grouping_label="outbox",
+#             file_path=big_file.name,
+#             populate_storage=True,
+#         )
 
-        yield
+#         state.FILES["file_big_downloadable"] = big_file_state
 
-        del state.FILES["file_big_downloadable"]
+#         yield
+
+#         del state.FILES["file_big_downloadable"]
 
 
 @pytest.mark.parametrize(
@@ -70,7 +71,6 @@ def add_big_file():
     [
         (True, False, "file_downloadable", "60", ApiNotReachable),
         (False, False, "file_downloadable", "60", None),
-        (False, False, "file_big_downloadable", "60", None),
         (
             False,
             False,
@@ -88,7 +88,6 @@ def test_download(
     file_name,
     max_wait_time,
     expected_exception,
-    add_big_file,  # noqa F811
     s3_fixture,  # noqa F811
     tmp_path,
 ):

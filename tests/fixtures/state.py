@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
-from ghga_service_chassis_lib.utils import TEST_FILE_PATHS, big_temp_file
+from ghga_service_chassis_lib.utils import TEST_FILE_PATHS
 
 
 class FileState:

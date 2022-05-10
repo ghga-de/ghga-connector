@@ -128,12 +128,13 @@ async def drs3_objects(file_id: str):
             status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
         )
 
-    if file_id == "downloadable":
+    if file_id == "downloadable" or file_id == "big-downloadable":
+        size = 146 if file_id == "downloadable" else 20 * 1024 * 1024
 
         return DrsObjectServe(
             file_id=file_id,
             self_uri=f"drs://localhost:8080//{file_id}",
-            size=146,
+            size=size,
             created_time=datetime.now(timezone.utc).isoformat(),
             updated_time=datetime.now(timezone.utc).isoformat(),
             checksums=[Checksum(checksum="1", type="md5")],

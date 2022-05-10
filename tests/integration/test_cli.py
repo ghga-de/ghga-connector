@@ -66,26 +66,26 @@ def add_big_file():
 
 
 @pytest.mark.parametrize(
-    "bad_url,bad_outdir,file_id,max_wait_time,expected_exception",
+    "bad_url,bad_outdir,file_name,max_wait_time,expected_exception",
     [
-        (True, False, "downloadable", "60", ApiNotReachable),
-        (False, False, "downloadable", "60", None),
-        (False, False, "big-downloadable", "60", None),
+        (True, False, "file_downloadable", "60", ApiNotReachable),
+        (False, False, "file_downloadable", "60", None),
+        (False, False, "file_big_downloadable", "60", None),
         (
             False,
             False,
-            "not_downloadable",
+            "file_not_downloadable",
             "60",
             BadResponseCodeError,
         ),
-        (False, False, "retry", "60", MaxWaitTimeExceeded),
-        (False, True, "downloadable", "60", DirectoryNotExist),
+        (False, False, "file_retry", "60", MaxWaitTimeExceeded),
+        (False, True, "file_downloadable", "60", DirectoryNotExist),
     ],
 )
 def test_download(
     bad_url,
     bad_outdir,
-    file_id,
+    file_name,
     max_wait_time,
     expected_exception,
     add_big_file,  # noqa F811
@@ -95,12 +95,16 @@ def test_download(
     """Test the download of a file, expects Abort, if the file was not found"""
 
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
-    downloadable_file = state.FILES[file_id]
-    download_url = s3_fixture.storage.get_object_download_url(
-        bucket_id=downloadable_file.grouping_label,
-        object_id=downloadable_file.file_id,
-        expires_after=60,
-    )
+
+    file = state.FILES[file_name]
+
+    if file.populate_storage:
+
+        download_url = s3_fixture.storage.get_object_download_url(
+            bucket_id=file.grouping_label,
+            object_id=file.file_id,
+            expires_after=60,
+        )
 
     with MockAPIContainer(s3_download_url=download_url) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
@@ -108,14 +112,14 @@ def test_download(
         try:
             download(
                 api_url=api_url,
-                file_id=file_id,
+                file_id=file.file_id,
                 output_dir=output_dir,
                 max_wait_time=int(max_wait_time),
                 part_size=DEFAULT_PART_SIZE,
                 max_retries=0,
             )
             assert expected_exception is None
-            assert cmp(output_dir / file_id, downloadable_file.file_path)
+            assert cmp(output_dir / file.file_id, file.file_path)
         except Exception as exception:
             assert isinstance(exception, expected_exception)
 

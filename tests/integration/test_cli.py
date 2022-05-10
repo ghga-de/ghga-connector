@@ -95,7 +95,7 @@ def test_download(
     """Test the download of a file, expects Abort, if the file was not found"""
 
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
-    downloadable_file = state.FILES["file_downloadable"]
+    downloadable_file = state.FILES[file_id]
     download_url = s3_fixture.storage.get_object_download_url(
         bucket_id=downloadable_file.grouping_label,
         object_id=downloadable_file.file_id,

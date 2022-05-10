@@ -97,8 +97,6 @@ def test_download(
 
     file = state.FILES[file_name]
 
-    download_url = ""
-
     if file.populate_storage:
 
         download_url = s3_fixture.storage.get_object_download_url(
@@ -106,6 +104,9 @@ def test_download(
             object_id=file.file_id,
             expires_after=60,
         )
+
+    else:
+        download_url = ""
 
     with MockAPIContainer(s3_download_url=download_url) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()

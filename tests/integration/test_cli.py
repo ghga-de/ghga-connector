@@ -46,30 +46,56 @@ from ..fixtures import s3_fixture  # noqa: F401
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
-# from ghga_service_chassis_lib.utils import big_temp_file
 
+def test_multipart_download(
+    s3_fixture,  # noqa F811
+    tmp_path,
+):
+    """Test the download of a multipart file, expects Abort, if the file was not found"""
 
-# @pytest.fixture
-# def add_big_file():
+    with big_temp_file(size=20 * 1024 * 1024) as big_file:
 
-#     """
-#     Teporarely adds a big file to the file states
-#     """
+        object_fixture = ObjectFixture(
+            file_path=big_file.name, bucket_id="outbox", object_id="big-downloadable"
+        )
 
-#     with big_temp_file(size=20 * 1024 * 1024) as big_file:
+        # upload file to s3
+        if not s3_fixture.storage.does_bucket_exist(object_fixture.bucket_id):
+            s3_fixture.storage.create_bucket(object_fixture.bucket_id)
 
-#         big_file_state = state.FileState(
-#             file_id="big-downloadable",
-#             grouping_label="outbox",
-#             file_path=big_file.name,
-#             populate_storage=True,
-#         )
+        if not s3_fixture.storage.does_object_exist(
+            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
+        ):
+            presigned_post = s3_fixture.storage.get_object_upload_url(
+                bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
+            )
+            upload_file(
+                presigned_url=presigned_post,
+                file_path=big_file.name,
+                file_md5=object_fixture.md5,
+            )
 
-#         state.FILES["file_big_downloadable"] = big_file_state
+        # get s3 download url
+        download_url = s3_fixture.storage.get_object_download_url(
+            bucket_id=object_fixture.bucket_id,
+            object_id=object_fixture.object_id,
+            expires_after=180,
+        )
+        with MockAPIContainer(s3_download_url=download_url) as api:
+            api_url = api.get_connection_url()
 
-#         yield
-
-#         del state.FILES["file_big_downloadable"]
+            try:
+                download(
+                    api_url=api_url,
+                    file_id=object_fixture.object_id,
+                    output_dir=tmp_path,
+                    max_wait_time=int(60),
+                    part_size=DEFAULT_PART_SIZE,
+                    max_retries=0,
+                )
+                assert cmp(tmp_path / object_fixture.object_id, big_file.name)
+            except Exception as exception:
+                raise exception
 
 
 @pytest.mark.parametrize(

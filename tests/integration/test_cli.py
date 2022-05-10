@@ -47,13 +47,24 @@ from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
 
+@pytest.mark.parametrize(
+    "file_size,part_size",
+    [
+        (6 * 1024 * 1024, 5 * 1024 * 1024),
+        (12 * 1024 * 1024, 5 * 1024 * 1024),
+        (6 * 1024 * 1024, DEFAULT_PART_SIZE),
+        (20 * 1024 * 1024, DEFAULT_PART_SIZE),
+    ],
+)
 def test_multipart_download(
+    file_size,
+    part_size,
     s3_fixture,  # noqa F811
     tmp_path,
 ):
-    """Test the download of a multipart file, expects Abort, if the file was not found"""
+    """Test the multipart download of a file"""
 
-    with big_temp_file(size=20 * 1024 * 1024) as big_file:
+    with big_temp_file(file_size) as big_file:
 
         object_fixture = ObjectFixture(
             file_path=big_file.name, bucket_id="outbox", object_id="big-downloadable"
@@ -90,7 +101,7 @@ def test_multipart_download(
                     file_id=object_fixture.object_id,
                     output_dir=tmp_path,
                     max_wait_time=int(60),
-                    part_size=DEFAULT_PART_SIZE,
+                    part_size=part_size,
                     max_retries=0,
                 )
                 assert cmp(tmp_path / object_fixture.object_id, big_file.name)

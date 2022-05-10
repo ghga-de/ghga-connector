@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 import typer
+from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import (
     ApiNotReachable,
@@ -40,12 +41,35 @@ from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
 
+@pytest.fixture
+def add_big_file():
+
+    """
+    Teporarely adds a big file to the file states
+    """
+
+    with big_temp_file(size=20 * 1024 * 1024) as big_file:
+
+        big_file_state = state.FileState(
+            file_id="big-downloadable",
+            grouping_label="outbox",
+            file_path=big_file.name,
+            populate_storage=True,
+        )
+
+        state.FILES["file_big_downloadable"] = big_file_state
+
+        yield
+
+        del state.FILES["file_big_downloadable"]
+
+
 @pytest.mark.parametrize(
     "bad_url,bad_outdir,file_id,max_wait_time,expected_exception",
     [
         (True, False, "downloadable", "60", ApiNotReachable),
         (False, False, "downloadable", "60", None),
-        (False, False, "big_downloadable", "60", None),
+        (False, False, "big-downloadable", "60", None),
         (
             False,
             False,
@@ -64,6 +88,7 @@ def test_download(
     max_wait_time,
     expected_exception,
     s3_fixture,  # noqa F811
+    add_big_file,  # noqa F811
     tmp_path,
 ):
     """Test the download of a file, expects Abort, if the file was not found"""

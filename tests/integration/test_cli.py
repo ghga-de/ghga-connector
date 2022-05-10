@@ -167,7 +167,7 @@ def test_upload(
     "bad_url,file_id,expected_exception",
     [
         (False, "uploaded", None),
-        (False, "not_uploaded", BadResponseCodeError),
+        (False, "uploadable", BadResponseCodeError),
         (True, "uploaded", RequestFailedError),
     ],
 )

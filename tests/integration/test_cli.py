@@ -51,9 +51,9 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
     "file_size,part_size",
     [
         (6 * 1024 * 1024, 5 * 1024 * 1024),
-        # (12 * 1024 * 1024, 5 * 1024 * 1024),
-        # (6 * 1024 * 1024, DEFAULT_PART_SIZE),
-        # (20 * 1024 * 1024, DEFAULT_PART_SIZE),
+        (12 * 1024 * 1024, 5 * 1024 * 1024),
+        (6 * 1024 * 1024, DEFAULT_PART_SIZE),
+        (20 * 1024 * 1024, DEFAULT_PART_SIZE),
     ],
 )
 def test_multipart_download(

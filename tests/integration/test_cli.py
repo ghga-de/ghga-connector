@@ -32,12 +32,12 @@ from ghga_connector.cli import (
     DEFAULT_PART_SIZE,
     ApiNotReachable,
     DirectoryNotExist,
-    MaxWaitTimeExceeded,
     download,
     upload,
 )
 from ghga_connector.core import (
     BadResponseCodeError,
+    MaxWaitTimeExceeded,
     RequestFailedError,
     confirm_api_call,
 )

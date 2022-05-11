@@ -119,20 +119,15 @@ def download_api_call(
     api_url: str, file_id: str
 ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
     """
-        Perform a RESTful API call to retrieve a presigned download URL.
-    <<<<<<< HEAD
-        Returns:
-            A tuple of three elements:
-                1. the download url
-                2. the file size (in bytes)
-                3. the retry-time
-            If the download url is not available yet, the first two elements are None and
-            the retry-time is set.
-            Otherwise, only the last element is None while the others are set.
-    =======
-        Returns either a download url and a file size, OR a retry-time.
-        The other values are set to None (for strings) / 0 for ints.
-    >>>>>>> c3e1d4b (Added clarification for 0 as retry time)
+    Perform a RESTful API call to retrieve a presigned download URL.
+    Returns:
+        A tuple of three elements:
+            1. the download url
+            2. the file size (in bytes)
+            3. the retry-time
+        If the download url is not available yet, the first two elements are None and
+        the retry-time is set.
+        Otherwise, only the last element is None while the others are set.
     """
 
     # build url

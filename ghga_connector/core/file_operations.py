@@ -26,7 +26,7 @@ from .exceptions import BadResponseCodeError, RequestFailedError
 
 def download_file_part(
     download_url, output_file_path, part_offset, part_end
-):  # pylint: disable=unused-argument
+) -> None:  # pylint: disable=unused-argument
     """Download File"""
 
     with open(output_file_path, "ab") as file:

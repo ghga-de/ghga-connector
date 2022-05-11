@@ -67,24 +67,23 @@ def test_multipart_download(
     with big_temp_file(file_size) as big_file:
 
         object_fixture = ObjectFixture(
-            file_path=big_file.name, bucket_id="outbox", object_id="big-downloadable"
+            file_path=big_file.name,
+            bucket_id=s3_fixture.existing_buckets[0],
+            object_id="big-downloadable",
         )
 
         # upload file to s3
-        if not s3_fixture.storage.does_bucket_exist(object_fixture.bucket_id):
-            s3_fixture.storage.create_bucket(object_fixture.bucket_id)
-
-        if not s3_fixture.storage.does_object_exist(
+        assert not s3_fixture.storage.does_object_exist(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
-        ):
-            presigned_post = s3_fixture.storage.get_object_upload_url(
-                bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
-            )
-            upload_file(
-                presigned_url=presigned_post,
-                file_path=big_file.name,
-                file_md5=object_fixture.md5,
-            )
+        )
+        presigned_post = s3_fixture.storage.get_object_upload_url(
+            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
+        )
+        upload_file(
+            presigned_url=presigned_post,
+            file_path=big_file.name,
+            file_md5=object_fixture.md5,
+        )
 
         # get s3 download url
         download_url = s3_fixture.storage.get_object_download_url(

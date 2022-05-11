@@ -32,6 +32,11 @@ from .exceptions import (
     RetryTimeExpectedError,
 )
 
+# Constants for clarity of return values
+NO_DOWNLOAD_URL = None
+NO_FILE_SIZE = 0
+NO_RETRY_TIME = 0
+
 
 def header_function_factory(headers: dict):
     """Creates a header function that updates the specified headers dict."""
@@ -145,7 +150,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, i
         if "retry-after" not in headers:
             raise RetryTimeExpectedError(url)
 
-        return None, int(headers["retry-after"]), 0
+        return NO_DOWNLOAD_URL, int(headers["retry-after"]), NO_FILE_SIZE
 
     # look for an access method of type s3 in the response:
     dictionary = json.loads(data.getvalue())
@@ -160,7 +165,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, i
     if download_url is None:
         raise NoS3AccessMethod(url)
 
-    return download_url, 0, file_size
+    return download_url, NO_RETRY_TIME, file_size
 
 
 def confirm_api_call(api_url, file_id):

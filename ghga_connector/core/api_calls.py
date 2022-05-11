@@ -20,13 +20,15 @@ Contains API calls to the API of the GHGA Storage implementation
 
 import json
 from io import BytesIO
-from typing import Optional, Tuple
+from time import sleep
+from typing import Any, Callable, Tuple, Union
 
 import pycurl
 from ghga_service_chassis_lib.s3 import PresignedPostURL
 
 from .exceptions import (
     BadResponseCodeError,
+    MaxWaitTimeExceeded,
     NoS3AccessMethod,
     RequestFailedError,
     RetryTimeExpectedError,
@@ -34,8 +36,8 @@ from .exceptions import (
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
-NO_FILE_SIZE = 0
-NO_RETRY_TIME = 0
+NO_FILE_SIZE = None
+NO_RETRY_TIME = None
 
 
 def header_function_factory(headers: dict):
@@ -113,12 +115,19 @@ def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
     return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
 
 
-def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, int]:
-
+def download_api_call(
+    api_url: str, file_id: str
+) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
     """
     Perform a RESTful API call to retrieve a presigned download URL.
-    Returns either a download url and a file size, OR a retry-time.
-    The other values are set to None (for strings) / 0 for ints.
+    Returns:
+        A tuple of three elements:
+            1. the download url
+            2. the file size (in bytes)
+            3. the retry-time
+        If the download url is not available yet, the first two elements are None and
+        the retry-time is set.
+        Otherwise, only the last element is None while the others are set.
     """
 
     # build url
@@ -168,6 +177,44 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, i
         raise NoS3AccessMethod(url)
 
     return download_url, file_size, NO_RETRY_TIME
+
+
+def await_download_url(
+    api_url: str,
+    file_id: str,
+    max_wait_time: int,
+    logger: Callable[[str], Any] = lambda x: ...,
+) -> Tuple[str, int]:
+    """Wait until download URL can be generated.
+    Returns a tuple with two elements:
+        1. the download url
+        2. the file size in bytes
+    """
+
+    # get the download_url, wait if needed
+    wait_time = 0
+    while wait_time < max_wait_time:
+        try:
+            response = download_api_call(api_url, file_id)
+        except BadResponseCodeError as error:
+            logger("The request was invalid and returnd a wrong HTTP status code.")
+            raise error
+        except RequestFailedError as error:
+            logger("The request has failed.")
+            raise error
+
+        if response[0] is not None:
+            download_url: str = response[0]
+            file_size: int = response[1]
+            return (download_url, file_size)
+
+        retry_time: int = response[2]
+
+        wait_time += retry_time
+        logger(f"File staging, will try to download again in {retry_time} seconds")
+        sleep(retry_time)
+
+    raise MaxWaitTimeExceeded(max_wait_time)
 
 
 def confirm_api_call(api_url: str, file_id: str) -> None:

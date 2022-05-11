@@ -17,15 +17,14 @@
 """ CLI-specific wrappers around core functions."""
 
 from os import path
-from time import sleep
 
 import typer
 
 from ghga_connector.core import (
     BadResponseCodeError,
     RequestFailedError,
+    await_download_url,
     check_url,
-    download_api_call,
     download_file_part,
     upload_api_call,
     upload_file,
@@ -47,14 +46,6 @@ class ApiNotReachable(RuntimeError):
 
     def __init__(self, api_url: str):
         message = f"The url {api_url} is currently not reachable."
-        super().__init__(message)
-
-
-class MaxWaitTimeExceeded(RuntimeError):
-    """Thrown, when the specified wait time has been exceeded."""
-
-    def __init__(self, max_wait_time: int):
-        message = f"Exceeded maximum wait time of {max_wait_time} seconds."
         super().__init__(message)
 
 
@@ -128,29 +119,9 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
     if not check_url(api_url):
         raise ApiNotReachable(api_url)
 
-    # get the download_url, wait if needed
-    wait_time = 0
-    download_url = None
-    while download_url is None:
-
-        try:
-            download_url, file_size, retry_time = download_api_call(api_url, file_id)
-        except BadResponseCodeError as error:
-            typer.echo("The request was invalid and returnd a wrong HTTP status code.")
-            raise error
-        except RequestFailedError as error:
-            typer.echo("The request has failed.")
-            raise error
-
-        if download_url is not None:
-            break
-
-        wait_time += retry_time
-        if wait_time > max_wait_time:
-            raise MaxWaitTimeExceeded(max_wait_time)
-
-        typer.echo(f"File staging, will try to download again in {retry_time} seconds")
-        sleep(retry_time)
+    download_url, file_size = await_download_url(
+        api_url=api_url, file_id=file_id, max_wait_time=max_wait_time, logger=typer.echo
+    )
 
     # perform the download:
     output_file = path.join(output_dir, file_id)

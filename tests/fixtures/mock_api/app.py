@@ -113,7 +113,7 @@ async def ready():
     """
     Readyness probe.
     """
-    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
+    return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.get("/objects/{file_id}", summary="drs3_mock")
@@ -183,7 +183,7 @@ async def ulc_confirm_upload(file_id: str, state: State):
 
     if file_id == "uploaded":
         if state.state == UploadState.REGISTERED:
-            return JSONResponse(status_code=status.HTTP_204_NO_CONTENT)
+            return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(
             status_code=400,

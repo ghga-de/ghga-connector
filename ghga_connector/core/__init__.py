@@ -19,12 +19,14 @@ It should not contain any service API-related code.
 """
 
 from .api_calls import (  # noqa: F401
+    await_download_url,
     confirm_api_call,
     download_api_call,
     upload_api_call,
 )
 from .exceptions import (  # noqa: F401
     BadResponseCodeError,
+    MaxWaitTimeExceeded,
     NoS3AccessMethod,
     RequestFailedError,
 )

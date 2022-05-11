@@ -29,9 +29,8 @@ def download_file_part(
 ):  # pylint: disable=unused-argument
     """Download File"""
 
-    with open(output_file_path, "wb") as file:
+    with open(output_file_path, "ab") as file:
 
-        file.seek(part_offset)
         curl = pycurl.Curl()
 
         curl.setopt(curl.RANGE, f"{part_offset}-{part_end}")

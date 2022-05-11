@@ -134,7 +134,7 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
     while download_url is None:
 
         try:
-            download_url, retry_time, file_size = download_api_call(api_url, file_id)
+            download_url, file_size, retry_time = download_api_call(api_url, file_id)
         except BadResponseCodeError as error:
             typer.echo("The request was invalid and returnd a wrong HTTP status code.")
             raise error

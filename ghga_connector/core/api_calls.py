@@ -168,7 +168,7 @@ def download_api_call(api_url: str, file_id: str) -> Tuple[Optional[str], int, i
     return download_url, NO_RETRY_TIME, file_size
 
 
-def confirm_api_call(api_url, file_id):
+def confirm_api_call(api_url: str, file_id: str) -> None:
     """
     Perform a RESTful API call to request a confirmation of the upload of a specific file
     """

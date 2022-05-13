@@ -71,8 +71,9 @@ def test_multipart_download(
         assert not s3_fixture.storage.does_object_exist(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
-        presigned_post = s3_fixture.storage.get_part_upload_url(
-            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
+        presigned_post = s3_fixture.storage.get_object_upload_url(
+            bucket_id=object_fixture.bucket_id,
+            object_id=object_fixture.object_id,
         )
         upload_file(
             presigned_url=presigned_post,
@@ -255,10 +256,18 @@ def test_upload(
     """Test the upload of a file, expects Abort, if the file was not found"""
 
     uploadable_file = state.FILES[file_name]
+
+    # initiate upload
+    upload_id = s3_fixture.storage.init_multipart_upload(
+        bucket_id=uploadable_file.grouping_label,
+        object_id=uploadable_file.file_id,
+    )
+
     upload_url = s3_fixture.storage.get_part_upload_url(
         bucket_id=uploadable_file.grouping_label,
         object_id=uploadable_file.file_id,
-        expires_after=60,
+        upload_id=upload_id,
+        part_number=1,
     )
 
     with MockAPIContainer(s3_upload_url_1=upload_url.url) as api:
@@ -271,6 +280,13 @@ def test_upload(
                 file_path=str(uploadable_file.file_path.resolve()),
                 max_retries=0,
             )
+
+            s3_fixture.storage.complete_multipart_upload(
+                upload_id=upload_id,
+                bucket_id=uploadable_file.grouping_label,
+                object_id=uploadable_file.file_id,
+            )
+
             assert expected_exception is None
             assert s3_fixture.storage.does_object_exist(
                 bucket_id=uploadable_file.grouping_label,

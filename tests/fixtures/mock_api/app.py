@@ -52,7 +52,7 @@ class StatePatch(BaseModel):
     Model containing a state parameter. Needed for the ULC patch api call
     """
 
-    state: UploadStatus
+    upload_status: UploadStatus
 
 
 class StateGet(BaseModel):
@@ -60,7 +60,7 @@ class StateGet(BaseModel):
     Model containing a state parameter. Needed for the ULC get api call
     """
 
-    state: UploadStatus
+    upload_status: UploadStatus
 
 
 class PresignedPostURL(BaseModel):
@@ -164,7 +164,7 @@ async def ulc_get_files_uploads(file_id: str, state: StateGet):
     """
     Mock for the ulc GET /files/{file_id}/uploads call.
     """
-    if state.state == UploadStatus.PENDING:
+    if state.upload_status == UploadStatus.PENDING:
 
         if file_id == "pending":
             return [{"upload_id": "pending", "part_size": DEFAULT_PART_SIZE}]
@@ -239,23 +239,28 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
     """
     Mock for the ulc PATCH /uploads/{upload_id} call
     """
+    upload_status = state.upload_status
 
     if upload_id == "uploaded":
-        if state.state == UploadStatus.UPLOADED:
+        if upload_status == UploadStatus.UPLOADED:
             return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(
             status_code=403,
-            detail=(f'The upload with id "{upload_id}" can`t be set to "{state}"'),
+            detail=(
+                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
+            ),
         )
 
     if upload_id == "pending":
-        if state.state == UploadStatus.CANCELLED:
+        if upload_status == UploadStatus.CANCELLED:
             return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(
             status_code=403,
-            detail=(f'The upload with id "{upload_id}" can`t be set to "{state}"'),
+            detail=(
+                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
+            ),
         )
 
     raise HTTPException(

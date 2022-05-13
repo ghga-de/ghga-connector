@@ -180,7 +180,7 @@ def patch_mulitpart_upload(
     # build url
     url = api_url + "/uploads/" + upload_id
 
-    post_data = {"status": upload_status}
+    post_data = {"upload_status": upload_status}
     postfields = json.dumps(post_data)
 
     curl = pycurl.Curl()
@@ -214,7 +214,7 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     """
 
     # build url
-    url = api_url + "/files/" + file_id + "/uploads/?status=pending"
+    url = api_url + "/files/" + file_id + "/uploads?upload_status=pending"
 
     # Make function call to get upload url
     curl = pycurl.Curl()

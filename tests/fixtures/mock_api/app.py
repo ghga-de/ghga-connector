@@ -49,14 +49,6 @@ class UploadStatus(str, Enum):
 
 class StatePatch(BaseModel):
     """
-    Model containing a state parameter. Needed for the ULC patch api call
-    """
-
-    upload_status: UploadStatus
-
-
-class StateGet(BaseModel):
-    """
     Model containing a state parameter. Needed for the ULC get api call
     """
 
@@ -166,12 +158,12 @@ async def drs3_objects(file_id: str):
 @app.get(
     "/files/{file_id}/uploads", summary="ulc_get_files_uploads_mock", status_code=200
 )
-async def ulc_get_files_uploads(file_id: str, state: StateGet):
+async def ulc_get_files_uploads(file_id: str, upload_status: str):
 
     """
     Mock for the ulc GET /files/{file_id}/uploads call.
     """
-    if state.upload_status == UploadStatus.PENDING:
+    if upload_status == UploadStatus.PENDING:
 
         if file_id == "pending":
             return [

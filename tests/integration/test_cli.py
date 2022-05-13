@@ -255,7 +255,7 @@ def test_upload(
     """Test the upload of a file, expects Abort, if the file was not found"""
 
     uploadable_file = state.FILES[file_name]
-    upload_url = s3_fixture.storage.get_object_upload_url(
+    upload_url = s3_fixture.storage.get_part_upload_url(
         bucket_id=uploadable_file.grouping_label,
         object_id=uploadable_file.file_id,
         expires_after=60,

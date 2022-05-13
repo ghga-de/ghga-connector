@@ -20,9 +20,11 @@ It should not contain any service API-related code.
 
 from .api_calls import (  # noqa: F401
     await_download_url,
-    confirm_api_call,
     download_api_call,
-    upload_api_call,
+    get_pending_uploads,
+    initiate_multipart_upload,
+    part_upload,
+    patch_multipart_upload,
 )
 from .exceptions import (  # noqa: F401
     BadResponseCodeError,

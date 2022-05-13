@@ -26,7 +26,6 @@ from ghga_connector.core import (
     await_download_url,
     check_url,
     download_file_part,
-    upload_api_call,
     upload_file,
 )
 
@@ -70,7 +69,7 @@ def upload(
         raise typer.Abort()
 
     try:
-        presigned_post = upload_api_call(api_url, file_id)
+        presigned_post = None  # upload_api_call(api_url, file_id)
     except BadResponseCodeError as error:
         typer.echo("The request was invalid and returnd a wrong HTTP status code.")
         raise typer.Abort() from error

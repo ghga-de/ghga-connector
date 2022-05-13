@@ -19,9 +19,10 @@ Contains API calls to the API of the GHGA Storage implementation
 """
 
 import json
+from enum import Enum
 from io import BytesIO
 from time import sleep
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import pycurl
 from ghga_service_chassis_lib.s3 import PresignedPostURL
@@ -36,8 +37,23 @@ from .exceptions import (
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
+NO_UPLOAD_ID = None
 NO_FILE_SIZE = None
+NO_PART_SIZE = None
 NO_RETRY_TIME = None
+
+
+class UploadStatus(Enum):
+    """
+    Enum for the possible UploadStatus of a specific upload_id
+    """
+
+    ACCEPTED = "accepted"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    UPLOADED = "uploaded"
 
 
 def header_function_factory(headers: dict):
@@ -77,13 +93,128 @@ def header_function_factory(headers: dict):
     return header_function
 
 
-def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
+def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     """
-    Perform a RESTful API call to retrieve a presigned upload URL
+    Perform a RESTful API call to initiate a multipart upload on S3
+    Returns an upload id and a part size
     """
 
     # build url
-    url = api_url + "/presigned_post/" + file_id
+    url = api_url + "/files/" + file_id + "/uploads/"
+
+    # Make function call to get upload url
+    curl = pycurl.Curl()
+    data = BytesIO()
+    curl.setopt(curl.URL, url)
+    curl.setopt(curl.WRITEFUNCTION, data.write)
+
+    curl.setopt(
+        curl.HTTPHEADER,
+        ["Accept: application/json", "Content-Type: application/json"],
+    )
+
+    curl.setopt(curl.POST, 1)
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
+
+    if status_code != 200:
+        raise BadResponseCodeError(url, status_code)
+
+    dictionary = json.loads(data.getvalue())
+
+    return dictionary["upload_id"], int(dictionary["part_size"])
+
+
+def part_upload(api_url: str, upload_id: str, part_no: int) -> PresignedPostURL:
+    """
+    Get a presigned url to upload a specific part to S3
+    """
+
+    # build url
+    url = api_url + "/uploads/" + upload_id + "/parts/" + str(part_no) + "/signed_posts"
+
+    # Make function call to get upload url
+    curl = pycurl.Curl()
+    data = BytesIO()
+    curl.setopt(curl.URL, url)
+    curl.setopt(curl.WRITEFUNCTION, data.write)
+
+    curl.setopt(
+        curl.HTTPHEADER,
+        ["Accept: application/json", "Content-Type: application/json"],
+    )
+
+    curl.setopt(curl.POST, 1)
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
+
+    if status_code != 200:
+        raise BadResponseCodeError(url, status_code)
+
+    dictionary = json.loads(data.getvalue())
+    presigned_post = dictionary["presigned_post"]
+
+    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
+
+
+def patch_multipart_upload(
+    api_url: str, upload_id: str, upload_status: UploadStatus
+) -> None:
+    """
+    Set the status of a specific upload_id.
+    The API accepts "uploaded" or "accepted",
+    if the upload_id is currently set to "pending"
+    """
+    # build url
+    url = api_url + "/uploads/" + upload_id
+
+    post_data = {"status": upload_status}
+    postfields = json.dumps(post_data)
+
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, url)
+    curl.setopt(
+        curl.HTTPHEADER,
+        ["Accept: */*", "Content-Type: application/json"],
+    )
+    curl.setopt(curl.POSTFIELDS, postfields)
+
+    # Set to patch, since postfields sets to POST automatically
+    curl.setopt(curl.CUSTOMREQUEST, "PATCH")
+
+    try:
+        curl.perform()
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(url) from pycurl_error
+
+    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    curl.close()
+
+    if status_code != 204:
+        raise BadResponseCodeError(url, status_code)
+
+
+def get_pending_uploads(
+    api_url: str, file_id: str
+) -> Tuple[Optional[str], Optional[int]]:
+    """
+    Get all multipart-uploads of a specific file which are currently pending.
+    This can either be 0 or 1
+    Returns either the upload_id of the pending upload, or None
+    """
+
+    # build url
+    url = api_url + "/files/" + file_id + "/uploads/"
 
     # Make function call to get upload url
     curl = pycurl.Curl()
@@ -109,55 +240,12 @@ def upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
 
-    dictionary = json.loads(data.getvalue())
-    presigned_post = dictionary["presigned_post"]
+    dictionary: list = json.loads(data.getvalue())
 
-    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
+    if len(dictionary) == 0:
+        return NO_UPLOAD_ID, NO_PART_SIZE
 
-
-def initiate_upload_api_call(api_url: str, file_id: str) -> PresignedPostURL:
-    """
-    Perform a RESTful API call to retrieve initiate a multipart upload
-    """
-
-    # build url
-    url = api_url + "/presigned_post/" + file_id
-
-    # Make function call to get upload url
-    curl = pycurl.Curl()
-    data = BytesIO()
-    curl.setopt(curl.URL, url)
-    curl.setopt(curl.WRITEFUNCTION, data.write)
-
-    curl.setopt(
-        curl.HTTPHEADER,
-        ["Accept: application/json", "Content-Type: application/json"],
-    )
-
-    # GET is the standard, but setting it here explicitely nonetheless
-    curl.setopt(curl.HTTPGET, 1)
-    try:
-        curl.perform()
-    except pycurl.error as pycurl_error:
-        raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
-
-    if status_code != 200:
-        raise BadResponseCodeError(url, status_code)
-
-    dictionary = json.loads(data.getvalue())
-    presigned_post = dictionary["presigned_post"]
-
-    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
-
-
-def part_upload_api_call():
-    """
-    Docstring, because pylint complained
-    """
-    ...
+    return dictionary[0]["upload_id"], int(dictionary[0]["part_size"])
 
 
 def download_api_call(
@@ -260,37 +348,3 @@ def await_download_url(
         sleep(retry_time)
 
     raise MaxWaitTimeExceeded(max_wait_time)
-
-
-def confirm_api_call(api_url: str, file_id: str) -> None:
-    """
-    Perform a RESTful API call to request a confirmation of the upload of a specific file
-    """
-
-    # build url
-    url = api_url + "/confirm_upload/" + file_id
-
-    post_data = {"state": "registered"}
-    postfields = json.dumps(post_data)
-
-    curl = pycurl.Curl()
-    curl.setopt(curl.URL, url)
-    curl.setopt(
-        curl.HTTPHEADER,
-        ["Accept: */*", "Content-Type: application/json"],
-    )
-    curl.setopt(curl.POSTFIELDS, postfields)
-
-    # Set to patch, since postfields sets to POST automatically
-    curl.setopt(curl.CUSTOMREQUEST, "PATCH")
-
-    try:
-        curl.perform()
-    except pycurl.error as pycurl_error:
-        raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
-
-    if status_code != 204:
-        raise BadResponseCodeError(url, status_code)

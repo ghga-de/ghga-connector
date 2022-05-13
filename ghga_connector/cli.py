@@ -101,11 +101,6 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
 
     while part_offset < file_size:
 
-        # Calculetes end of byte range of the file
-        part_end = part_offset + part_size - 1
-        if part_end > file_size:
-            part_end = file_size - 1
-
         # For 0 retries, we still try the first time
         for retries in range(0, max_retries + 1):
             presigned_post = part_upload(
@@ -117,8 +112,9 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
                 upload_file_part(
                     presigned_post=presigned_post,
                     upload_file_path=file_path,
+                    file_id=file_id,
                     part_offset=part_offset,
-                    part_end=part_end,
+                    part_size=part_size,
                 )
                 break
             except BadResponseCodeError as error:
@@ -189,11 +185,6 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
 
     while part_offset < file_size:
 
-        # Calculetes end of byte range of the file
-        part_end = part_offset + part_size - 1
-        if part_end > file_size:
-            part_end = file_size - 1
-
         # For 0 retries, we still try the first time
         for retries in range(0, max_retries + 1):
             try:
@@ -201,7 +192,8 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
                     download_url=download_url,
                     output_file_path=output_file,
                     part_offset=part_offset,
-                    part_end=part_end,
+                    part_size=part_size,
+                    file_size=file_size,
                 )
 
             except BadResponseCodeError as error:

@@ -25,11 +25,20 @@ from .exceptions import BadResponseCodeError, RequestFailedError
 
 
 def download_file_part(
-    download_url: str, output_file_path: str, part_offset: int, part_end: int
+    download_url: str,
+    output_file_path: str,
+    part_offset: int,
+    part_size: int,
+    file_size: int,
 ) -> None:
     """Download File"""
 
-    with open(output_file_path, "ab") as file:
+    # Calculetes end of byte range of the file
+    part_end = part_offset + part_size - 1
+    if part_end > file_size:
+        part_end = file_size - 1
+
+    with open(file=output_file_path, mode="ab", buffering=part_size) as file:
 
         curl = pycurl.Curl()
 
@@ -79,23 +88,30 @@ def download_file_part(download_url, output_file_path, part_offset, part_end):
 def upload_file(presigned_post: PresignedPostURL, upload_file_path):
     """Upload File"""
 
-    url = presigned_post.url
-    curl = pycurl.Curl()
-    curl.setopt(curl.URL, url)
-    curl.setopt(curl.POST, 1)
-    fields = presigned_post.fields
-    fields.update({"file": (curl.FORM_FILE, upload_file_path)})
-    curl.setopt(curl.HTTPPOST, list(fields.items()))
+    with open(file=upload_file_path, mode="rb") as file:
 
-    try:
-        curl.perform()
-    except pycurl.error as pycurl_error:
-        raise RequestFailedError(url) from pycurl_error
+        file.seek(part_offset)
+        content = file.read(part_size)
 
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+        url = presigned_post.url
+        curl = pycurl.Curl()
+        curl.setopt(curl.URL, url)
+        curl.setopt(curl.POST, 1)
+        fields = presigned_post.fields
+        fields.update(
+            {"file": (curl.FORM_BUFFER, file_id, curl.FORM_BUFFERPTT, content)}
+        )
+        curl.setopt(curl.HTTPPOST, list(fields.items()))
 
-    if status_code == 204:
-        return
+        try:
+            curl.perform()
+        except pycurl.error as pycurl_error:
+            raise RequestFailedError(url) from pycurl_error
+
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+        curl.close()
+
+        if status_code == 204:
+            return
 
     raise BadResponseCodeError(url=url, response_code=status_code)

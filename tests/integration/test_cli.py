@@ -35,11 +35,9 @@ from ghga_connector.cli import (
     download,
     upload,
 )
-from ghga_connector.core import (
+from ghga_connector.core import (  # RequestFailedError,
     BadResponseCodeError,
     MaxWaitTimeExceeded,
-    RequestFailedError,
-    confirm_api_call,
 )
 
 from ..fixtures import s3_fixture  # noqa: F401
@@ -286,27 +284,27 @@ def test_upload(
             assert isinstance(exception, expected_exception)
 
 
-@pytest.mark.parametrize(
-    "bad_url,file_id,expected_exception",
-    [
-        (False, "uploaded", None),
-        (False, "uploadable", BadResponseCodeError),
-        (True, "uploaded", RequestFailedError),
-    ],
-)
-def test_confirm_api_call(
-    bad_url,
-    file_id,
-    expected_exception,
-):
-    """
-    Test the confirm_api_call function
-    """
-    with MockAPIContainer() as api:
-        api_url = "http://bad_url" if bad_url else api.get_connection_url()
+# @pytest.mark.parametrize(
+#     "bad_url,file_id,expected_exception",
+#     [
+#         (False, "uploaded", None),
+#         (False, "uploadable", BadResponseCodeError),
+#         (True, "uploaded", RequestFailedError),
+#     ],
+# )
+# def test_confirm_api_call(
+#     bad_url,
+#     file_id,
+#     expected_exception,
+# ):
+#     """
+#     Test the confirm_api_call function
+#     """
+#     with MockAPIContainer() as api:
+#         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
-        try:
-            confirm_api_call(api_url=api_url, file_id=file_id)
-            assert expected_exception is None
-        except Exception as exception:
-            assert isinstance(exception, expected_exception)
+#         try:
+#             confirm_api_call(api_url=api_url, file_id=file_id)
+#             assert expected_exception is None
+#         except Exception as exception:
+#             assert isinstance(exception, expected_exception)

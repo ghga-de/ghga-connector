@@ -24,14 +24,27 @@ All other file_ids will fail
 import json
 import os
 from datetime import datetime, timezone
+from enum import Enum
 from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from ghga_connector.cli import DEFAULT_PART_SIZE
-from ghga_connector.core import UploadStatus
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
+
+
+class UploadStatus(Enum):
+    """
+    Enum for the possible UploadStatus of a specific upload_id
+    """
+
+    ACCEPTED = "accepted"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    UPLOADED = "uploaded"
 
 
 class StatePatch(BaseModel):
@@ -140,28 +153,6 @@ async def drs3_objects(file_id: str):
     raise HTTPException(
         status_code=404,
         detail=(f'The DRSObject with the id "{file_id}" does not exist.'),
-    )
-
-
-@app.get(
-    "/presigned_post/{file_id}", summary="ulc_presigned_post_mock", status_code=200
-)
-async def ulc_presigned_post(file_id: str):
-
-    """
-    Mock for the ulc /presigned_post/{file_id} call.
-    """
-
-    if file_id == "uploadable":
-        url = PresignedPostURL(
-            url=os.environ["S3_UPLOAD_URL"],
-            fields=json.loads(os.environ["S3_UPLOAD_FIELDS"]),
-        )
-        return {"presigned_post": url}
-
-    raise HTTPException(
-        status_code=404,
-        detail=(f'The file with the file_id "{file_id}" does not exist.'),
     )
 
 

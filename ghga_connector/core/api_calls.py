@@ -25,21 +25,21 @@ from time import sleep
 from typing import Any, Callable, Optional, Tuple, Union
 
 import pycurl
+import typer
 from ghga_service_chassis_lib.s3 import PresignedPostURL
 
 from .exceptions import (
     BadResponseCodeError,
     MaxWaitTimeExceeded,
     NoS3AccessMethod,
+    NoUploadPossibleError,
     RequestFailedError,
     RetryTimeExpectedError,
 )
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
-NO_UPLOAD_ID = None
 NO_FILE_SIZE = None
-NO_PART_SIZE = None
 NO_RETRY_TIME = None
 
 
@@ -123,6 +123,8 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     curl.close()
 
     if status_code != 200:
+        if status_code == 403:
+            raise NoUploadPossibleError()
         raise BadResponseCodeError(url, status_code)
 
     dictionary = json.loads(data.getvalue())
@@ -204,9 +206,7 @@ def patch_multipart_upload(
         raise BadResponseCodeError(url, status_code)
 
 
-def get_pending_uploads(
-    api_url: str, file_id: str
-) -> Tuple[Optional[str], Optional[int]]:
+def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]:
     """
     Get all multipart-uploads of a specific file which are currently pending.
     This can either be 0 or 1
@@ -243,7 +243,7 @@ def get_pending_uploads(
     dictionary: list = json.loads(data.getvalue())
 
     if len(dictionary) == 0:
-        return NO_UPLOAD_ID, NO_PART_SIZE
+        return None
 
     return dictionary[0]["upload_id"], int(dictionary[0]["part_size"])
 
@@ -310,6 +310,51 @@ def download_api_call(
         raise NoS3AccessMethod(url)
 
     return download_url, file_size, NO_RETRY_TIME
+
+
+def restart_multipart_upload(
+    api_url: str, file_id: str, error: Exception
+) -> Tuple[str, int]:
+    """Try to cancel the currently running multipart upload and start a new one"""
+
+    pending_upload = get_pending_uploads(api_url=api_url, file_id=file_id)
+    if pending_upload is None:
+        typer.echo(f"This user currently can't upload the file with id {file_id}.")
+        raise typer.Abort() from error
+
+    # try to cancel upload
+    upload_id = pending_upload[0]
+    try:
+        patch_multipart_upload(
+            api_url=api_url,
+            upload_id=upload_id,
+            upload_status=UploadStatus.CANCELLED,
+        )
+
+    except BadResponseCodeError as patch_error:
+        typer.echo(
+            f"The request to cancell the upload with id {upload_id} was invalid."
+        )
+        raise typer.Abort() from patch_error
+    except RequestFailedError as patch_error:
+        typer.echo(f"Cancelling the upload with id {upload_id} failed.")
+        raise typer.Abort() from patch_error
+
+    try:
+        upload_id, part_size = initiate_multipart_upload(
+            api_url=api_url, file_id=file_id
+        )
+    except NoUploadPossibleError as initiate_error:
+        typer.echo(f"This user currently can't upload the file with id {file_id}.")
+        raise typer.Abort() from initiate_error
+    except BadResponseCodeError as initiate_error:
+        typer.echo("The request was invalid and returnd a wrong HTTP status code.")
+        raise typer.Abort() from initiate_error
+    except RequestFailedError as initiate_error:
+        typer.echo("The request has failed.")
+        raise typer.Abort() from initiate_error
+
+    return upload_id, part_size
 
 
 def await_download_url(

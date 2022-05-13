@@ -51,6 +51,14 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
+class NoUploadPossibleError(RuntimeError):
+    """Thrown, when a multipart upload currently can't be started"""
+
+    def __init__(self):
+        message = "It is currently not possible to start a multipart upload."
+        super().__init__(message)
+
+
 class MaxWaitTimeExceeded(RuntimeError):
     """Thrown, when the specified wait time has been exceeded."""
 

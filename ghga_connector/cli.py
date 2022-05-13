@@ -23,11 +23,17 @@ import typer
 from ghga_connector.core import (
     BadResponseCodeError,
     RequestFailedError,
+    UploadStatus,
     await_download_url,
     check_url,
     download_file_part,
-    upload_file,
+    initiate_multipart_upload,
+    part_upload,
+    patch_multipart_upload,
+    restart_multipart_upload,
+    upload_file_part,
 )
+from ghga_connector.core.exceptions import NoUploadPossibleError
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
@@ -52,10 +58,13 @@ cli = typer.Typer()
 
 
 @cli.command()
-def upload(
+def upload(  # noqa C901, pylint: disable=too-many-branches
     api_url: str = typer.Option(..., help="Url to the upload contoller"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
+    max_retries: int = typer.Argument(
+        "3", help="Maximum number of tries to download a single file part."
+    ),
 ):
     """
     Command to upload a file
@@ -69,7 +78,15 @@ def upload(
         raise typer.Abort()
 
     try:
-        presigned_post = None  # upload_api_call(api_url, file_id)
+        upload_id, part_size = initiate_multipart_upload(
+            api_url=api_url, file_id=file_id
+        )
+    except NoUploadPossibleError as error:
+        # see if there is an open upload
+        upload_id, part_size = restart_multipart_upload(
+            api_url=api_url, file_id=file_id, error=error
+        )
+
     except BadResponseCodeError as error:
         typer.echo("The request was invalid and returnd a wrong HTTP status code.")
         raise typer.Abort() from error
@@ -77,17 +94,60 @@ def upload(
         typer.echo("The request has failed.")
         raise typer.Abort() from error
 
-    # Upload File
+    file_size = path.getsize(file_path)
+
+    part_no = 0
+    part_offset = 0
+
+    while part_offset < file_size:
+
+        # Calculetes end of byte range of the file
+        part_end = part_offset + part_size - 1
+        if part_end > file_size:
+            part_end = file_size - 1
+
+        # For 0 retries, we still try the first time
+        for retries in range(0, max_retries + 1):
+            presigned_post = part_upload(
+                api_url=api_url, upload_id=upload_id, part_no=part_no
+            )
+
+            # Upload File
+            try:
+                upload_file_part(
+                    presigned_post=presigned_post,
+                    upload_file_path=file_path,
+                    part_offset=part_offset,
+                    part_end=part_end,
+                )
+                break
+            except BadResponseCodeError as error:
+                typer.echo(
+                    "The part upload request was invalid and returnd a wrong HTTP status code."
+                )
+                if retries > max_retries - 1:
+                    raise error
+            except RequestFailedError as error:
+                typer.echo("The part upload request has failed.")
+                if retries > max_retries - 1:
+                    raise error
+
+        part_offset += part_size
+
     try:
-        upload_file(presigned_post=presigned_post, upload_file_path=file_path)
+        patch_multipart_upload(
+            api_url=api_url,
+            upload_id=upload_id,
+            upload_status=UploadStatus.UPLOADED,
+        )
     except BadResponseCodeError as error:
         typer.echo(
-            "The upload request was invalid and returnd a wrong HTTP status code."
+            f"The request to confirm the upload with id {upload_id} was invalid."
         )
-        raise error
+        raise typer.Abort() from error
     except RequestFailedError as error:
-        typer.echo("The upload request has failed.")
-        raise error
+        typer.echo(f"Confirming the upload with id {upload_id} failed.")
+        raise typer.Abort() from error
     typer.echo(f"File with id '{file_id}' has been successfully uploaded.")
 
 

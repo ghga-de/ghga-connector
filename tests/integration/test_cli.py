@@ -71,7 +71,7 @@ def test_multipart_download(
         assert not s3_fixture.storage.does_object_exist(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
-        presigned_post = s3_fixture.storage.get_object_upload_url(
+        presigned_post = s3_fixture.storage.get_part_upload_url(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
         upload_file(

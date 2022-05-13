@@ -34,7 +34,7 @@ from pydantic import BaseModel
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 
-class UploadStatus(Enum):
+class UploadStatus(str, Enum):
     """
     Enum for the possible UploadStatus of a specific upload_id
     """

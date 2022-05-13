@@ -43,7 +43,7 @@ NO_FILE_SIZE = None
 NO_RETRY_TIME = None
 
 
-class UploadStatus(Enum):
+class UploadStatus(str, Enum):
     """
     Enum for the possible UploadStatus of a specific upload_id
     """
@@ -180,7 +180,7 @@ def patch_multipart_upload(
     # build url
     url = api_url + "/uploads/" + upload_id
 
-    post_data = {"upload_status": upload_status.value}
+    post_data = {"upload_status": upload_status}
     postfields = json.dumps(post_data)
 
     curl = pycurl.Curl()

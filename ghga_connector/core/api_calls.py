@@ -214,7 +214,7 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     """
 
     # build url
-    url = api_url + "/files/" + file_id + "/uploads/"
+    url = api_url + "/files/" + file_id + "/uploads/?status=pending"
 
     # Make function call to get upload url
     curl = pycurl.Curl()

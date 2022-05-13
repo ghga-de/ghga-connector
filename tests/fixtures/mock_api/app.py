@@ -24,37 +24,30 @@ All other file_ids will fail
 import json
 import os
 from datetime import datetime, timezone
-from enum import Enum
 from typing import List, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from ghga_connector.cli import DEFAULT_PART_SIZE
+from ghga_connector.core import UploadStatus
 
-# fmt: off
-class UploadState(Enum):
 
+class StatePatch(BaseModel):
     """
-    The current upload state. Can be registered (no information),
-    pending (the user has requested an upload url),
-    uploaded (the user has confirmed the upload),
-    or registered (the file has been registered with the internal-file-registry).
+    Model containing a state parameter. Needed for the ULC patch api call
     """
 
-    REGISTERED = "registered"
-    PENDING = "pending"
-    UPLOADED = "uploaded"
-    COMPLETED = "completed"
-# fmt: on
+    state: UploadStatus
 
 
-class State(BaseModel):
+class StateGet(BaseModel):
     """
-    Model containing a state parameter. Needed for the ULC confirm api call
+    Model containing a state parameter. Needed for the ULC get api call
     """
 
-    state: UploadState
+    state: UploadStatus
 
 
 class PresignedPostURL(BaseModel):
@@ -172,28 +165,109 @@ async def ulc_presigned_post(file_id: str):
     )
 
 
-@app.patch(
-    "/confirm_upload/{file_id}", summary="ulc_confirm_upload_mock", status_code=204
+@app.get(
+    "/files/{file_id}/uploads", summary="ulc_get_files_uploads_mock", status_code=200
 )
-async def ulc_confirm_upload(file_id: str, state: State):
+async def ulc_get_files_uploads(file_id: str, state: StateGet):
 
     """
-    Mock for the drs3 /confirm_upload/{file_id} call
+    Mock for the ulc GET /files/{file_id}/uploads call.
+    """
+    if state.state == UploadStatus.PENDING:
+
+        if file_id == "pending":
+            return [{"upload_id": "pending", "part_size": DEFAULT_PART_SIZE}]
+
+        if file_id == "uploaded":
+            return []
+
+    raise HTTPException(
+        status_code=404,
+        detail=(f'The file with the file_id "{file_id}" does not exist.'),
+    )
+
+
+@app.post(
+    "/files/{file_id}/uploads", summary="ulc_post_files_uploads_mock", status_code=200
+)
+async def ulc_post_files_uploads(file_id: str):
+    """
+    Mock for the ulc POST /files/{file_id}/uploads call.
     """
 
-    if file_id == "uploaded":
-        if state.state == UploadState.REGISTERED:
-            return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
-
+    if file_id == "uploadable":
+        return {"upload_id": "pending", "part_size": DEFAULT_PART_SIZE}
+    if file_id == "uploadable_16":
+        return {"upload_id": "pending", "part_size": 16 * 1024 * 1024}
+    if file_id == "uploadable_5":
+        return {"upload_id": "pending", "part_size": 5 * 1024 * 1024}
+    if file_id == "pending":
         raise HTTPException(
-            status_code=400,
-            detail=(f'The file with id "{file_id}" can`t be set to "{state}"'),
+            status_code=403,
+            detail=(f'Can`t start multipart upload for file with file id "{file_id}".'),
         )
 
     raise HTTPException(
-        status_code=400,
-        detail=(
-            f'The file with id "{file_id}" is registered for upload'
-            + " but its content was not found in the inbox."
-        ),
+        status_code=404,
+        detail=(f'The file with the file_id "{file_id}" does not exist.'),
+    )
+
+
+@app.post(
+    "/uploads/{upload_id}/parts/{part_no}/signed_posts",
+    summary="ulc_post_uploads_parts_files_signed_posts_mock",
+    status_code=200,
+)
+async def ulc_post_uploads_parts_files_signed_posts(file_id: str, part_no: int):
+    """
+    Mock for the ulc POST /uploads/{upload_id}/parts/{part_no}/signed_posts call.
+    """
+
+    if file_id == "uploadable_16" or file_id == "uploadable_5":
+        if part_no == 1:
+            url = PresignedPostURL(
+                url=os.environ["S3_UPLOAD_URL_1"],
+                fields=json.loads(os.environ["S3_UPLOAD_FIELDS_1"]),
+            )
+            return {"presigned_post": url}
+        if part_no == 2:
+            url = PresignedPostURL(
+                url=os.environ["S3_UPLOAD_URL_2"],
+                fields=json.loads(os.environ["S3_UPLOAD_FIELDS_2"]),
+            )
+            return {"presigned_post": url}
+    raise HTTPException(
+        status_code=404,
+        detail=(f'The file with the file_id "{file_id}" does not exist.'),
+    )
+
+
+@app.patch("/uploads/{upload_id}", summary="ulc_patch_uploads_mock", status_code=204)
+async def ulc_patch_uploads(upload_id: str, state: StatePatch):
+
+    """
+    Mock for the ulc PATCH /uploads/{upload_id} call
+    """
+
+    if upload_id == "uploaded":
+        if state.state == UploadStatus.UPLOADED:
+            return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
+
+        raise HTTPException(
+            status_code=403,
+            detail=(f'The upload with id "{upload_id}" can`t be set to "{state}"'),
+        )
+
+    if upload_id == "pending":
+        if state.state == UploadStatus.CANCELLED:
+            return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
+
+        raise HTTPException(
+            status_code=403,
+            detail=(f'The upload with id "{upload_id}" can`t be set to "{state}"'),
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail=(f'The upload with id "{upload_id}" does not exist'),
     )

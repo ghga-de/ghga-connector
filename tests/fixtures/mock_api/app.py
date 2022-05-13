@@ -89,10 +89,17 @@ class AccessURL(BaseModel):
 
 
 class AccessMethod(BaseModel):
-    """A AccessMethod as per the DRS OpenApi spec."""
+    """An AccessMethod as per the DRS OpenApi spec."""
 
     access_url: AccessURL
     type: Literal["s3"] = "s3"  # currently only s3 is supported
+
+
+class UploadProperties(BaseModel):
+    """A AccessMethod as per the DRS OpenApi spec."""
+
+    upload_id: str
+    part_size: int
 
 
 class DrsObjectServe(BaseModel):
@@ -167,7 +174,12 @@ async def ulc_get_files_uploads(file_id: str, state: StateGet):
     if state.upload_status == UploadStatus.PENDING:
 
         if file_id == "pending":
-            return [{"upload_id": "pending", "part_size": DEFAULT_PART_SIZE}]
+            return [
+                UploadProperties(
+                    upload_id="pending",
+                    part_size=DEFAULT_PART_SIZE,
+                )
+            ]
 
         if file_id == "uploaded":
             return []
@@ -187,11 +199,21 @@ async def ulc_post_files_uploads(file_id: str):
     """
 
     if file_id == "uploadable":
-        return {"upload_id": "pending", "part_size": DEFAULT_PART_SIZE}
+        return UploadProperties(
+            upload_id="pending",
+            part_size=DEFAULT_PART_SIZE,
+        )
     if file_id == "uploadable_16":
-        return {"upload_id": "pending", "part_size": 16 * 1024 * 1024}
+        return UploadProperties(
+            upload_id="pending",
+            part_size=16 * 1024 * 1024,
+        )
+
     if file_id == "uploadable_5":
-        return {"upload_id": "pending", "part_size": 5 * 1024 * 1024}
+        return UploadProperties(
+            upload_id="pending",
+            part_size=5 * 1024 * 1024,
+        )
     if file_id == "pending":
         raise HTTPException(
             status_code=403,

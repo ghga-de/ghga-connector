@@ -51,13 +51,13 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
         (20 * 1024 * 1024, DEFAULT_PART_SIZE),
     ],
 )
-def test_multipart_download(
+def test_mulitpart_download(
     file_size,
     part_size,
     s3_fixture,  # noqa F811
     tmp_path,
 ):
-    """Test the multipart download of a file"""
+    """Test the mulitpart download of a file"""
 
     with big_temp_file(file_size) as big_file:
 
@@ -288,7 +288,7 @@ def test_upload(
         (20 * 1024 * 1024, "16"),
     ],
 )
-def test_multipart_upload(
+def test_mulitpart_upload(
     file_size,
     anticipated_part_size,
     s3_fixture,  # noqa F811
@@ -300,7 +300,7 @@ def test_multipart_upload(
     anticipated_part_quantity = file_size / anticipated_part_size
 
     # initiate upload
-    upload_id = s3_fixture.storage.init_multipart_upload(
+    upload_id = s3_fixture.storage.init_mulitpart_upload(
         bucket_id=bucket_id,
         object_id=file_id,
     )
@@ -340,7 +340,7 @@ def test_multipart_upload(
                 )
 
             # confirm upload
-            s3_fixture.storage.complete_multipart_upload(
+            s3_fixture.storage.complete_mulitpart_upload(
                 upload_id=upload_id,
                 bucket_id=bucket_id,
                 object_id=file_id,

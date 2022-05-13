@@ -204,7 +204,7 @@ async def ulc_post_files_uploads(file_id: str):
     if file_id == "pending":
         raise HTTPException(
             status_code=403,
-            detail=(f'Can`t start multipart upload for file with file id "{file_id}".'),
+            detail=(f'Can`t start mulitpart upload for file with file id "{file_id}".'),
         )
 
     raise HTTPException(

@@ -69,7 +69,7 @@ def header_function_factory(headers: dict):
 
         # Header lines include the first status line (HTTP/1.x ...).
         # We are going to ignore all lines that don't have a colon in them.
-        # This will botch headers that are split on multiple lines...
+        # This will botch headers that are split on mulitple lines...
         if ":" not in header_line:
             return
 
@@ -93,9 +93,9 @@ def header_function_factory(headers: dict):
     return header_function
 
 
-def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
+def initiate_mulitpart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     """
-    Perform a RESTful API call to initiate a multipart upload on S3
+    Perform a RESTful API call to initiate a mulitpart upload on S3
     Returns an upload id and a part size
     """
 
@@ -169,7 +169,7 @@ def part_upload(api_url: str, upload_id: str, part_no: int) -> PresignedPostURL:
     return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
 
 
-def patch_multipart_upload(
+def patch_mulitpart_upload(
     api_url: str, upload_id: str, upload_status: UploadStatus
 ) -> None:
     """
@@ -208,7 +208,7 @@ def patch_multipart_upload(
 
 def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]:
     """
-    Get all multipart-uploads of a specific file which are currently pending.
+    Get all mulitpart-uploads of a specific file which are currently pending.
     This can either be 0 or 1
     Returns either the upload_id of the pending upload, or None
     """
@@ -312,10 +312,10 @@ def download_api_call(
     return download_url, file_size, NO_RETRY_TIME
 
 
-def restart_multipart_upload(
+def restart_mulitpart_upload(
     api_url: str, file_id: str, error: Exception
 ) -> Tuple[str, int]:
-    """Try to cancel the currently running multipart upload and start a new one"""
+    """Try to cancel the currently running mulitpart upload and start a new one"""
 
     pending_upload = get_pending_uploads(api_url=api_url, file_id=file_id)
     if pending_upload is None:
@@ -325,7 +325,7 @@ def restart_multipart_upload(
     # try to cancel upload
     upload_id = pending_upload[0]
     try:
-        patch_multipart_upload(
+        patch_mulitpart_upload(
             api_url=api_url,
             upload_id=upload_id,
             upload_status=UploadStatus.CANCELLED,
@@ -341,7 +341,7 @@ def restart_multipart_upload(
         raise typer.Abort() from patch_error
 
     try:
-        upload_id, part_size = initiate_multipart_upload(
+        upload_id, part_size = initiate_mulitpart_upload(
             api_url=api_url, file_id=file_id
         )
     except NoUploadPossibleError as initiate_error:

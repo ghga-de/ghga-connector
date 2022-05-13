@@ -24,7 +24,7 @@ from ghga_connector.core import (
     RequestFailedError,
     UploadStatus,
     get_pending_uploads,
-    patch_multipart_upload,
+    patch_mulitpart_upload,
 )
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
@@ -46,7 +46,7 @@ def test_get_pending_uploads(
     expect_none,
 ):
     """
-    Test the patch_multipart_upload function
+    Test the patch_mulitpart_upload function
     """
     with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
@@ -75,20 +75,20 @@ def test_get_pending_uploads(
         (True, "uploaded", UploadStatus.UPLOADED, RequestFailedError),
     ],
 )
-def test_patch_multipart_upload(
+def test_patch_mulitpart_upload(
     bad_url,
     upload_id,
     upload_status,
     expected_exception,
 ):
     """
-    Test the patch_multipart_upload function
+    Test the patch_mulitpart_upload function
     """
     with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
-            patch_multipart_upload(
+            patch_mulitpart_upload(
                 api_url=api_url,
                 upload_id=upload_id,
                 upload_status=upload_status,

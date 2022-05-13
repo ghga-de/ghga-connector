@@ -27,10 +27,10 @@ from ghga_connector.core import (
     await_download_url,
     check_url,
     download_file_part,
-    initiate_mulitpart_upload,
+    initiate_multipart_upload,
     part_upload,
-    patch_mulitpart_upload,
-    restart_mulitpart_upload,
+    patch_multipart_upload,
+    restart_multipart_upload,
     upload_file_part,
 )
 from ghga_connector.core.exceptions import NoUploadPossibleError
@@ -78,12 +78,12 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
         raise typer.Abort()
 
     try:
-        upload_id, part_size = initiate_mulitpart_upload(
+        upload_id, part_size = initiate_multipart_upload(
             api_url=api_url, file_id=file_id
         )
     except NoUploadPossibleError as error:
         # see if there is an open upload
-        upload_id, part_size = restart_mulitpart_upload(
+        upload_id, part_size = restart_multipart_upload(
             api_url=api_url, file_id=file_id, error=error
         )
 
@@ -131,7 +131,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
         part_offset += part_size
 
     try:
-        patch_mulitpart_upload(
+        patch_multipart_upload(
             api_url=api_url,
             upload_id=upload_id,
             upload_status=UploadStatus.UPLOADED,

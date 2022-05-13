@@ -52,10 +52,10 @@ class BadResponseCodeError(RuntimeError):
 
 
 class NoUploadPossibleError(RuntimeError):
-    """Thrown, when a mulitpart upload currently can't be started"""
+    """Thrown, when a multipart upload currently can't be started"""
 
     def __init__(self):
-        message = "It is currently not possible to start a mulitpart upload."
+        message = "It is currently not possible to start a multipart upload."
         super().__init__(message)
 
 

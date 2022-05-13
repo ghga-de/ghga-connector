@@ -21,7 +21,6 @@ The drs3 mock sends back a "wait 1 minute" for file_id == "1m"
 All other file_ids will fail
 """
 
-import json
 import os
 from datetime import datetime, timezone
 from enum import Enum
@@ -57,11 +56,10 @@ class StatePatch(BaseModel):
 
 class PresignedPostURL(BaseModel):
     """
-    Model containing an url and header fields
+    Model containing an url
     """
 
     url: str
-    fields: dict
 
 
 class Checksum(BaseModel):
@@ -230,23 +228,15 @@ async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int
 
     if upload_id == "uploadable_16" or upload_id == "uploadable_5":
         if part_no == 1:
-            url = PresignedPostURL(
-                url=os.environ["S3_UPLOAD_URL_1"],
-                fields=json.loads(os.environ["S3_UPLOAD_FIELDS_1"]),
-            )
+            url = (os.environ["S3_UPLOAD_URL_1"],)
             return {"presigned_post": url}
         if part_no == 2:
-            url = PresignedPostURL(
-                url=os.environ["S3_UPLOAD_URL_2"],
-                fields=json.loads(os.environ["S3_UPLOAD_FIELDS_2"]),
-            )
+
+            url = (os.environ["S3_UPLOAD_URL_2"],)
             return {"presigned_post": url}
 
     if upload_id == "pending" and part_no == 1:
-        url = PresignedPostURL(
-            url=os.environ["S3_UPLOAD_URL_1"],
-            fields=json.loads(os.environ["S3_UPLOAD_FIELDS_1"]),
-        )
+        url = (os.environ["S3_UPLOAD_URL_1"],)
         return {"presigned_post": url}
 
     raise HTTPException(

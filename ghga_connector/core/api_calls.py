@@ -166,7 +166,7 @@ def part_upload(api_url: str, upload_id: str, part_no: int) -> PresignedPostURL:
     dictionary = json.loads(data.getvalue())
     presigned_post = dictionary["presigned_post"]
 
-    return PresignedPostURL(url=presigned_post["url"], fields=presigned_post["fields"])
+    return PresignedPostURL(url=presigned_post["url"])
 
 
 def patch_multipart_upload(

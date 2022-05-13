@@ -261,9 +261,7 @@ def test_upload(
         expires_after=60,
     )
 
-    with MockAPIContainer(
-        s3_upload_url_1=upload_url.url, s3_upload_fields_1=upload_url.fields
-    ) as api:
+    with MockAPIContainer(s3_upload_url_1=upload_url.url) as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         try:
@@ -324,9 +322,7 @@ def test_multipart_upload(
 
     with MockAPIContainer(
         s3_upload_url_1=upload_url_1.url,
-        s3_upload_fields_1=upload_url_1.fields,
         s3_upload_url_2=upload_url_2.url,
-        s3_upload_fields_2=upload_url_2.fields,
     ) as api:
         api_url = api.get_connection_url()
 

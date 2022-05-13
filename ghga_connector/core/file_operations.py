@@ -99,7 +99,7 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
         curl.setopt(curl.POST, 1)
         fields = presigned_post.fields
         fields.update(
-            {"file": (curl.FORM_BUFFER, file_id, curl.FORM_BUFFERPTT, content)}
+            {"file": (curl.FORM_BUFFER, file_id, curl.FORM_BUFFERPTR, content)}
         )
         curl.setopt(curl.HTTPPOST, list(fields.items()))
 

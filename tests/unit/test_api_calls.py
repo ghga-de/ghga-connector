@@ -68,9 +68,9 @@ def test_get_pending_uploads(
 @pytest.mark.parametrize(
     "bad_url,upload_id,upload_status,expected_exception",
     [
-        (False, "uploaded", UploadStatus.UPLOADED, None),
-        (False, "pending", UploadStatus.CANCELLED, None),
-        (False, "uploaded", UploadStatus.CANCELLED, BadResponseCodeError),
+        (False, "pending", UploadStatus.UPLOADED, None),
+        (False, "uploaded", UploadStatus.CANCELLED, None),
+        (False, "pending", UploadStatus.CANCELLED, BadResponseCodeError),
         (False, "uploadable", UploadStatus.UPLOADED, BadResponseCodeError),
         (True, "uploaded", UploadStatus.UPLOADED, RequestFailedError),
     ],

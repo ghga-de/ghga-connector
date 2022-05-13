@@ -100,7 +100,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     """
 
     # build url
-    url = api_url + "/files/" + file_id + "/uploads/"
+    url = api_url + "/files/" + file_id + "/uploads"
 
     # Make function call to get upload url
     curl = pycurl.Curl()

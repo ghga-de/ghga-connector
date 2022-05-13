@@ -268,9 +268,10 @@ def test_upload(
 
         try:
             upload(
-                api_url,
-                uploadable_file.file_id,
-                str(uploadable_file.file_path.resolve()),
+                api_url=api_url,
+                file_id=uploadable_file.file_id,
+                file_path=str(uploadable_file.file_path.resolve()),
+                max_retries=0,
             )
             assert expected_exception is None
             assert s3_fixture.storage.does_object_exist(
@@ -284,13 +285,13 @@ def test_upload(
 @pytest.mark.parametrize(
     "file_size,anticipated_part_size",
     [
-        (6 * 1024 * 1024, "5"),
-        (20 * 1024 * 1024, "16"),
+        (6 * 1024 * 1024, 5),
+        (20 * 1024 * 1024, 16),
     ],
 )
 def test_multipart_upload(
-    file_size,
-    anticipated_part_size,
+    file_size: int,
+    anticipated_part_size: int,
     s3_fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
@@ -336,7 +337,7 @@ def test_multipart_upload(
                     api_url=api_url,
                     file_id=file_id,
                     file_path=file.name,
-                    max_retries=3,
+                    max_retries=0,
                 )
 
             # confirm upload

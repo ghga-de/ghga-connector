@@ -57,10 +57,10 @@ class MockAPIContainer(DockerContainer):
 
         self.with_exposed_ports(self._port)
         self.with_env("S3_DOWNLOAD_URL", s3_download_url)
-        self.with_env("S3_UPLOAD_URL", s3_upload_url_1)
-        self.with_env("S3_UPLOAD_FIELDS", json.dumps(s3_upload_fields_1))
-        self.with_env("S3_UPLOAD_URL", s3_upload_url_2)
-        self.with_env("S3_UPLOAD_FIELDS", json.dumps(s3_upload_fields_2))
+        self.with_env("S3_UPLOAD_URL_1", s3_upload_url_1)
+        self.with_env("S3_UPLOAD_FIELDS_1", json.dumps(s3_upload_fields_1))
+        self.with_env("S3_UPLOAD_URL_2", s3_upload_url_2)
+        self.with_env("S3_UPLOAD_FIELDS_2", json.dumps(s3_upload_fields_2))
         self.with_env("S3_DOWNLOAD_FIELD_SIZE", s3_download_file_size)
         self.with_volume_mapping(host=str(APP_MODULE_PATH), container="/app.py")
         self.with_command(

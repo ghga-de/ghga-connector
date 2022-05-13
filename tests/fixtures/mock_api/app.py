@@ -223,12 +223,12 @@ async def ulc_post_files_uploads(file_id: str):
     summary="ulc_post_uploads_parts_files_signed_posts_mock",
     status_code=200,
 )
-async def ulc_post_uploads_parts_files_signed_posts(file_id: str, part_no: int):
+async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int):
     """
     Mock for the ulc POST /uploads/{upload_id}/parts/{part_no}/signed_posts call.
     """
 
-    if file_id == "uploadable_16" or file_id == "uploadable_5":
+    if upload_id == "uploadable_16" or upload_id == "uploadable_5":
         if part_no == 1:
             url = PresignedPostURL(
                 url=os.environ["S3_UPLOAD_URL_1"],
@@ -241,9 +241,17 @@ async def ulc_post_uploads_parts_files_signed_posts(file_id: str, part_no: int):
                 fields=json.loads(os.environ["S3_UPLOAD_FIELDS_2"]),
             )
             return {"presigned_post": url}
+
+    if upload_id == "pending" and part_no == 1:
+        url = PresignedPostURL(
+            url=os.environ["S3_UPLOAD_URL_1"],
+            fields=json.loads(os.environ["S3_UPLOAD_FIELDS_1"]),
+        )
+        return {"presigned_post": url}
+
     raise HTTPException(
         status_code=404,
-        detail=(f'The file with the file_id "{file_id}" does not exist.'),
+        detail=(f'The file with the upload id "{upload_id}" does not exist.'),
     )
 
 
@@ -256,7 +264,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
     upload_status = state.upload_status
 
     if upload_id == "uploaded":
-        if upload_status == UploadStatus.UPLOADED:
+        if upload_status == UploadStatus.CANCELLED:
             return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(
@@ -267,7 +275,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
         )
 
     if upload_id == "pending":
-        if upload_status == UploadStatus.CANCELLED:
+        if upload_status == UploadStatus.UPLOADED:
             return JSONResponse(None, status_code=status.HTTP_204_NO_CONTENT)
 
         raise HTTPException(

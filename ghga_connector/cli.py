@@ -63,7 +63,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
     max_retries: int = typer.Argument(
-        "3", help="Maximum number of tries to download a single file part."
+        "3", help="Maximum number of tries to upload a single file part."
     ),
 ):
     """
@@ -96,7 +96,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
 
     file_size = path.getsize(file_path)
 
-    part_no = 0
+    part_no = 1
     part_offset = 0
 
     while part_offset < file_size:

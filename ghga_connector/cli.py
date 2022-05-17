@@ -103,14 +103,14 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
 
         # For 0 retries, we still try the first time
         for retries in range(0, max_retries + 1):
-            presigned_post = part_upload(
+            presigned_post_url = part_upload(
                 api_url=api_url, upload_id=upload_id, part_no=part_no
             )
 
             # Upload File
             try:
                 upload_file_part(
-                    presigned_post=presigned_post,
+                    presigned_post_url=presigned_post_url,
                     upload_file_path=file_path,
                     file_id=file_id,
                     part_offset=part_offset,

@@ -193,13 +193,13 @@ async def ulc_post_files_uploads(file_id: str):
             upload_id="pending",
             part_size=DEFAULT_PART_SIZE,
         )
-    if file_id == "uploadable_16":
+    if file_id == "uploadable-16":
         return UploadProperties(
             upload_id="pending",
             part_size=16 * 1024 * 1024,
         )
 
-    if file_id == "uploadable_5":
+    if file_id == "uploadable-5":
         return UploadProperties(
             upload_id="pending",
             part_size=5 * 1024 * 1024,
@@ -226,18 +226,13 @@ async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int
     Mock for the ulc POST /uploads/{upload_id}/parts/{part_no}/signed_posts call.
     """
 
-    if upload_id == "uploadable_16" or upload_id == "uploadable_5":
+    if upload_id == "pending":
         if part_no == 1:
             url = (os.environ["S3_UPLOAD_URL_1"],)
             return {"presigned_post": url}
         if part_no == 2:
-
             url = (os.environ["S3_UPLOAD_URL_2"],)
             return {"presigned_post": url}
-
-    if upload_id == "pending" and part_no == 1:
-        url = (os.environ["S3_UPLOAD_URL_1"],)
-        return {"presigned_post": url}
 
     raise HTTPException(
         status_code=404,

@@ -311,7 +311,7 @@ def test_multipart_upload(
     """Test the upload of a file, expects Abort, if the file was not found"""
 
     bucket_id = s3_fixture.existing_buckets[0]
-    file_id = "uploadable_" + str(anticipated_part_size)
+    file_id = "uploadable-" + str(anticipated_part_size)
 
     anticipated_part_size = anticipated_part_size * 1024 * 1024
 

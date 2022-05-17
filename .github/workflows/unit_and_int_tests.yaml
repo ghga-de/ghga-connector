@@ -9,7 +9,9 @@ jobs:
 
     steps:
       - name: install system packages
-        run: sudo apt-get install --fix-missing libcurl4-openssl-dev libssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install --fix-missing libcurl4-openssl-dev libssl-dev
 
       - uses: actions/checkout@v1
 

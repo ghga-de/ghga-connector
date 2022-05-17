@@ -112,7 +112,6 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
                 upload_file_part(
                     presigned_post_url=presigned_post_url,
                     upload_file_path=file_path,
-                    file_id=file_id,
                     part_offset=part_offset,
                     part_size=part_size,
                 )

@@ -18,6 +18,8 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
+from io import BytesIO
+
 import pycurl
 
 from .exceptions import BadResponseCodeError, RequestFailedError
@@ -91,13 +93,13 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
 
         file.seek(part_offset)
         content = file.read(part_size)
+        body = BytesIO(content)
 
         curl = pycurl.Curl()
         curl.setopt(curl.URL, presigned_post_url)
-        curl.setopt(curl.POST, 1)
-        fields = {"file": (curl.FORM_BUFFER, file_id, curl.FORM_BUFFERPTR, content)}
 
-        curl.setopt(curl.HTTPPOST, list(fields.items()))
+        curl.setopt(curl.UPLOAD, 1)
+        curl.setopt(curl.READDATA, body)
 
         try:
             curl.perform()
@@ -107,7 +109,7 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
         status_code = curl.getinfo(pycurl.RESPONSE_CODE)
         curl.close()
 
-        if status_code == 204:
+        if status_code == 200:
             return
 
     raise BadResponseCodeError(url=presigned_post_url, response_code=status_code)

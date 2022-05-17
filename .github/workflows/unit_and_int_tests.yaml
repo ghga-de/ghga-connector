@@ -9,7 +9,9 @@ jobs:
 
     steps:
       - name: install system packages
-        run: sudo apt install libcurl4-openssl-dev libssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install --fix-missing libcurl4-openssl-dev libssl-dev
 
       - uses: actions/checkout@v1
 
@@ -23,8 +25,10 @@ jobs:
             --cov="${{ steps.common.outputs.MAIN_SRC_DIR }}" \
             --cov-report=xml
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          fail_ci_if_error: true
-          verbose: true
+      - id: coveralls
+        name: Upload coverage to coveralls
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip3 install --upgrade coveralls
+          coveralls --service=github

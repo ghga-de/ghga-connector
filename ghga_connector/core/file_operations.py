@@ -61,32 +61,12 @@ def download_file_part(
     raise BadResponseCodeError(url=download_url, response_code=status_code)
 
 
-def download_file_part(download_url, output_file_path, part_offset, part_end):
-    """Download File"""
-
-    with open(output_file_path, "ab") as file:
-
-        curl = pycurl.Curl()
-
-        curl.setopt(curl.RANGE, f"{part_offset}-{part_end}")
-        curl.setopt(curl.URL, download_url)
-        curl.setopt(curl.WRITEDATA, file)
-        try:
-            curl.perform()
-        except pycurl.error as pycurl_error:
-            raise RequestFailedError(download_url) from pycurl_error
-
-        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        curl.close()
-
-    # 200, if the full file was returned (files smaller than the part size), 206 else
-    if status_code in (200, 206):
-        return
-
-    raise BadResponseCodeError(url=download_url, response_code=status_code)
-
-
-def upload_file(presigned_post: PresignedPostURL, upload_file_path):
+def upload_file_part(
+    presigned_post_url: str,
+    upload_file_path: str,
+    part_offset: int,
+    part_size: int,
+) -> None:
     """Upload File"""
 
     with open(file=upload_file_path, mode="rb") as file:

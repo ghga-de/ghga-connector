@@ -26,7 +26,6 @@ from typing import Any, Callable, Optional, Tuple, Union
 
 import pycurl
 import typer
-from ghga_service_chassis_lib.s3 import PresignedPostURL
 
 from .exceptions import (
     BadResponseCodeError,
@@ -132,7 +131,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     return dictionary["upload_id"], int(dictionary["part_size"])
 
 
-def part_upload(api_url: str, upload_id: str, part_no: int) -> PresignedPostURL:
+def part_upload(api_url: str, upload_id: str, part_no: int) -> str:
     """
     Get a presigned url to upload a specific part to S3
     """
@@ -166,7 +165,7 @@ def part_upload(api_url: str, upload_id: str, part_no: int) -> PresignedPostURL:
     dictionary = json.loads(data.getvalue())
     presigned_post = dictionary["presigned_post"]
 
-    return PresignedPostURL(url=presigned_post["url"])
+    return presigned_post["url"]
 
 
 def patch_multipart_upload(

@@ -19,7 +19,6 @@ Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
 import pycurl
-from ghga_service_chassis_lib.s3 import PresignedPostURL
 
 from .exceptions import BadResponseCodeError, RequestFailedError
 
@@ -93,9 +92,8 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
         file.seek(part_offset)
         content = file.read(part_size)
 
-        url = presigned_post.url
         curl = pycurl.Curl()
-        curl.setopt(curl.URL, url)
+        curl.setopt(curl.URL, presigned_post_url)
         curl.setopt(curl.POST, 1)
         fields = {"file": (curl.FORM_BUFFER, file_id, curl.FORM_BUFFERPTR, content)}
 
@@ -104,7 +102,7 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
         try:
             curl.perform()
         except pycurl.error as pycurl_error:
-            raise RequestFailedError(url) from pycurl_error
+            raise RequestFailedError(presigned_post_url) from pycurl_error
 
         status_code = curl.getinfo(pycurl.RESPONSE_CODE)
         curl.close()
@@ -112,4 +110,4 @@ def upload_file(presigned_post: PresignedPostURL, upload_file_path):
         if status_code == 204:
             return
 
-    raise BadResponseCodeError(url=url, response_code=status_code)
+    raise BadResponseCodeError(url=presigned_post_url, response_code=status_code)

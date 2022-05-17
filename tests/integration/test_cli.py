@@ -312,7 +312,13 @@ def test_multipart_upload(
 
     bucket_id = s3_fixture.existing_buckets[0]
     file_id = "uploadable_" + str(anticipated_part_size)
-    anticipated_part_quantity = file_size / anticipated_part_size
+
+    anticipated_part_size = anticipated_part_size * 1024 * 1024
+
+    anticipated_part_quantity = file_size // anticipated_part_size
+
+    if anticipated_part_quantity * anticipated_part_size < file_size:
+        anticipated_part_quantity += 1
 
     # initiate upload
     upload_id = s3_fixture.storage.init_multipart_upload(
@@ -349,7 +355,7 @@ def test_multipart_upload(
                     api_url=api_url,
                     file_id=file_id,
                     file_path=file.name,
-                    max_retries=0,
+                    max_retries=3,
                 )
 
             # confirm upload

@@ -128,6 +128,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
                     raise error
 
         part_offset += part_size
+        part_no += 1
 
     try:
         patch_multipart_upload(

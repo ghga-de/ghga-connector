@@ -44,7 +44,7 @@ NO_RETRY_TIME = None
 
 class UploadStatus(str, Enum):
     """
-    Enum for the possible UploadStatus of a specific upload_id
+    Enum for the possible statuses of an upload attempt.
     """
 
     ACCEPTED = "accepted"

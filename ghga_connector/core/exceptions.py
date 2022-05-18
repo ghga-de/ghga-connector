@@ -55,7 +55,9 @@ class NoUploadPossibleError(RuntimeError):
     """Thrown, when a multipart upload currently can't be started"""
 
     def __init__(self):
-        message = "It is currently not possible to start a multipart upload."
+        message = "It is not possible to start a multipart upload. " 
+         + "You either don't have the credentials to start this download, "
+         + "or this download is already pending or has been accepted."
         super().__init__(message)
 
 

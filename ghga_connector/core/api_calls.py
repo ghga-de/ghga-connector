@@ -22,13 +22,13 @@ import json
 from enum import Enum
 from io import BytesIO
 from time import sleep
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import pycurl
-import typer
 
 from .exceptions import (
     BadResponseCodeError,
+    CantCancelUploadError,
     MaxWaitTimeExceeded,
     NoS3AccessMethod,
     NoUploadPossibleError,
@@ -99,7 +99,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     """
 
     # build url
-    url = api_url + "/files/" + file_id + "/uploads"
+    url = f"{api_url}/files/{file_id}/uploads"
 
     # Make function call to get upload url
     curl = pycurl.Curl()
@@ -115,29 +115,29 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     curl.setopt(curl.POST, 1)
     try:
         curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+    finally:
+        curl.close()
 
     if status_code != 200:
         if status_code == 403:
             raise NoUploadPossibleError()
         raise BadResponseCodeError(url, status_code)
 
-    dictionary = json.loads(data.getvalue())
+    response_body = json.loads(data.getvalue())
 
-    return dictionary["upload_id"], int(dictionary["part_size"])
+    return response_body["upload_id"], int(response_body["part_size"])
 
 
-def part_upload(api_url: str, upload_id: str, part_no: int) -> str:
+def upload_part(api_url: str, upload_id: str, part_no: int) -> str:
     """
     Get a presigned url to upload a specific part to S3
     """
 
     # build url
-    url = api_url + "/uploads/" + upload_id + "/parts/" + str(part_no) + "/signed_posts"
+    url = f"{api_url}/uploads/{upload_id}/parts/{part_no}/signed_posts"
 
     # Make function call to get upload url
     curl = pycurl.Curl()
@@ -153,19 +153,19 @@ def part_upload(api_url: str, upload_id: str, part_no: int) -> str:
     curl.setopt(curl.POST, 1)
     try:
         curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+    finally:
+        curl.close()
 
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
 
-    dictionary = json.loads(data.getvalue())
-    presigned_post = dictionary["presigned_post"]
+    response_body = json.loads(data.getvalue())
+    presigned_post = response_body["presigned_post"]
 
-    return presigned_post[0]
+    return presigned_post
 
 
 def patch_multipart_upload(
@@ -177,7 +177,7 @@ def patch_multipart_upload(
     if the upload_id is currently set to "pending"
     """
     # build url
-    url = api_url + "/uploads/" + upload_id
+    url = f"{api_url}/uploads/{upload_id}"
 
     post_data = {"upload_status": upload_status}
     postfields = json.dumps(post_data)
@@ -195,17 +195,17 @@ def patch_multipart_upload(
 
     try:
         curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+    finally:
+        curl.close()
 
     if status_code != 204:
         raise BadResponseCodeError(url, status_code)
 
 
-def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]:
+def get_pending_uploads(api_url: str, file_id: str) -> Optional[List[Tuple[str, int]]]:
     """
     Get all multipart-uploads of a specific file which are currently pending.
     The number of multipart uploads can either be 0 or 1
@@ -213,7 +213,7 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     """
 
     # build url
-    url = api_url + "/files/" + file_id + "/uploads?upload_status=pending"
+    url = f"{api_url}/files/{file_id}/uploads?upload_status=pending"
 
     # Make function call to get upload url
     curl = pycurl.Curl()
@@ -230,11 +230,11 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     curl.setopt(curl.HTTPGET, 1)
     try:
         curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+    finally:
+        curl.close()
 
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
@@ -244,7 +244,7 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     if len(list_of_uploads) == 0:
         return None
 
-    return list_of_uploads[0]["upload_id"], int(list_of_uploads[0]["part_size"])
+    return list_of_uploads
 
 
 def download_api_call(
@@ -263,7 +263,7 @@ def download_api_call(
     """
 
     # build url
-    url = api_url + "/objects/" + file_id
+    url = f"{api_url}/objects/{file_id}"
 
     # Make function call to get upload url
     curl = pycurl.Curl()
@@ -280,11 +280,11 @@ def download_api_call(
     curl.setopt(curl.HTTPGET, 1)
     try:
         curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
         raise RequestFailedError(url) from pycurl_error
-
-    status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    curl.close()
+    finally:
+        curl.close()
 
     if status_code != 200:
         if status_code != 202:
@@ -296,13 +296,13 @@ def download_api_call(
         return (NO_DOWNLOAD_URL, NO_FILE_SIZE, int(headers["retry-after"]))
 
     # look for an access method of type s3 in the response:
-    dictionary = json.loads(data.getvalue())
+    response_body = json.loads(data.getvalue())
     download_url = None
-    access_methods = dictionary["access_methods"]
+    access_methods = response_body["access_methods"]
     for access_method in access_methods:
         if access_method["type"] == "s3":
             download_url = access_method["access_url"]["url"]
-            file_size = dictionary["size"]
+            file_size = response_body["size"]
             break
 
     if download_url is None:
@@ -311,49 +311,38 @@ def download_api_call(
     return download_url, file_size, NO_RETRY_TIME
 
 
-def restart_multipart_upload(
-    api_url: str, file_id: str, error: Exception
-) -> Tuple[str, int]:
-    """Try to cancel the currently running multipart upload and start a new one"""
-
-    pending_upload = get_pending_uploads(api_url=api_url, file_id=file_id)
-    if pending_upload is None:
-        typer.echo(f"This user currently can't upload the file with id {file_id}.")
-        raise typer.Abort() from error
-
-    # try to cancel upload
-    upload_id = pending_upload[0]
-    try:
-        patch_multipart_upload(
-            api_url=api_url,
-            upload_id=upload_id,
-            upload_status=UploadStatus.CANCELLED,
-        )
-
-    except BadResponseCodeError as patch_error:
-        typer.echo(
-            f"The request to cancell the upload with id {upload_id} was invalid."
-        )
-        raise typer.Abort() from patch_error
-    except RequestFailedError as patch_error:
-        typer.echo(f"Cancelling the upload with id {upload_id} failed.")
-        raise typer.Abort() from patch_error
+def start_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
+    """Try to initiate a multipart upload. If it fails, try to cancel the current upload
+    can and then try to initiate a multipart upload again."""
 
     try:
-        upload_id, part_size = initiate_multipart_upload(
-            api_url=api_url, file_id=file_id
-        )
-    except NoUploadPossibleError as initiate_error:
-        typer.echo(f"This user currently can't upload the file with id {file_id}.")
-        raise typer.Abort() from initiate_error
-    except BadResponseCodeError as initiate_error:
-        typer.echo("The request was invalid and returnd a wrong HTTP status code.")
-        raise typer.Abort() from initiate_error
-    except RequestFailedError as initiate_error:
-        typer.echo("The request has failed.")
-        raise typer.Abort() from initiate_error
+        multipart_upload = initiate_multipart_upload(api_url=api_url, file_id=file_id)
+        return multipart_upload
+    except NoUploadPossibleError as error:
+        pending_uploads = get_pending_uploads(api_url=api_url, file_id=file_id)
+        if pending_uploads is None:
+            raise error
+    except Exception as error:
+        raise error
 
-    return upload_id, part_size
+    for upload in pending_uploads:
+        upload_id = upload[0]
+        try:
+            patch_multipart_upload(
+                api_url=api_url,
+                upload_id=upload_id,
+                upload_status=UploadStatus.CANCELLED,
+            )
+
+        except Exception as error:
+            raise CantCancelUploadError(upload_id=upload_id) from error
+
+    try:
+        multipart_upload = initiate_multipart_upload(api_url=api_url, file_id=file_id)
+    except Exception as error:
+        raise error
+
+    return multipart_upload
 
 
 def await_download_url(
@@ -372,7 +361,7 @@ def await_download_url(
     wait_time = 0
     while wait_time < max_wait_time:
         try:
-            response = download_api_call(api_url, file_id)
+            response_body = download_api_call(api_url, file_id)
         except BadResponseCodeError as error:
             logger("The request was invalid and returnd a wrong HTTP status code.")
             raise error
@@ -380,12 +369,12 @@ def await_download_url(
             logger("The request has failed.")
             raise error
 
-        if response[0] is not None:
-            download_url: str = response[0]
-            file_size: int = response[1]
+        if response_body[0] is not None:
+            download_url: str = response_body[0]
+            file_size: int = response_body[1]
             return (download_url, file_size)
 
-        retry_time: int = response[2]
+        retry_time: int = response_body[2]
 
         wait_time += retry_time
         logger(f"File staging, will try to download again in {retry_time} seconds")

@@ -16,8 +16,8 @@
 
 """Tests for the core functions of the cli"""
 
+import os
 from filecmp import cmp
-from os import path
 
 import pytest
 
@@ -62,8 +62,8 @@ def test_download_file(
         download_url=download_url,
         output_file_path=file_path,
         part_offset=0,
-        part_size=path.getsize(downloadable_file.file_path),
-        file_size=path.getsize(downloadable_file.file_path),
+        part_size=os.path.getsize(downloadable_file.file_path),
+        file_size=os.path.getsize(downloadable_file.file_path),
     )
 
     assert cmp(file_path, downloadable_file.file_path)

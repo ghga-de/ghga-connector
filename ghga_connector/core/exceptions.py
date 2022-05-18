@@ -51,6 +51,14 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
+class CantCancelUploadError(RuntimeError):
+    """Thrown, when a request returns a non-desired response code (e.g. 400)"""
+
+    def __init__(self, upload_id: str):
+        message = f"The request to cancel the upload with id '{upload_id}' failed."
+        super().__init__(message)
+
+
 class NoUploadPossibleError(RuntimeError):
     """Thrown, when a multipart upload currently can't be started"""
 
@@ -68,4 +76,12 @@ class MaxWaitTimeExceeded(RuntimeError):
 
     def __init__(self, max_wait_time: int):
         message = f"Exceeded maximum wait time of {max_wait_time} seconds."
+        super().__init__(message)
+
+
+class MaxRetriesReached(RuntimeError):
+    """Thrown, when the specified wait time has been exceeded."""
+
+    def __init__(self, part_no: int):
+        message = f"Exceeded maximum retries for part number '{part_no}'."
         super().__init__(message)

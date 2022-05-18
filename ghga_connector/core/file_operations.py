@@ -48,11 +48,11 @@ def download_file_part(
         curl.setopt(curl.WRITEDATA, file)
         try:
             curl.perform()
+            status_code = curl.getinfo(pycurl.RESPONSE_CODE)
         except pycurl.error as pycurl_error:
             raise RequestFailedError(download_url) from pycurl_error
-
-        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        curl.close()
+        finally:
+            curl.close()
 
     # 200, if the full file was returned (files smaller than the part size), 206 else
     if status_code in (200, 206):
@@ -83,11 +83,11 @@ def upload_file_part(
 
         try:
             curl.perform()
+            status_code = curl.getinfo(pycurl.RESPONSE_CODE)
         except pycurl.error as pycurl_error:
             raise RequestFailedError(presigned_post_url) from pycurl_error
-
-        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        curl.close()
+        finally:
+            curl.close()
 
         if status_code == 200:
             return

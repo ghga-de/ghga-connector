@@ -16,24 +16,25 @@
 
 """ CLI-specific wrappers around core functions."""
 
-from os import path
+import os
 
 import typer
 
 from ghga_connector.core import (
     BadResponseCodeError,
+    CantCancelUploadError,
+    MaxRetriesReached,
+    NoUploadPossibleError,
     RequestFailedError,
     UploadStatus,
     await_download_url,
     check_url,
     download_file_part,
-    initiate_multipart_upload,
-    part_upload,
     patch_multipart_upload,
-    restart_multipart_upload,
+    start_multipart_upload,
     upload_file_part,
+    upload_part,
 )
-from ghga_connector.core.exceptions import NoUploadPossibleError
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
@@ -58,7 +59,7 @@ cli = typer.Typer()
 
 
 @cli.command()
-def upload(  # noqa C901, pylint: disable=too-many-branches
+def upload(  # noqa C901
     api_url: str = typer.Option(..., help="Url to the upload contoller"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
@@ -69,7 +70,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
     """
     Command to upload a file
     """
-    if not path.isfile(file_path):
+    if not os.path.isfile(file_path):
         typer.echo(f"The file {file_path} does not exist.")
         raise typer.Abort()
 
@@ -78,15 +79,17 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
         raise typer.Abort()
 
     try:
-        upload_id, part_size = initiate_multipart_upload(
-            api_url=api_url, file_id=file_id
-        )
+        upload_id, part_size = start_multipart_upload(api_url=api_url, file_id=file_id)
     except NoUploadPossibleError as error:
-        # see if there is an open upload
-        upload_id, part_size = restart_multipart_upload(
-            api_url=api_url, file_id=file_id, error=error
+        typer.echo(
+            f"This user can't start a multipart upload for the file_id '{file_id}'"
         )
-
+        raise typer.Abort() from error
+    except CantCancelUploadError as error:
+        typer.echo(
+            f"There is already an upload pending for file '{file_id}', which can't be cancelled."
+        )
+        raise typer.Abort() from error
     except BadResponseCodeError as error:
         typer.echo("The request was invalid and returnd a wrong HTTP status code.")
         raise typer.Abort() from error
@@ -94,41 +97,17 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
         typer.echo("The request has failed.")
         raise typer.Abort() from error
 
-    file_size = path.getsize(file_path)
-
-    part_no = 1
-    part_offset = 0
-
-    while part_offset < file_size:
-
-        # For 0 retries, we still try the first time
-        for retries in range(0, max_retries + 1):
-            presigned_post_url = part_upload(
-                api_url=api_url, upload_id=upload_id, part_no=part_no
-            )
-
-            # Upload File
-            try:
-                upload_file_part(
-                    presigned_post_url=presigned_post_url,
-                    upload_file_path=file_path,
-                    part_offset=part_offset,
-                    part_size=part_size,
-                )
-                break
-            except BadResponseCodeError as error:
-                typer.echo(
-                    "The part upload request was invalid and returnd a wrong HTTP status code."
-                )
-                if retries >= max_retries:
-                    raise error
-            except RequestFailedError as error:
-                typer.echo("The part upload request has failed.")
-                if retries > max_retries - 1:
-                    raise error
-
-        part_offset += part_size
-        part_no += 1
+    try:
+        upload_parts(
+            api_url=api_url,
+            upload_id=upload_id,
+            part_size=part_size,
+            max_retries=max_retries,
+            file_path=file_path,
+        )
+    except MaxRetriesReached as error:
+        typer.echo("The upload has failed too many times. The upload was aborted.")
+        raise typer.Abort() from error
 
     try:
         patch_multipart_upload(
@@ -148,7 +127,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
 
 
 @cli.command()
-def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branches
+def download(  # pylint: disable=too-many-arguments
     api_url: str = typer.Option(..., help="Url to the DRS3"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     output_dir: str = typer.Option(
@@ -168,7 +147,7 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
     """
     Command to download a file
     """
-    if not path.isdir(output_dir):
+    if not os.path.isdir(output_dir):
         raise DirectoryNotExist(output_dir)
 
     if not check_url(api_url):
@@ -179,7 +158,77 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
     )
 
     # perform the download:
-    output_file = path.join(output_dir, file_id)
+
+    output_file = os.path.join(output_dir, file_id)
+    download_parts(
+        file_size=file_size,
+        max_retries=max_retries,
+        download_url=download_url,
+        output_file=output_file,
+        part_size=part_size,
+    )
+
+    typer.echo(f"File with id '{file_id}' has been successfully downloaded.")
+
+
+def upload_parts(
+    api_url: str,
+    upload_id: str,
+    part_size: int,
+    max_retries: int,
+    file_path: str,
+):
+    """
+    Uploads a file using a specific upload id via uploading all its parts.
+    """
+
+    file_size = os.path.getsize(file_path)
+
+    part_no = 1
+    part_offset = 0
+
+    while part_offset < file_size:
+
+        # For 0 retries, we still try the first time
+        for retries in range(0, max_retries + 1):
+            presigned_post_url = upload_part(
+                api_url=api_url, upload_id=upload_id, part_no=part_no
+            )
+
+            # Upload File
+            try:
+                upload_file_part(
+                    presigned_post_url=presigned_post_url,
+                    upload_file_path=file_path,
+                    part_offset=part_offset,
+                    part_size=part_size,
+                )
+                break
+            except BadResponseCodeError as error:
+                typer.echo(
+                    "The part upload request was invalid and returnd a wrong HTTP status code."
+                )
+                if retries >= max_retries:
+                    raise MaxRetriesReached(part_no=part_no) from error
+            except RequestFailedError as error:
+                typer.echo("The part upload request has failed.")
+                if retries > max_retries - 1:
+                    raise MaxRetriesReached(part_no=part_no) from error
+
+        part_offset += part_size
+        part_no += 1
+
+
+def download_parts(
+    file_size: int,
+    max_retries: int,
+    download_url: str,
+    output_file: str,
+    part_size: int,
+):
+    """
+    Downloads a file using a specific download_url via uploading all its parts.
+    """
 
     part_offset = 0
 
@@ -209,5 +258,3 @@ def download(  # noqa C901, pylint: disable=too-many-arguments, too-many-branche
 
         # If part download was successfull, go to the next part
         part_offset += part_size
-
-    typer.echo(f"File with id '{file_id}' has been successfully downloaded.")

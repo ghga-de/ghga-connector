@@ -208,8 +208,8 @@ def patch_multipart_upload(
 def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]:
     """
     Get all multipart-uploads of a specific file which are currently pending.
-    This can either be 0 or 1
-    Returns either the upload_id of the pending upload, or None
+    The number of multipart uploads can either be 0 or 1
+    Returns either the upload_id and part_size of the pending upload, or None
     """
 
     # build url

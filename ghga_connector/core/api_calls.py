@@ -22,7 +22,7 @@ import json
 from enum import Enum
 from io import BytesIO
 from time import sleep
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import pycurl
 
@@ -205,7 +205,7 @@ def patch_multipart_upload(
         raise BadResponseCodeError(url, status_code)
 
 
-def get_pending_uploads(api_url: str, file_id: str) -> Optional[List[Tuple[str, int]]]:
+def get_pending_uploads(api_url: str, file_id: str) -> Optional[List[Dict]]:
     """
     Get all multipart-uploads of a specific file which are currently pending.
     The number of multipart uploads can either be 0 or 1

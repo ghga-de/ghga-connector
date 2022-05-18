@@ -60,7 +60,7 @@ def test_get_pending_uploads(
             if expect_none:
                 assert response is None
             elif response is not None:
-                assert response[0] == UploadStatus.PENDING
+                assert response[0]["upload_id"] == UploadStatus.PENDING
         except Exception as exception:
             assert isinstance(exception, expected_exception)
 

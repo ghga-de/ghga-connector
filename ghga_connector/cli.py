@@ -47,6 +47,14 @@ class DirectoryNotExist(RuntimeError):
         super().__init__(message)
 
 
+class FileAlreadyExistsError(RuntimeError):
+    """Thrown, when the specified file already exists."""
+
+    def __init__(self, output_file: str):
+        message = f"The file {output_file} does already exist."
+        super().__init__(message)
+
+
 class ApiNotReachable(RuntimeError):
     """Thrown, when the api is not reachable."""
 
@@ -160,13 +168,21 @@ def download(  # pylint: disable=too-many-arguments
     # perform the download:
 
     output_file = os.path.join(output_dir, file_id)
-    download_parts(
-        file_size=file_size,
-        max_retries=max_retries,
-        download_url=download_url,
-        output_file=output_file,
-        part_size=part_size,
-    )
+    if os.path.isfile(output_file):
+        raise FileAlreadyExistsError(output_file)
+
+    try:
+        download_parts(
+            file_size=file_size,
+            max_retries=max_retries,
+            download_url=download_url,
+            output_file=output_file,
+            part_size=part_size,
+        )
+    except MaxRetriesReached as error:
+        # Remove file, if the download failed.
+        os.remove(output_file)
+        raise error
 
     typer.echo(f"File with id '{file_id}' has been successfully downloaded.")
 
@@ -250,11 +266,11 @@ def download_parts(
                     "The download request was invalid and returnd a wrong HTTP status code."
                 )
                 if retries > max_retries - 1:
-                    raise error
+                    raise MaxRetriesReached(part_no=part_offset // part_size) from error
             except RequestFailedError as error:
                 typer.echo("The download request has failed.")
                 if retries > max_retries - 1:
-                    raise error
+                    raise MaxRetriesReached(part_no=part_offset // part_size) from error
 
         # If part download was successfull, go to the next part
         part_offset += part_size

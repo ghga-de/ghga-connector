@@ -120,7 +120,7 @@ def upload(  # noqa C901, pylint: disable=too-many-branches
                 typer.echo(
                     "The part upload request was invalid and returnd a wrong HTTP status code."
                 )
-                if retries > max_retries - 1:
+                if retries >= max_retries:
                     raise error
             except RequestFailedError as error:
                 typer.echo("The part upload request has failed.")

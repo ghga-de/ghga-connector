@@ -172,7 +172,7 @@ def patch_multipart_upload(
     api_url: str, upload_id: str, upload_status: UploadStatus
 ) -> None:
     """
-    Set the status of a specific upload_id.
+    Set the status of a specific upload attempt.
     The API accepts "uploaded" or "accepted",
     if the upload_id is currently set to "pending"
     """

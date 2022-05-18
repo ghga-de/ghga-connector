@@ -239,12 +239,12 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[Tuple[str, int]]
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
 
-    dictionary: list = json.loads(data.getvalue())
+    list_of_uploads: list = json.loads(data.getvalue())
 
-    if len(dictionary) == 0:
+    if len(list_of_uploads) == 0:
         return None
 
-    return dictionary[0]["upload_id"], int(dictionary[0]["part_size"])
+    return list_of_uploads[0]["upload_id"], int(list_of_uploads[0]["part_size"])
 
 
 def download_api_call(

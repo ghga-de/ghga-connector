@@ -94,7 +94,7 @@ def header_function_factory(headers: dict):
 
 def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     """
-    Perform a RESTful API call to initiate a multipart upload on S3
+    Perform a RESTful API call to initiate a multipart upload
     Returns an upload id and a part size
     """
 

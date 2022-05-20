@@ -12,9 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Fixtures that are used in both integration and unit tests"""
+"""Main domain logic."""
 
-from .mock_api import UploadStatus  # noqa: F401
-from .s3 import s3_fixture  # noqa: F401
-from .state import FILES  # noqa: F401
+import pycurl
+
+
+def check_url(api_url, wait_time=1000) -> bool:
+    """
+    Checks, if an url is reachable within a certain time
+    """
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, api_url)
+    curl.setopt(curl.CONNECTTIMEOUT_MS, wait_time)
+    try:
+        curl.perform_rb()
+    except pycurl.error:
+        return False
+    return True

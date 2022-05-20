@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures that are used in both integration and unit tests"""
+"""
+CLI - Client to perform up- and download operations to and from a local ghga instance
+"""
 
-from .mock_api import UploadStatus  # noqa: F401
-from .s3 import s3_fixture  # noqa: F401
-from .state import FILES  # noqa: F401
+__version__ = "0.1.0"

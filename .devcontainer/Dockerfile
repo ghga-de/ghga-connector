@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:0-${VARIANT}
 ENV PYTHONUNBUFFERED 1
 
 # Name of the python package, overwitten in docker-compose.yaml
-ARG USER_UID=my_microservice
+ARG USER_UID=ghga_connector
 
 # Update args in docker-compose.yaml to set the UID/GID of the "vscode" user.
 ARG USER_UID=1000
@@ -17,14 +17,8 @@ ARG INSTALL_NODE="true"
 ARG NODE_VERSION="lts/*"
 RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "umask 0002 && . /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION} 2>&1"; fi
 
-# Install additional OS packages.
-RUN apt update \
-    && export DEBIAN_FRONTEND=noninteractive \
-    && apt -y install --no-install-recommends postgresql-client-common
-
 # Copy install and launcher script to bin:
 COPY ./dev_install /bin
-COPY ./dev_launcher /bin
 
 # make docker in docker work:
 # (https://github.com/microsoft/vscode-dev-containers/blob/main/script-library/docs/docker-in-docker.md#script-use)

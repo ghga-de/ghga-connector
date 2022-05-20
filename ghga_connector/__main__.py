@@ -13,8 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures that are used in both integration and unit tests"""
+"""Entrypoint of the package"""
 
-from .mock_api import UploadStatus  # noqa: F401
-from .s3 import s3_fixture  # noqa: F401
-from .state import FILES  # noqa: F401
+from ghga_connector.cli import cli
+
+
+def run():
+    """Run the application (used in setup.cfg)."""
+    cli()
+
+
+if __name__ == "__main__":
+    run()

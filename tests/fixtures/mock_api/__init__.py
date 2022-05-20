@@ -12,9 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""Fixtures that are used in both integration and unit tests"""
+"""Code to start a mock API server in the background of a test."""
 
-from .mock_api import UploadStatus  # noqa: F401
-from .s3 import s3_fixture  # noqa: F401
-from .state import FILES  # noqa: F401
+from .app import UploadStatus  # noqa: F401

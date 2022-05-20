@@ -18,7 +18,8 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
-from io import BytesIO
+from io import BufferedReader, BytesIO
+from typing import Iterator
 
 import pycurl
 
@@ -59,6 +60,31 @@ def download_file_part(
         return
 
     raise BadResponseCodeError(url=download_url, response_code=status_code)
+
+
+def read_file_parts(
+    file: BufferedReader, *, part_size: int, from_part: int = 1
+) -> Iterator[bytes]:
+    """
+    Return an iterator to iterate through file parts of the given size (in bytes).
+
+    You may also start from a specific part using the `from_part` (by default set to the
+    first part, so the beginning of the file). This might be useful to resume an
+    interrupted reading process.
+
+    Please note: opening and closing of the file MUST happen outside of this function.
+    """
+
+    initial_offset = part_size * (from_part - 1)
+    file.seek(initial_offset)
+
+    while True:
+        file_part = file.read(part_size)
+
+        if len(file_part) == 0:
+            return
+
+        yield file_part
 
 
 def upload_file_part(

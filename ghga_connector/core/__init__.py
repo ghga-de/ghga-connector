@@ -22,11 +22,11 @@ from .api_calls import (  # noqa: F401
     UploadStatus,
     await_download_url,
     download_api_call,
+    get_part_upload_url,
     get_pending_uploads,
     initiate_multipart_upload,
     patch_multipart_upload,
     start_multipart_upload,
-    upload_part,
 )
 from .exceptions import (  # noqa: F401
     BadResponseCodeError,

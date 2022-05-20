@@ -30,10 +30,10 @@ from ghga_connector.core import (
     await_download_url,
     check_url,
     download_file_part,
+    get_part_upload_url,
     patch_multipart_upload,
     start_multipart_upload,
     upload_file_part,
-    upload_part,
 )
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
@@ -106,7 +106,7 @@ def upload(  # noqa C901
         raise typer.Abort() from error
 
     try:
-        upload_parts(
+        get_part_upload_urls(
             api_url=api_url,
             upload_id=upload_id,
             part_size=part_size,
@@ -187,7 +187,7 @@ def download(  # pylint: disable=too-many-arguments
     typer.echo(f"File with id '{file_id}' has been successfully downloaded.")
 
 
-def upload_parts(
+def get_part_upload_urls(
     api_url: str,
     upload_id: str,
     part_size: int,
@@ -207,7 +207,7 @@ def upload_parts(
 
         # For 0 retries, we still try the first time
         for retries in range(0, max_retries + 1):
-            presigned_post_url = upload_part(
+            presigned_post_url = get_part_upload_url(
                 api_url=api_url, upload_id=upload_id, part_no=part_no
             )
 

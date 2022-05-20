@@ -68,9 +68,9 @@ def read_file_parts(
     """
     Return an iterator to iterate through file parts of the given size (in bytes).
 
-    You may also start from a specific part using the `from_part` (by default set to the
-    first part, so the beginning of the file). This might be useful to resume an
-    interrupted reading process.
+    By default it start with the first part but you may also start from a specific part
+    in the middle of the file using the `from_part` argument. This might be useful to
+    resume an interrupted reading process.
 
     Please note: opening and closing of the file MUST happen outside of this function.
     """

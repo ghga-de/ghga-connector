@@ -21,7 +21,11 @@ from typing import Optional
 import pytest
 from ghga_service_chassis_lib.utils import big_temp_file
 
-from ghga_connector.core.file_operations import read_file_parts
+from ghga_connector.core.file_operations import (
+    read_file_parts,
+    download_file_parts,
+    calc_part_ranges,
+)
 
 
 @pytest.mark.parametrize("from_part", (None, 3))

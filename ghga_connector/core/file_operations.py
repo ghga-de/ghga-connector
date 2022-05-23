@@ -18,6 +18,7 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
+import math
 from io import BufferedReader, BytesIO
 from typing import Iterator
 
@@ -27,46 +28,86 @@ from .exceptions import BadResponseCodeError, RequestFailedError
 
 
 def download_file_part(
+    *,
     download_url: str,
-    output_file_path: str,
-    part_offset: int,
-    part_size: int,
-    file_size: int,
-) -> None:
-    """Download File"""
+    part_start: int,
+    part_end: int,
+) -> bytes:
+    """Download the content of one file part and return it as bytes."""
 
     # Calculetes end of byte range of the file
-    part_end = part_offset + part_size - 1
-    if part_end > file_size:
-        part_end = file_size - 1
 
-    with open(file=output_file_path, mode="ab", buffering=part_size) as file:
+    bytes_stream = BytesIO()
+    curl = pycurl.Curl()
 
-        curl = pycurl.Curl()
-
-        curl.setopt(curl.RANGE, f"{part_offset}-{part_end}")
-        curl.setopt(curl.URL, download_url)
-        curl.setopt(curl.WRITEDATA, file)
-        try:
-            curl.perform()
-            status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        except pycurl.error as pycurl_error:
-            raise RequestFailedError(download_url) from pycurl_error
-        finally:
-            curl.close()
+    curl.setopt(curl.RANGE, f"{part_start}-{part_end}")
+    curl.setopt(curl.URL, download_url)
+    curl.setopt(curl.WRITEDATA, bytes_stream)
+    try:
+        curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(download_url) from pycurl_error
+    finally:
+        curl.close()
 
     # 200, if the full file was returned (files smaller than the part size), 206 else
     if status_code in (200, 206):
-        return
+        return bytes_stream.getvalue()
 
     raise BadResponseCodeError(url=download_url, response_code=status_code)
+
+
+def calc_part_ranges(
+    *, part_size: int, total_file_size: int, from_part: int = 1
+) -> list[tuple]:
+    """
+    Calculate and return the ranges (start, end) of file parts as a list of tuples.
+
+    By default it start with the first part but you may also start from a specific part
+    in the middle of the file using the `from_part` argument. This might be useful to
+    resume an interrupted reading process.
+    """
+    # calc the ranges for the parts that have the full part_size:
+    full_part_number = math.floor(total_file_size / part_size)
+    part_ranges = [
+        (part_size * part_no, part_size * (part_no + 1) - 1)
+        for part_no in range(from_part, full_part_number)
+    ]
+
+    if (total_file_size % part_size) > 0:
+        # if the last part is smaller than the part_size, calculate it range separately:
+        part_ranges.append((part_size * full_part_number, total_file_size - 1))
+
+    return part_ranges
+
+
+def download_file_parts(
+    *, download_url: str, part_size: int, total_file_size: int, from_part: int = 1
+) -> Iterator[bytes]:
+    """
+    Returns an iterator to obtain the bytes content of a file in a part by part fashion.
+
+    By default it start with the first part but you may also start from a specific part
+    in the middle of the file using the `from_part` argument. This might be useful to
+    resume an interrupted reading process.
+    """
+
+    part_ranges = calc_part_ranges(
+        part_size=part_size, total_file_size=total_file_size, from_part=from_part
+    )
+
+    for part_start, part_end in part_ranges:
+        yield download_file_part(
+            download_url=download_url, part_start=part_start, part_end=part_end
+        )
 
 
 def read_file_parts(
     file: BufferedReader, *, part_size: int, from_part: int = 1
 ) -> Iterator[bytes]:
     """
-    Return an iterator to iterate through file parts of the given size (in bytes).
+    Returns an iterator to iterate through file parts of the given size (in bytes).
 
     By default it start with the first part but you may also start from a specific part
     in the middle of the file using the `from_part` argument. This might be useful to

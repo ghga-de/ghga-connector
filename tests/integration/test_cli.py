@@ -37,7 +37,7 @@ from ghga_connector.cli import (
 )
 from ghga_connector.core import BadResponseCodeError, MaxWaitTimeExceeded
 
-from ..fixtures import s3_fixture  # noqa: F401
+from ..fixtures.s3 import s3_fixture, get_big_s3_object  # noqa: F401
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
@@ -58,55 +58,32 @@ def test_multipart_download(
     tmp_path,
 ):
     """Test the multipart download of a file"""
+    big_object = get_big_s3_object(s3_fixture, object_size=file_size)
 
-    with big_temp_file(file_size) as big_file:
+    # get s3 download url
+    download_url = s3_fixture.storage.get_object_download_url(
+        bucket_id=big_object.bucket_id,
+        object_id=big_object.object_id,
+        expires_after=180,
+    )
+    with MockAPIContainer(
+        s3_download_url=download_url,
+        s3_download_file_size=file_size,
+    ) as api:
+        api_url = api.get_connection_url()
 
-        object_fixture = ObjectFixture(
-            file_path=big_file.name,
-            bucket_id=s3_fixture.existing_buckets[0],
-            object_id="big-downloadable",
-        )
-
-        # upload file to s3
-        assert not s3_fixture.storage.does_object_exist(
-            bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
-        )
-        presigned_post = s3_fixture.storage.get_object_upload_url(
-            bucket_id=object_fixture.bucket_id,
-            object_id=object_fixture.object_id,
-        )
-        upload_file(
-            presigned_url=presigned_post,
-            file_path=big_file.name,
-            file_md5=object_fixture.md5,
-        )
-
-        # get s3 download url
-        download_url = s3_fixture.storage.get_object_download_url(
-            bucket_id=object_fixture.bucket_id,
-            object_id=object_fixture.object_id,
-            expires_after=180,
-        )
-        with MockAPIContainer(
-            s3_download_url=download_url,
-            s3_download_file_size=os.path.getsize(object_fixture.file_path),
-        ) as api:
-            api_url = api.get_connection_url()
-
-            try:
-                download(
-                    api_url=api_url,
-                    file_id=object_fixture.object_id,
-                    output_dir=tmp_path,
-                    max_wait_time=int(60),
-                    part_size=part_size,
-                    max_retries=0,
-                )
-                assert cmp(
-                    tmp_path / object_fixture.object_id, object_fixture.file_path
-                )
-            except Exception as exception:
-                raise exception
+        try:
+            download(
+                api_url=api_url,
+                file_id=big_object.object_id,
+                output_dir=tmp_path,
+                max_wait_time=int(60),
+                part_size=part_size,
+                max_retries=0,
+            )
+            assert cmp(tmp_path / big_object.object_id, big_object.file_path)
+        except Exception as exception:
+            raise exception
 
 
 @pytest.mark.parametrize(

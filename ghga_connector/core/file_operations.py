@@ -20,27 +20,25 @@ Contains Calls of the Presigned URLs in order to Up- and Download Files
 
 import math
 from io import BufferedReader, BytesIO
-from typing import Iterator
+from typing import Iterator, Sequence
 
 import pycurl
 
 from .exceptions import BadResponseCodeError, RequestFailedError
 
 
-def download_file_part(
+def download_content_range(
     *,
     download_url: str,
-    part_start: int,
-    part_end: int,
+    start: int,
+    end: int,
 ) -> bytes:
-    """Download the content of one file part and return it as bytes."""
-
-    # Calculetes end of byte range of the file
+    """Download a specific range of a file's content using a presigned download url."""
 
     bytes_stream = BytesIO()
     curl = pycurl.Curl()
 
-    curl.setopt(curl.RANGE, f"{part_start}-{part_end}")
+    curl.setopt(curl.RANGE, f"{start}-{end}")
     curl.setopt(curl.URL, download_url)
     curl.setopt(curl.WRITEDATA, bytes_stream)
     try:
@@ -51,7 +49,7 @@ def download_file_part(
     finally:
         curl.close()
 
-    # 200, if the full file was returned (files smaller than the part size), 206 else
+    # 200, if the full file was returned, 206 else
     if status_code in (200, 206):
         return bytes_stream.getvalue()
 
@@ -60,7 +58,7 @@ def download_file_part(
 
 def calc_part_ranges(
     *, part_size: int, total_file_size: int, from_part: int = 1
-) -> list[tuple]:
+) -> Sequence[tuple[int, int]]:
     """
     Calculate and return the ranges (start, end) of file parts as a list of tuples.
 
@@ -71,8 +69,8 @@ def calc_part_ranges(
     # calc the ranges for the parts that have the full part_size:
     full_part_number = math.floor(total_file_size / part_size)
     part_ranges = [
-        (part_size * part_no, part_size * (part_no + 1) - 1)
-        for part_no in range(from_part, full_part_number)
+        (part_size * (part_no - 1), part_size * part_no - 1)
+        for part_no in range(from_part, full_part_number + 1)
     ]
 
     if (total_file_size % part_size) > 0:
@@ -83,7 +81,13 @@ def calc_part_ranges(
 
 
 def download_file_parts(
-    *, download_url: str, part_size: int, total_file_size: int, from_part: int = 1
+    *,
+    download_url: str,
+    part_size: int,
+    total_file_size: int,
+    from_part: int = 1,
+    download_range_func=download_content_range,
+    calc_ranges_func=calc_part_ranges,
 ) -> Iterator[bytes]:
     """
     Returns an iterator to obtain the bytes content of a file in a part by part fashion.
@@ -93,13 +97,13 @@ def download_file_parts(
     resume an interrupted reading process.
     """
 
-    part_ranges = calc_part_ranges(
+    part_ranges = calc_ranges_func(
         part_size=part_size, total_file_size=total_file_size, from_part=from_part
     )
 
     for part_start, part_end in part_ranges:
-        yield download_file_part(
-            download_url=download_url, part_start=part_start, part_end=part_end
+        yield download_range_func(
+            download_url=download_url, start=part_start, end=part_end
         )
 
 
@@ -128,35 +132,26 @@ def read_file_parts(
         yield file_part
 
 
-def upload_file_part(
-    presigned_post_url: str,
-    upload_file_path: str,
-    part_offset: int,
-    part_size: int,
-) -> None:
+def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     """Upload File"""
 
-    with open(file=upload_file_path, mode="rb") as file:
+    body = BytesIO(part)
 
-        file.seek(part_offset)
-        content = file.read(part_size)
-        body = BytesIO(content)
+    curl = pycurl.Curl()
+    curl.setopt(curl.URL, presigned_url)
 
-        curl = pycurl.Curl()
-        curl.setopt(curl.URL, presigned_post_url)
+    curl.setopt(curl.UPLOAD, 1)
+    curl.setopt(curl.READDATA, body)
 
-        curl.setopt(curl.UPLOAD, 1)
-        curl.setopt(curl.READDATA, body)
+    try:
+        curl.perform()
+        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
+    except pycurl.error as pycurl_error:
+        raise RequestFailedError(presigned_url) from pycurl_error
+    finally:
+        curl.close()
 
-        try:
-            curl.perform()
-            status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-        except pycurl.error as pycurl_error:
-            raise RequestFailedError(presigned_post_url) from pycurl_error
-        finally:
-            curl.close()
+    if status_code == 200:
+        return
 
-        if status_code == 200:
-            return
-
-    raise BadResponseCodeError(url=presigned_post_url, response_code=status_code)
+    raise BadResponseCodeError(url=presigned_url, response_code=status_code)

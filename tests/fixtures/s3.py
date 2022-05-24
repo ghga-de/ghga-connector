@@ -15,14 +15,13 @@
 
 """Fixtures for testing the storage DAO"""
 
-from typing import List, Iterator
 from dataclasses import dataclass
+from typing import List
 
-import pytest
 from ghga_service_chassis_lib.object_storage_dao_testing import ObjectFixture
 from ghga_service_chassis_lib.s3_testing import (
-    s3_fixture_factory,
     S3Fixture,
+    s3_fixture_factory,
     upload_file,
 )
 from ghga_service_chassis_lib.utils import big_temp_file

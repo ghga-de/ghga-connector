@@ -21,11 +21,7 @@ from typing import Optional
 import pytest
 from ghga_service_chassis_lib.utils import big_temp_file
 
-from ghga_connector.core.file_operations import (
-    read_file_parts,
-    download_file_parts,
-    calc_part_ranges,
-)
+from ghga_connector.core.file_operations import read_file_parts
 
 
 @pytest.mark.parametrize("from_part", (None, 3))
@@ -37,7 +33,7 @@ def test_read_file_parts(from_part: Optional[int]):
     with big_temp_file(file_size) as file:
 
         # Get the expected content:
-        initial_offset = part_size * (from_part - 1) if from_part else 0
+        initial_offset = 0 if from_part is None else part_size * (from_part - 1)
         file.seek(initial_offset)
         expected_content = file.read()
         file.seek(0)
@@ -45,9 +41,9 @@ def test_read_file_parts(from_part: Optional[int]):
         # read the file in parts:
         obtained_content = bytes()
         file_parts = (
-            read_file_parts(file, part_size=part_size, from_part=from_part)
-            if from_part
-            else read_file_parts(file, part_size=part_size)
+            read_file_parts(file, part_size=part_size)
+            if from_part is None
+            else read_file_parts(file, part_size=part_size, from_part=from_part)
         )
 
         for part in file_parts:

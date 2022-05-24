@@ -121,7 +121,7 @@ def test_get_part_upload_ulrs(
     """
     upload_id = "example-upload"
     api_url = "http://my-api.example"
-    from_part_ = from_part if from_part else 1
+    from_part_ = 1 if from_part is None else from_part
 
     # mock the function to get a specific part upload url:
     static_signed_url = "http://my-signed-url.example/97982jsdf7823j"
@@ -133,7 +133,7 @@ def test_get_part_upload_ulrs(
         "upload_id": upload_id,
         "get_url_func": get_url_func,
     }
-    if from_part:
+    if from_part is not None:
         kwargs["from_part"] = from_part
     part_upload_urls = get_part_upload_ulrs(**kwargs)  # type: ignore
 

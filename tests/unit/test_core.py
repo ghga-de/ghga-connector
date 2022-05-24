@@ -16,15 +16,9 @@
 
 """Tests for the core functions of the cli"""
 
-import os
-from filecmp import cmp
-
 import pytest
 
-from ghga_connector.core import check_url, download_file_part
-
-from ..fixtures import s3_fixture  # noqa: F401
-from ..fixtures import state
+from ghga_connector.core import check_url
 
 
 @pytest.mark.parametrize(
@@ -38,32 +32,3 @@ def test_check_url(api_url, wait_time, expected_response):
     """
     response = check_url(api_url, wait_time)
     assert response == expected_response
-
-
-def test_download_file(
-    s3_fixture,  # noqa F811
-    tmp_path,
-):
-    """
-    Test the download_file function
-    """
-
-    file_path = tmp_path / "file.test"
-
-    downloadable_file = state.FILES["file_downloadable"]
-    download_url = s3_fixture.storage.get_object_download_url(
-        bucket_id=downloadable_file.grouping_label,
-        object_id=downloadable_file.file_id,
-        expires_after=3600,
-    )
-
-    # Try to download the whole test file in one part. Should be fairly small.
-    download_file_part(
-        download_url=download_url,
-        output_file_path=file_path,
-        part_offset=0,
-        part_size=os.path.getsize(downloadable_file.file_path),
-        file_size=os.path.getsize(downloadable_file.file_path),
-    )
-
-    assert cmp(file_path, downloadable_file.file_path)

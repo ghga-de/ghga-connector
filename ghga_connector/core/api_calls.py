@@ -171,7 +171,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     return presigned_post
 
 
-def get_part_upload_ulrs(
+def get_part_upload_urls(
     *,
     api_url: str,
     upload_id: str,

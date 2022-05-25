@@ -62,7 +62,7 @@ def calc_part_ranges(
     """
     Calculate and return the ranges (start, end) of file parts as a list of tuples.
 
-    By default it start with the first part but you may also start from a specific part
+    By default it starts with the first part but you may also start from a specific part
     in the middle of the file using the `from_part` argument. This might be useful to
     resume an interrupted reading process.
     """

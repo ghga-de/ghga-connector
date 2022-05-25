@@ -30,7 +30,7 @@ from ghga_connector.core import (
     await_download_url,
     check_url,
     download_file_parts,
-    get_part_upload_ulrs,
+    get_part_upload_urls,
     patch_multipart_upload,
     read_file_parts,
     start_multipart_upload,
@@ -192,7 +192,7 @@ def upload_file_parts(
 
     with open(file_path, "rb") as file:
         file_parts = read_file_parts(file, part_size=part_size)
-        upload_urls = get_part_upload_ulrs(api_url=api_url, upload_id=upload_id)
+        upload_urls = get_part_upload_urls(api_url=api_url, upload_id=upload_id)
 
         for part, upload_url in zip(file_parts, upload_urls):
             upload_file_part(presigned_url=upload_url, part=part)

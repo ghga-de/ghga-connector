@@ -29,7 +29,7 @@ from ghga_connector.core import (
     get_pending_uploads,
     patch_multipart_upload,
 )
-from ghga_connector.core.api_calls import get_part_upload_ulrs
+from ghga_connector.core.api_calls import get_part_upload_urls
 from ghga_connector.core.exceptions import MaxPartNoExceededError
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
@@ -117,7 +117,7 @@ def test_get_part_upload_ulrs(
     exception: Optional[Exception],
 ):
     """
-    Test the `get_part_upload_ulrs` generator for iterating through signed part urls
+    Test the `get_part_upload_urls` generator for iterating through signed part urls
     """
     upload_id = "example-upload"
     api_url = "http://my-api.example"
@@ -135,7 +135,7 @@ def test_get_part_upload_ulrs(
     }
     if from_part is not None:
         kwargs["from_part"] = from_part
-    part_upload_urls = get_part_upload_ulrs(**kwargs)  # type: ignore
+    part_upload_urls = get_part_upload_urls(**kwargs)  # type: ignore
 
     with (pytest.raises(exception) if exception else nullcontext()):
         for idx, signed_url in enumerate(part_upload_urls):

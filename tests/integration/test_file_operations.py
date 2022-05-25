@@ -88,7 +88,7 @@ def test_download_file_parts(
     if from_part is not None:
         kwargs["from_part"] = from_part
 
-    # donwload file parst with dedicated function:
+    # donwload file parts with dedicated function:
     obtained_bytes = bytes()
     for part in download_file_parts(**kwargs):
         obtained_bytes += part

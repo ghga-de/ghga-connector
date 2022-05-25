@@ -22,7 +22,7 @@ from .api_calls import (  # noqa: F401
     UploadStatus,
     await_download_url,
     download_api_call,
-    get_part_upload_ulrs,
+    get_part_upload_urls,
     get_pending_uploads,
     initiate_multipart_upload,
     patch_multipart_upload,

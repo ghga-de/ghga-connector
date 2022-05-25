@@ -91,7 +91,7 @@ class MaxRetriesReached(RuntimeError):
 
 class MaxPartNoExceededError(RuntimeError):
     """
-    Thrown requesting a part no larger that the maximally possible number of parts.
+    Thrown requesting a part number larger than the maximally possible number of parts.
 
     This exception is a bug.
     """

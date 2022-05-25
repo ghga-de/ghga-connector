@@ -41,7 +41,7 @@ from ghga_connector.core import (
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 
-class DirectoryNotExist(RuntimeError, GHGAConnectorException):
+class DirectoryDoesNotExist(RuntimeError, GHGAConnectorException):
     """Thrown, when the specified directory does not exist."""
 
     def __init__(self, output_dir: str):
@@ -151,7 +151,7 @@ def download(  # pylint: disable=too-many-arguments
     Command to download a file
     """
     if not os.path.isdir(output_dir):
-        raise DirectoryNotExist(output_dir)
+        raise DirectoryDoesNotExist(output_dir)
 
     if not check_url(api_url):
         raise ApiNotReachable(api_url)

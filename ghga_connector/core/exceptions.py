@@ -82,7 +82,7 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
-class UploadNotExistsError(RuntimeError, GHGAConnectorException):
+class UploadDoesNotExistError(RuntimeError, GHGAConnectorException):
     """Thrown, when a request to patch an upload fails with response code 404"""
 
     def __init__(self, upload_id: str):

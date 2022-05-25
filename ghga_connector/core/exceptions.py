@@ -75,7 +75,7 @@ class UploadNotRegisteredError(RuntimeError, GHGAConnectorException):
 
 
 class BadResponseCodeError(RuntimeError):
-    """Thrown, when a request returns a not expected response code (e.g. 500)"""
+    """Thrown, when a request returns an unexpected response code (e.g. 500)"""
 
     def __init__(self, url: str, response_code: int):
         message = f"The request to {url} failed with response code {response_code}"

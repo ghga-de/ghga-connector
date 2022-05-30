@@ -17,7 +17,6 @@
 """
 Contains API calls to the API of the GHGA Storage implementation
 """
-
 import json
 from enum import Enum
 from time import sleep
@@ -80,7 +79,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
             raise NoUploadPossibleError(file_id=file_id)
         raise BadResponseCodeError(url, status_code)
 
-    response_body = json.loads(response.json())
+    response_body = response.json()
 
     return response_body["upload_id"], int(response_body["part_size"])
 
@@ -104,7 +103,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
 
-    response_body = json.loads(response.json())
+    response_body = response.json()
     presigned_post = response_body["presigned_post"]
 
     return presigned_post
@@ -150,9 +149,10 @@ def patch_multipart_upload(
     url = f"{api_url}/uploads/{upload_id}"
     headers = {"Accept": "*/*", "Content-Type": "application/json"}
     post_data = {"upload_status": upload_status}
+    serialized_data = json.dumps(post_data)
 
     try:
-        response = requests.patch(url=url, headers=headers, data=post_data)
+        response = requests.patch(url=url, headers=headers, data=serialized_data)
     except requests.exceptions.RequestException as request_error:
         raise RequestFailedError(url) from request_error
 
@@ -182,7 +182,7 @@ def get_pending_uploads(api_url: str, file_id: str) -> Optional[List[Dict]]:
     if status_code != 200:
         raise BadResponseCodeError(url, status_code)
 
-    pending_uploads: list = json.loads(response.json())
+    pending_uploads: list = response.json()
     if len(pending_uploads) == 0:
         return None
 
@@ -226,7 +226,7 @@ def download_api_call(
         return (NO_DOWNLOAD_URL, NO_FILE_SIZE, int(headers["retry-after"]))
 
     # look for an access method of type s3 in the response:
-    response_body = json.loads(response.json())
+    response_body = response.json()
     download_url = None
     access_methods = response_body["access_methods"]
     for access_method in access_methods:

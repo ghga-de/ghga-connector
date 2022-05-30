@@ -41,8 +41,10 @@ from ghga_connector.core import (
     start_multipart_upload,
     upload_file_part,
 )
+from ghga_connector.core.decorators import Retry
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
+MAX_RETRIES = 3
 
 
 class DirectoryDoesNotExist(RuntimeError, GHGAConnectorException):
@@ -99,10 +101,15 @@ message_display: AbstractMessageDisplay = CLIMessageDisplay()
 
 
 @cli.command()
-def upload(  # noqa C901
+def upload(  # noqa C901, pylint: disable=unused-argument
     api_url: str = typer.Option(..., help="Url to the upload contoller"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
+    num_retries: int = typer.Argument(
+        default=MAX_RETRIES,
+        help="Number of times to retry failed part uploads",
+        callback=Retry.set_retries,
+    ),
 ):
     """
     Command to upload a file
@@ -175,7 +182,7 @@ def upload(  # noqa C901
 
 
 @cli.command()
-def download(  # pylint: disable=too-many-arguments
+def download(  # pylint: disable=too-many-arguments, disable=unused-argument
     api_url: str = typer.Option(..., help="Url to the DRS3"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     output_dir: str = typer.Option(
@@ -188,6 +195,11 @@ def download(  # pylint: disable=too-many-arguments
     part_size: int = typer.Argument(
         DEFAULT_PART_SIZE, help="Part size of the downloaded chunks."
     ),
+    num_retries: int = typer.Argument(
+        default=MAX_RETRIES,
+        help="Number of times to retry failed part downloads",
+        callback=Retry.set_retries,
+    ),  # pylint: disable=unused-argument
 ):
     """
     Command to download a file

@@ -17,6 +17,7 @@
 """
 Contains API calls to the API of the GHGA Storage implementation
 """
+
 import json
 from enum import Enum
 from time import sleep

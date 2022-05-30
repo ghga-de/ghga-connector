@@ -26,48 +26,12 @@ from ghga_connector.core import (
     BadResponseCodeError,
     RequestFailedError,
     UploadStatus,
-    get_pending_uploads,
     patch_multipart_upload,
 )
 from ghga_connector.core.api_calls import get_part_upload_urls
 from ghga_connector.core.exceptions import MaxPartNoExceededError
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
-
-
-@pytest.mark.parametrize(
-    "bad_url,file_id,expected_exception,expect_none",
-    [
-        (False, "pending", None, False),
-        (False, "uploaded", None, True),
-        (False, "confirmed", BadResponseCodeError, False),
-        (True, "uploaded", RequestFailedError, False),
-    ],
-)
-def test_get_pending_uploads(
-    bad_url,
-    file_id,
-    expected_exception,
-    expect_none,
-):
-    """
-    Test the patch_multipart_upload function
-    """
-    with MockAPIContainer() as api:
-        api_url = "http://bad_url" if bad_url else api.get_connection_url()
-
-        try:
-            response = get_pending_uploads(
-                api_url=api_url,
-                file_id=file_id,
-            )
-            assert expected_exception is None
-            if expect_none:
-                assert response is None
-            elif response is not None:
-                assert response[0]["upload_id"] == UploadStatus.PENDING
-        except Exception as exception:
-            assert isinstance(exception, expected_exception)
 
 
 @pytest.mark.parametrize(

@@ -26,6 +26,6 @@ def check_url(api_url, wait_time=1000) -> bool:
     try:
         # timeout takes seconds, was ms in curl, convert accordingly
         requests.get(url=api_url, timeout=wait_time / 1000)
-    except requests.exceptions.Timeout:
+    except requests.exceptions.RequestException:
         return False
     return True

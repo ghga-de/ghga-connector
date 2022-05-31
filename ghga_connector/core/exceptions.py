@@ -124,8 +124,8 @@ class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
 
 class CantChangeUploadStatus(RuntimeError, GHGAConnectorException):
     """
-    Thrown, when a User does not have the credentials for the file
-    corresponding to a specific upload id (response code 403)
+    Thrown, when the upload status of a file can't be set to the requested status
+    (response code 400)
     """
 
     def __init__(self, upload_id: str, upload_status: str):

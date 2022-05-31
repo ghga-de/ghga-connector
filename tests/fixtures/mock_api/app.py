@@ -48,10 +48,18 @@ class UploadStatus(str, Enum):
 
 class StatePatch(BaseModel):
     """
-    Model containing a state parameter. Needed for the ULC get api call
+    Model containing a state parameter. Needed for the UCS patch: /uploads/... api call
     """
 
     upload_status: UploadStatus
+
+
+class StatePost(BaseModel):
+    """
+    Model containing a state parameter. Needed for the UCS post: /uploads api call
+    """
+
+    file_id: str
 
 
 class PresignedPostURL(BaseModel):
@@ -212,10 +220,12 @@ async def ulc_get_uploads(upload_id: str):
 
 
 @app.post("/uploads", summary="ulc_post_uploads_mock", status_code=200)
-async def ulc_post_files_uploads(file_id: str):
+async def ulc_post_files_uploads(state: StatePost):
     """
     Mock for the ulc POST /uploads call.
     """
+
+    file_id = state.file_id
 
     if file_id == "uploadable":
         return UploadProperties(

@@ -71,7 +71,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
     # build url and headers
     url = f"{api_url}/uploads"
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    post_data = {"upload_status": file_id}
+    post_data = {"file_id": file_id}
     serialized_data = json.dumps(post_data)
 
     # Make function call to get upload url

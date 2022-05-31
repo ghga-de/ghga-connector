@@ -212,7 +212,7 @@ def get_upload_info(
 
 def get_file_metadata(api_url: str, file_id: str) -> Dict:
     """
-    Get all file metadate
+    Get all file metadata
     """
 
     # build url and headers

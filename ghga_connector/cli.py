@@ -124,7 +124,7 @@ def upload(  # noqa C901
         raise typer.Abort() from error
     except UploadNotRegisteredError as error:
         message_display.failure(
-            f"The pending upload for file '{file_id}', does not exist."
+            f"The pending upload for file '{file_id}' does not exist."
         )
         raise typer.Abort() from error
     except UserHasNoUploadAccess as error:

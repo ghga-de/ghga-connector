@@ -41,10 +41,10 @@ from ghga_connector.core import (
     start_multipart_upload,
     upload_file_part,
 )
+from ghga_connector.core.constants import MAX_RETRIES
 from ghga_connector.core.decorators import Retry
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
-MAX_RETRIES = 3
 
 
 class DirectoryDoesNotExist(RuntimeError, GHGAConnectorException):
@@ -199,7 +199,7 @@ def download(  # pylint: disable=too-many-arguments, disable=unused-argument
         default=MAX_RETRIES,
         help="Number of times to retry failed part downloads",
         callback=Retry.set_retries,
-    ),  # pylint: disable=unused-argument
+    ),
 ):
     """
     Command to download a file

@@ -14,12 +14,15 @@
 # limitations under the License.
 #
 
-"""Eeusable decorators"""
+"""Reusable decorators"""
 from typing import Any, Callable
 
-from ghga_connector.core.exceptions import GHGAConnectorException, MaxRetriesReached
-
-MAX_RETRIES = 3
+from ghga_connector.core.constants import MAX_RETRIES
+from ghga_connector.core.exceptions import (
+    BadResponseCodeError,
+    MaxRetriesReached,
+    RequestFailedError,
+)
 
 
 class Retry:
@@ -30,14 +33,21 @@ class Retry:
     def __init__(self, func: Callable) -> None:
         self.func = func
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Callable:
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
         def retry():
             # try calling decorated function at least once
             for i in range(Retry.num_retries + 1):
                 try:
                     func = self.func(*args, **kwargs)
                     return func
-                except GHGAConnectorException as exception:
+                except BadResponseCodeError as exception:
+                    print(
+                        f"""Attempt {i+1} for {self.func.__name__}
+                        returned unexpected return code: '{exception.response_code}'"""
+                    )
+                    if exception.response_code in range(400, 600):
+                        raise exception
+                except RequestFailedError as exception:
                     print(
                         f"""Attempt {i+1} for {self.func.__name__}
                         failed due to: '{exception.__cause__}'"""

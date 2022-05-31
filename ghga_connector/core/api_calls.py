@@ -200,7 +200,7 @@ def get_upload_info(
         raise RequestFailedError(url) from request_error
 
     status_code = response.status_code
-    if status_code != 204:
+    if status_code != 200:
         if status_code == 403:
             raise UserHasNoUploadAccess(upload_id=upload_id)
         if status_code == 404:

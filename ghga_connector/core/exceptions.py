@@ -95,8 +95,8 @@ class NoUploadPossibleError(RuntimeError, GHGAConnectorException):
 
 class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException):
     """
-    Thrown when a user does not have the credentials to get or change 
-    details of an ongoing upload with a specific upload id 
+    Thrown when a user does not have the credentials to get or change
+    details of an ongoing upload with a specific upload id
     (response code 403)
     """
 
@@ -124,8 +124,8 @@ class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
 
 class CantChangeUploadStatus(RuntimeError, GHGAConnectorException):
     """
-    Thrown, when a User does not have the credentials for
-    a specific file id (response code 403)
+    Thrown, when a User does not have the credentials for the file
+    corresponding to a specific upload id (response code 403)
     """
 
     def __init__(self, upload_id: str, upload_status: str):

@@ -103,7 +103,7 @@ class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException):
     def __init__(self, upload_id: str):
         message = (
             "This user is not registered as data submitter "
-            f"for the file corresponding with the upload_id '{upload_id}'."
+            f"for the file corresponding to the upload_id '{upload_id}'."
         )
         super().__init__(message)
 

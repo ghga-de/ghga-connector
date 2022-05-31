@@ -110,7 +110,7 @@ class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException):
 
 class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
     """
-    Thrown, when a User does not have the credentials for
+    Thrown when a user does not have the credentials for
     a specific file id (response code 403)
     """
 

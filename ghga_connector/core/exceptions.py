@@ -124,7 +124,7 @@ class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
 
 class CantChangeUploadStatus(RuntimeError, GHGAConnectorException):
     """
-    Thrown, when the upload status of a file can't be set to the requested status
+    Thrown when the upload status of a file can't be set to the requested status
     (response code 400)
     """
 

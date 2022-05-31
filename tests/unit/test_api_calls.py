@@ -23,8 +23,9 @@ from unittest.mock import Mock
 import pytest
 
 from ghga_connector.core import (
-    BadResponseCodeError,
+    CantChangeUploadStatus,
     RequestFailedError,
+    UploadNotRegisteredError,
     UploadStatus,
     patch_multipart_upload,
 )
@@ -39,8 +40,9 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
     [
         (False, "pending", UploadStatus.UPLOADED, None),
         (False, "uploaded", UploadStatus.CANCELLED, None),
-        (False, "pending", UploadStatus.CANCELLED, BadResponseCodeError),
-        (False, "uploadable", UploadStatus.UPLOADED, BadResponseCodeError),
+        (False, "pending", UploadStatus.CANCELLED, CantChangeUploadStatus),
+        (False, "uploadable", UploadStatus.UPLOADED, CantChangeUploadStatus),
+        (False, "not_uploadable", UploadStatus.UPLOADED, UploadNotRegisteredError),
         (True, "uploaded", UploadStatus.UPLOADED, RequestFailedError),
     ],
 )

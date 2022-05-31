@@ -302,6 +302,14 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
             ),
         )
 
+    if upload_id == "uploadable":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
+            ),
+        )
+
     raise HTTPException(
         status_code=404,
         detail=(f'The upload with id "{upload_id}" does not exist'),

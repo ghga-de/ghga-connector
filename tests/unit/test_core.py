@@ -61,12 +61,12 @@ def test_retry(retry_exceptions: list[Exception], final_exception: Exception):
 
     curr_retry = 0
 
-    @Retry
-    def exception_producer() -> None:
+    def exception_producer():
         """
         Generate exceptions based on expected behavior
         Distinguish between fatal and non fatal exceptions
         """
+        nonlocal curr_retry
         exception = retry_exceptions[curr_retry]
         curr_retry += 1
 
@@ -79,12 +79,3 @@ def test_retry(retry_exceptions: list[Exception], final_exception: Exception):
         if isinstance(final_error, MaxRetriesReached):
             for idx, retry_error in enumerate(final_error.causes):
                 assert isinstance(retry_error, retry_exceptions[idx])
-
-    # except Exception as exception:
-    #     assert isinstance(exception, expected_exception)
-    #     # Sanity check for number of retries
-    #     if isinstance(exception, MaxRetriesReached):
-    #         assert exception.num_causes == Retry.max_retries + 1
-    # else:
-    #     # this should be unreachable, except for exceptions not derived from Exception
-    #     assert expected_exception is None

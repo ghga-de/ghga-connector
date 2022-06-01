@@ -50,7 +50,7 @@ class Retry:
                 except Exception as exception:  # pylint: disable=broad-except
                     if isinstance(exception, FatalError):
                         raise exception
-                    exception_causes.append(exception.__cause__)
+                    exception_causes.append(repr(exception))
                     # Use exponential backoff for retries
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))

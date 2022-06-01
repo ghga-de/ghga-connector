@@ -155,10 +155,10 @@ class MaxRetriesReached(RuntimeError, GHGAConnectorException):
         # keep track for testing purposes
         self.num_causes = len(causes)
         message = (
-            f"Exceeded maximum retries for '{func_name}'\nExceptions encountered:\n"
+            f"Exceeded maximum retries for '{func_name}'. Exceptions encountered:\n"
         )
         for i, cause in enumerate(causes):
-            message += f"{i+1}: {cause}"
+            message += f"{i+1}: {cause}\n"
         super().__init__(message)
 
 

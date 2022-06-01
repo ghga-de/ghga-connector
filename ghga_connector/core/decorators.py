@@ -15,14 +15,11 @@
 #
 
 """Reusable decorators"""
+import time
 from typing import Any, Callable
 
 from ghga_connector.core.constants import MAX_RETRIES
-from ghga_connector.core.exceptions import (
-    BadResponseCodeError,
-    MaxRetriesReached,
-    RequestFailedError,
-)
+from ghga_connector.core.exceptions import FatalError, MaxRetriesReached
 
 
 class Retry:
@@ -40,18 +37,16 @@ class Retry:
                 try:
                     func = self.func(*args, **kwargs)
                     return func
-                except BadResponseCodeError as exception:
-                    print(
-                        f"""Attempt {i+1} for {self.func.__name__}
-                        returned unexpected return code: '{exception.response_code}'"""
-                    )
-                    if exception.response_code in range(400, 600):
+                except Exception as exception:  # pylint: disable=broad-except
+                    if isinstance(exception, FatalError):
                         raise exception
-                except RequestFailedError as exception:
                     print(
                         f"""Attempt {i+1} for {self.func.__name__}
                         failed due to: '{exception.__cause__}'"""
                     )
+                    backoff_factor = 0.5
+                    exponential_backoff = backoff_factor * (2 ** (i))
+                    time.sleep(exponential_backoff)
             raise MaxRetriesReached(self.func.__name__)
 
         return retry()

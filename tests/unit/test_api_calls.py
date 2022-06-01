@@ -24,13 +24,12 @@ import pytest
 
 from ghga_connector.core import (
     CantChangeUploadStatus,
-    RequestFailedError,
     UploadNotRegisteredError,
     UploadStatus,
     patch_multipart_upload,
 )
 from ghga_connector.core.api_calls import get_part_upload_urls
-from ghga_connector.core.exceptions import MaxPartNoExceededError
+from ghga_connector.core.exceptions import MaxPartNoExceededError, MaxRetriesReached
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
 
@@ -43,7 +42,7 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
         (False, "pending", UploadStatus.CANCELLED, CantChangeUploadStatus),
         (False, "uploadable", UploadStatus.UPLOADED, CantChangeUploadStatus),
         (False, "not_uploadable", UploadStatus.UPLOADED, UploadNotRegisteredError),
-        (True, "uploaded", UploadStatus.UPLOADED, RequestFailedError),
+        (True, "uploaded", UploadStatus.UPLOADED, MaxRetriesReached),
     ],
 )
 def test_patch_multipart_upload(

@@ -32,7 +32,7 @@ class FatalError(BaseException):
     """
 
 
-class RetryTimeExpectedError(RuntimeError, GHGAConnectorException):
+class RetryTimeExpectedError(RuntimeError, GHGAConnectorException, FatalError):
     """Thrown, when a request didn't contain a retry time even though it was expected."""
 
     def __init__(self, url: str):
@@ -50,7 +50,7 @@ class RequestFailedError(RuntimeError):
         super().__init__(message)
 
 
-class NoS3AccessMethod(RuntimeError, GHGAConnectorException):
+class NoS3AccessMethod(RuntimeError, GHGAConnectorException, FatalError):
     """Thrown, when a request returns the desired response code, but no S3 Access Method"""
 
     def __init__(self, url: str):
@@ -58,7 +58,7 @@ class NoS3AccessMethod(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class FileNotRegisteredError(RuntimeError, GHGAConnectorException):
+class FileNotRegisteredError(RuntimeError, GHGAConnectorException, FatalError):
     """Thrown, when a request for a file returns a 404 error."""
 
     def __init__(self, file_id: str):
@@ -69,7 +69,7 @@ class FileNotRegisteredError(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class UploadNotRegisteredError(RuntimeError, GHGAConnectorException):
+class UploadNotRegisteredError(RuntimeError, GHGAConnectorException, FatalError):
     """Thrown, when a request for a multipart upload returns a 404 error."""
 
     def __init__(self, upload_id: str):
@@ -80,7 +80,7 @@ class UploadNotRegisteredError(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class BadResponseCodeError(RuntimeError):
+class BadResponseCodeError(RuntimeError, FatalError):
     """Thrown, when a request returns an unexpected response code (e.g. 500)"""
 
     def __init__(self, url: str, response_code: int):
@@ -89,7 +89,7 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
-class NoUploadPossibleError(RuntimeError, GHGAConnectorException):
+class NoUploadPossibleError(RuntimeError, GHGAConnectorException, FatalError):
     """Thrown, when a multipart upload currently can't be started (response code 400)"""
 
     def __init__(self, file_id: str):
@@ -100,7 +100,7 @@ class NoUploadPossibleError(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException):
+class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException, FatalError):
     """
     Thrown when a user does not have the credentials to get or change
     details of an ongoing upload with a specific upload id
@@ -115,7 +115,7 @@ class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
+class UserHasNoFileAccess(RuntimeError, GHGAConnectorException, FatalError):
     """
     Thrown when a user does not have the credentials for
     a specific file id (response code 403)
@@ -129,7 +129,7 @@ class UserHasNoFileAccess(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class CantChangeUploadStatus(RuntimeError, GHGAConnectorException):
+class CantChangeUploadStatus(RuntimeError, GHGAConnectorException, FatalError):
     """
     Thrown when the upload status of a file can't be set to the requested status
     (response code 400)

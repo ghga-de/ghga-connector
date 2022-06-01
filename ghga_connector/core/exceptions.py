@@ -19,14 +19,14 @@
 from ghga_connector.core.constants import MAX_PART_NUMBER
 
 
-class GHGAConnectorException(BaseException):
+class GHGAConnectorException(Exception):
     """
     Base Exception for all custom-thrown exceptions.
     Indicates expected behaviour such as user error or unstable connections
     """
 
 
-class FatalError(BaseException):
+class FatalError(Exception):
     """
     Base Exception for all exceptions that should not trigger retry logic
     """
@@ -151,8 +151,14 @@ class MaxWaitTimeExceeded(RuntimeError, GHGAConnectorException):
 class MaxRetriesReached(RuntimeError, GHGAConnectorException):
     """Thrown, when the specified number of retries has been exceeded."""
 
-    def __init__(self, func_name: str):
-        message = f"Exceeded maximum retries for '{func_name}'."
+    def __init__(self, func_name: str, causes: list):
+        # keep track for testing purposes
+        self.num_causes = len(causes)
+        message = (
+            f"Exceeded maximum retries for '{func_name}'\nExceptions encountered:\n"
+        )
+        for i, cause in enumerate(causes):
+            message += f"{i+1}: {cause}"
         super().__init__(message)
 
 

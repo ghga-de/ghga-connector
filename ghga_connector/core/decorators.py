@@ -28,10 +28,20 @@ class Retry:
     num_retries: int = MAX_RETRIES
 
     def __init__(self, func: Callable) -> None:
+        """
+        Class decorators get the decorated function as argument
+        and need to store it for the actual call
+        """
         self.func = func
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Decorator needs to be callable.
+        Provided args, kwargs are passed directly to the decorated function
+        """
+
         def retry():
+            exception_causes = []
             # try calling decorated function at least once
             for i in range(Retry.num_retries + 1):
                 try:
@@ -40,20 +50,19 @@ class Retry:
                 except Exception as exception:  # pylint: disable=broad-except
                     if isinstance(exception, FatalError):
                         raise exception
-                    print(
-                        f"""Attempt {i+1} for {self.func.__name__}
-                        failed due to: '{exception.__cause__}'"""
-                    )
+                    exception_causes.append(exception.__cause__)
+                    # Use exponential backoff for retries
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))
                     time.sleep(exponential_backoff)
-            raise MaxRetriesReached(self.func.__name__)
+            raise MaxRetriesReached(self.func.__name__, exception_causes)
 
         return retry()
 
     @classmethod
     def set_retries(cls, num_retries: int) -> None:
         """
-        Use this method when setting the number of retries from commandline options by callback
+        Use this method when setting the number of retries
+        from commandline options by callback
         """
         cls.num_retries = num_retries

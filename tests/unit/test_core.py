@@ -19,6 +19,12 @@
 import pytest
 
 from ghga_connector.core import check_url
+from ghga_connector.core.decorators import Retry
+from ghga_connector.core.exceptions import (
+    FatalError,
+    MaxRetriesReached,
+    RequestFailedError,
+)
 
 
 @pytest.mark.parametrize(
@@ -32,3 +38,54 @@ def test_check_url(api_url, wait_time, expected_response):
     """
     response = check_url(api_url, wait_time)
     assert response == expected_response
+
+
+@pytest.mark.parametrize(
+    "num_retries,expected_exception,is_fatal",
+    [
+        (0, None, False),
+        (0, FatalError, False),
+        (3, MaxRetriesReached, False),
+        (3, FatalError, True),
+    ],
+)
+def test_retry(num_retries, expected_exception, is_fatal):
+    """
+    Test the Retry class decorator
+    """
+    # initialize state for the decorator
+    Retry.num_retries = num_retries
+
+    @Retry
+    def exception_producer(exception) -> None:
+        """
+        Generate exceptions based on expected behavior
+        Distinguish between fatal and non fatal exceptions
+        """
+        # non fatal errors should trigger retry
+        if isinstance(exception, MaxRetriesReached):
+            raise RequestFailedError(
+                "Retry. This should throw MaxRetriesReached inside the decorator"
+            )
+        # fatal errors should not trigger retry
+        if is_fatal:
+            raise FatalError("No Retry")
+        # forgot to set fatal flag
+        if isinstance(exception, FatalError):
+            raise ValueError("Fatal Error needs 'is_fatal' set")
+        # reraise unexpected exception to induce failure
+        if exception is not None:
+            raise exception(
+                "Logic error in Decorator, this should be MaxRetriesReached"
+            )
+
+    try:
+        exception_producer(expected_exception)
+    except Exception as exception:
+        assert isinstance(exception, expected_exception)
+        # Sanity check for number of retries
+        if isinstance(exception, MaxRetriesReached):
+            assert exception.num_causes == Retry.num_retries + 1
+
+    # this should be unreachable, except for exceptions not derived from Exception
+    assert expected_exception is None

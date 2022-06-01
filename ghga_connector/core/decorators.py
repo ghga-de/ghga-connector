@@ -25,7 +25,7 @@ from ghga_connector.core.exceptions import FatalError, MaxRetriesReached
 class Retry:
     """Class decorator providing common retry logic"""
 
-    num_retries: int = MAX_RETRIES
+    max_retries: int = MAX_RETRIES
 
     def __init__(self, func: Callable) -> None:
         """
@@ -43,14 +43,14 @@ class Retry:
         def retry():
             exception_causes = []
             # try calling decorated function at least once
-            for i in range(Retry.num_retries + 1):
+            for i in range(Retry.max_retries + 1):
                 try:
                     func = self.func(*args, **kwargs)
                     return func
                 except Exception as exception:  # pylint: disable=broad-except
                     if isinstance(exception, FatalError):
                         raise exception
-                    exception_causes.append(repr(exception))
+                    exception_causes.append(exception)
                     # Use exponential backoff for retries
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))
@@ -60,9 +60,9 @@ class Retry:
         return retry()
 
     @classmethod
-    def set_retries(cls, num_retries: int) -> None:
+    def set_retries(cls, max_retries: int) -> None:
         """
         Use this method when setting the number of retries
         from commandline options by callback
         """
-        cls.num_retries = num_retries
+        cls.max_retries = max_retries

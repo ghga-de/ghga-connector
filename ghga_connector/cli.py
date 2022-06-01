@@ -105,15 +105,17 @@ def upload(  # noqa C901, pylint: disable=unused-argument
     api_url: str = typer.Option(..., help="Url to the upload contoller"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
-    num_retries: int = typer.Argument(
+    max_retries: int = typer.Argument(
         default=MAX_RETRIES,
         help="Number of times to retry failed part uploads",
-        callback=Retry.set_retries,
     ),
 ):
     """
     Command to upload a file
     """
+
+    Retry.set_retries(max_retries)
+
     if not os.path.isfile(file_path):
         message_display.failure(f"The file {file_path} does not exist.")
         raise typer.Abort()
@@ -195,7 +197,7 @@ def download(  # pylint: disable=too-many-arguments, disable=unused-argument
     part_size: int = typer.Argument(
         DEFAULT_PART_SIZE, help="Part size of the downloaded chunks."
     ),
-    num_retries: int = typer.Argument(
+    max_retries: int = typer.Argument(
         default=MAX_RETRIES,
         help="Number of times to retry failed part downloads",
         callback=Retry.set_retries,

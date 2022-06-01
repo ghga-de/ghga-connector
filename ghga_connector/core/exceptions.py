@@ -151,9 +151,9 @@ class MaxWaitTimeExceeded(RuntimeError, GHGAConnectorException):
 class MaxRetriesReached(RuntimeError, GHGAConnectorException):
     """Thrown, when the specified number of retries has been exceeded."""
 
-    def __init__(self, func_name: str, causes: list):
+    def __init__(self, func_name: str, causes: list[Exception]):
         # keep track for testing purposes
-        self.num_causes = len(causes)
+        self.causes = causes
         message = (
             f"Exceeded maximum retries for '{func_name}'.\nExceptions encountered:\n"
         )

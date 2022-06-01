@@ -41,6 +41,8 @@ from .exceptions import (
     UploadNotRegisteredError,
     UserHasNoFileAccess,
     UserHasNoUploadAccess,
+    InvalidArgumentError,
+    UploadOngoingError,
 )
 
 # Constants for clarity of return values
@@ -62,35 +64,84 @@ class UploadStatus(str, Enum):
     UPLOADED = "uploaded"
 
 
-def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
+class MultiPartUpload:
     """
-    Perform a RESTful API call to initiate a multipart upload
-    Returns an upload id and a part size
+    A context manager that savely initiates and closes a multipart Upload by talking to
+    the API of the UCS service.
+     on "enter":
+            fail, print message: "there is already an ongoing upload, you can restart it (–restart) or try to resume ("–resume")
+            in case of --restart: cancel ongoing upload
+            in case of --resume: NotImplementedError
+
     """
 
-    # build url and headers
-    url = f"{api_url}/uploads"
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    post_data = {"file_id": file_id}
-    serialized_data = json.dumps(post_data)
+    def __init__(
+        self, api_url: str, file_id: str, restart: bool = False, resume: bool = False
+    ):
+        """
+        Create the context manager. (This will not initiate the multipart upload.)
 
-    # Make function call to get upload url
-    try:
-        response = requests.post(url=url, headers=headers, data=serialized_data)
-    except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        Args:
+            api_url: URL to the API of the UCS service
+            file_id: ID of the file to upload.
+            restart:
+                If set to `True`, will cancel existing multipart uploads for that file
+                and start a new one.
+            resume:
+                If set to `True`, will resume an existing multipart upload by continuing
+                after the last uploaded file part.
+                Please note, `restart` and `resume` cannot be combined.
+        """
 
-    status_code = response.status_code
-    if status_code != 200:
-        if status_code == 400:
-            raise NoUploadPossibleError(file_id=file_id)
-        if status_code == 403:
-            raise UserHasNoFileAccess(file_id=file_id)
-        raise BadResponseCodeError(url, status_code)
+        if resume and restart:
+            raise InvalidArgumentError(
+                "Both the `restart` and the `resume` options where set, however, they"
+                + " cannot be combined."
+            )
 
-    response_body = response.json()
+        self._api_url = api_url
+        self._file_id = file_id
+        self._restart = restart
+        self._resume = resume
 
-    return response_body["upload_id"], int(response_body["part_size"])
+    def __enter__():
+        """
+        Tries to initiate a new multipart upload using the UCS API.
+        If there is already an active upload, it raises an exception unless the
+        `restart` or `resume` option was set.
+        """
+
+    def _init_upload(self) -> Tuple[str, int]:
+        """Initiate a new multipart upload via the UCS API.
+
+        Returns:
+            A tuple with with first argument being the upload id and the second
+            being the anticipated part size.
+        """
+
+        # build url and headers
+        url = f"{api_url}/uploads"
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        post_data = {"file_id": file_id}
+        serialized_data = json.dumps(post_data)
+
+        # Make REST call to initiate a new upload.
+        try:
+            response = requests.post(url=url, headers=headers, data=serialized_data)
+        except requests.exceptions.RequestException as request_error:
+            raise RequestFailedError(url) from request_error
+
+        status_code = response.status_code
+        if status_code != 200:
+            if status_code == 400:
+                raise NoUploadPossibleError(file_id=file_id)
+            if status_code == 403:
+                raise UserHasNoFileAccess(file_id=file_id)
+            raise BadResponseCodeError(url, status_code)
+
+        response_body = response.json()
+
+        return response_body["upload_id"], int(response_body["part_size"])
 
 
 def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):

@@ -161,3 +161,30 @@ class MaxPartNoExceededError(RuntimeError):
     ):
         message = f"No more than ({MAX_PART_NUMBER}) file parts can be up-/downloaded."
         super().__init__(message)
+
+
+class InvalidArgumentError(ValueError, GHGAConnectorException):
+    """Raised when an argument or a combintaion of arguments was invalid (but of the#
+    correct type)."""
+
+
+class UploadOngoingError(RuntimeError, GHGAConnectorException):
+    """
+    Raised when trying to create a multipart upload for a file for which another
+    multipart upload is still ongoing.
+    """
+
+    def __init__(self, file_id: str):
+        """Inits the exeption.
+
+        Args:
+            file_id: ID of the file to which the upload refers.
+        """
+        message = (
+            "Cannot create a new mulitpart upload since another upload is still ongoing"
+            + f" for the file '{file_id}'. You may use the `restart` option to cancel"
+            + " the existing upload and replace it with a new one or use the `resume`"
+            + " option to resume the ongoing multipart upload where it was left off."
+        )
+
+        super().__init__(message)

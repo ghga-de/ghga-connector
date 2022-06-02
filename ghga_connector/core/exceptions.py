@@ -92,7 +92,7 @@ class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
         super().__init__(message)
 
 
-class RequestFailedError(RuntimeError):
+class RequestFailedError(RuntimeError, KnownError):
     """Thrown, when a request fails without returning a response code"""
 
     def __init__(self, url: str):

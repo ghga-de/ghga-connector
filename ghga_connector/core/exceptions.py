@@ -26,28 +26,60 @@ class KnownError(Exception):
     """
 
 
+class UnkownError(Exception):
+    """
+    Indicates unexpected behaviour such as bug in this package that are not caused by
+    usage errors.
+    Please note, all exceptions that do not inherit from `KownError` MUST be considered
+    unkown. This exception is just to explicitly state the unkown character of the error
+    in the code.
+    """
+
+
 class FatalError(Exception):
     """
     Base Exception for all exceptions that should not trigger retry logic
     """
 
 
-class RetryAbortException(RuntimeError):
+class CollectiveError(RuntimeError, KnownError):
     """
-    Raised on encountering a FatalError in the WithRetry decorator.
-    Allows to attach information about all preceding exceptions
-    encountered, similarly to MaxRetriesReached
+    An error that can have one or more direct causes.
+    Please note, this is different from using the `raise ... from ...` statement since the#
+    statement only allows to capture one direct cause.
     """
 
-    def __init__(self, func_name: str, causes: list[Exception]):
-        # keep track of inner exceptions
+    def __init__(self, *, base_message: str, causes: list[KnownError]):
+
+        if len(causes) < 1:
+            raise TypeError(
+                "Collective error must receive at least one causal error but zero were given"
+            )
+
         self.causes = causes
-        message = f"'{func_name}' raised a FatalError.\n"
+        message = (
+            f"{base_message}\nThis error was caused by following prior exceptions:"
+        )
+
         for i, cause in enumerate(causes):
-            if i == 0:
-                message += "Prior exceptions:\n"
-            message += f"{i+1}: {cause}\n"
+            if not isinstance(cause, KnownError):
+                raise TypeError(
+                    "A causal error of an error collection was unkown."
+                ) from cause
+
+            message += f"\n  {i+1}: {cause}"
         super().__init__(message)
+
+
+class RetryAbortException(CollectiveError, FatalError):
+    """
+    Raised on encountering a FatalError in the WithRetry decorator.
+    Information about all preceding exceptions encountered before the FatalError is attached.
+    """
+
+    def __init__(self, *, func_name: str, causes: list[KnownError]):
+        base_message = f"'{func_name}' raised a FatalError."
+        super().__init__(base_message=base_message, causes=causes)
 
 
 class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
@@ -166,18 +198,12 @@ class MaxWaitTimeExceeded(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class MaxRetriesReached(RuntimeError, KnownError):
+class MaxRetriesReached(CollectiveError, FatalError):
     """Thrown, when the specified number of retries has been exceeded."""
 
-    def __init__(self, func_name: str, causes: list[Exception]):
-        # keep track of inner exceptions
-        self.causes = causes
-        message = (
-            f"Exceeded maximum retries for '{func_name}'.\nExceptions encountered:\n"
-        )
-        for i, cause in enumerate(causes):
-            message += f"{i+1}: {cause}\n"
-        super().__init__(message)
+    def __init__(self, *, func_name: str, causes: list[KnownError]):
+        base_message = f"Exceeded maximum retries for '{func_name}'."
+        super().__init__(base_message=base_message, causes=causes)
 
 
 class MaxPartNoExceededError(RuntimeError):

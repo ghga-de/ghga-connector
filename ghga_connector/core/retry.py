@@ -20,6 +20,7 @@ from typing import Any, Callable, Optional
 
 from ghga_connector.core.exceptions import (
     FatalError,
+    KnownError,
     MaxRetriesReached,
     RetryAbortException,
 )
@@ -47,25 +48,25 @@ class WithRetry:
             if WithRetry.max_retries is None:
                 raise ValueError("max_retries was not set")
 
-            exception_causes: list[Exception] = []
+            error_causes: list[KnownError] = []
             # try calling decorated function at least once
             for i in range(WithRetry.max_retries + 1):
                 try:
                     func = self.func(*args, **kwargs)
                     return func
-                except Exception as exception:  # pylint: disable=broad-except
-                    if isinstance(exception, FatalError):
-                        if len(exception_causes) > 0:
+                except KnownError as error:  # unkown errors are raised immediately
+                    if isinstance(error, FatalError):
+                        if len(error_causes) > 0:
                             raise RetryAbortException(
-                                self.func.__name__, exception_causes
-                            ) from exception
-                        raise exception
-                    exception_causes.append(exception)
+                                func_name=self.func.__name__, causes=error_causes
+                            ) from error
+                        raise error
+                    error_causes.append(error)
                     # Use exponential backoff for retries
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))
                     time.sleep(exponential_backoff)
-            raise MaxRetriesReached(self.func.__name__, exception_causes)
+            raise MaxRetriesReached(func_name=self.func.__name__, causes=error_causes)
 
         return retry()
 

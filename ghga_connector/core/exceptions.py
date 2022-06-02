@@ -19,7 +19,7 @@
 from ghga_connector.core.constants import MAX_PART_NUMBER
 
 
-class GHGAConnectorException(Exception):
+class KnownError(Exception):
     """
     Base Exception for all custom-thrown exceptions.
     Indicates expected behaviour such as user error or unstable connections
@@ -32,7 +32,25 @@ class FatalError(Exception):
     """
 
 
-class RetryTimeExpectedError(RuntimeError, GHGAConnectorException, FatalError):
+class RetryAbortException(RuntimeError):
+    """
+    Raised on encountering a FatalError in the WithRetry decorator.
+    Allows to attach information about all preceding exceptions
+    encountered, similarly to MaxRetriesReached
+    """
+
+    def __init__(self, func_name: str, causes: list[Exception]):
+        # keep track of inner exceptions
+        self.causes = causes
+        message = f"'{func_name}' raised a FatalError.\n"
+        for i, cause in enumerate(causes):
+            if i == 0:
+                message += "Prior exceptions:\n"
+            message += f"{i+1}: {cause}\n"
+        super().__init__(message)
+
+
+class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request didn't contain a retry time even though it was expected."""
 
     def __init__(self, url: str):
@@ -50,7 +68,7 @@ class RequestFailedError(RuntimeError):
         super().__init__(message)
 
 
-class NoS3AccessMethod(RuntimeError, GHGAConnectorException, FatalError):
+class NoS3AccessMethod(RuntimeError, KnownError, FatalError):
     """Thrown, when a request returns the desired response code, but no S3 Access Method"""
 
     def __init__(self, url: str):
@@ -58,7 +76,7 @@ class NoS3AccessMethod(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class FileNotRegisteredError(RuntimeError, GHGAConnectorException, FatalError):
+class FileNotRegisteredError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request for a file returns a 404 error."""
 
     def __init__(self, file_id: str):
@@ -69,7 +87,7 @@ class FileNotRegisteredError(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class UploadNotRegisteredError(RuntimeError, GHGAConnectorException, FatalError):
+class UploadNotRegisteredError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request for a multipart upload returns a 404 error."""
 
     def __init__(self, upload_id: str):
@@ -89,7 +107,7 @@ class BadResponseCodeError(RuntimeError, FatalError):
         super().__init__(message)
 
 
-class NoUploadPossibleError(RuntimeError, GHGAConnectorException, FatalError):
+class NoUploadPossibleError(RuntimeError, KnownError, FatalError):
     """Thrown, when a multipart upload currently can't be started (response code 400)"""
 
     def __init__(self, file_id: str):
@@ -100,7 +118,7 @@ class NoUploadPossibleError(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException, FatalError):
+class UserHasNoUploadAccess(RuntimeError, KnownError, FatalError):
     """
     Thrown when a user does not have the credentials to get or change
     details of an ongoing upload with a specific upload id
@@ -115,7 +133,7 @@ class UserHasNoUploadAccess(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class UserHasNoFileAccess(RuntimeError, GHGAConnectorException, FatalError):
+class UserHasNoFileAccess(RuntimeError, KnownError, FatalError):
     """
     Thrown when a user does not have the credentials for
     a specific file id (response code 403)
@@ -129,7 +147,7 @@ class UserHasNoFileAccess(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class CantChangeUploadStatus(RuntimeError, GHGAConnectorException, FatalError):
+class CantChangeUploadStatus(RuntimeError, KnownError, FatalError):
     """
     Thrown when the upload status of a file can't be set to the requested status
     (response code 400)
@@ -140,7 +158,7 @@ class CantChangeUploadStatus(RuntimeError, GHGAConnectorException, FatalError):
         super().__init__(message)
 
 
-class MaxWaitTimeExceeded(RuntimeError, GHGAConnectorException):
+class MaxWaitTimeExceeded(RuntimeError, KnownError):
     """Thrown, when the specified wait time for getting a download url has been exceeded."""
 
     def __init__(self, max_wait_time: int):
@@ -148,11 +166,11 @@ class MaxWaitTimeExceeded(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class MaxRetriesReached(RuntimeError, GHGAConnectorException):
+class MaxRetriesReached(RuntimeError, KnownError):
     """Thrown, when the specified number of retries has been exceeded."""
 
     def __init__(self, func_name: str, causes: list[Exception]):
-        # keep track for testing purposes
+        # keep track of inner exceptions
         self.causes = causes
         message = (
             f"Exceeded maximum retries for '{func_name}'.\nExceptions encountered:\n"

@@ -24,7 +24,7 @@ from ghga_connector.core import (
     AbstractMessageDisplay,
     BadResponseCodeError,
     CantChangeUploadStatus,
-    GHGAConnectorException,
+    KnownError,
     MaxRetriesReached,
     MessageColors,
     NoUploadPossibleError,
@@ -41,13 +41,13 @@ from ghga_connector.core import (
     start_multipart_upload,
     upload_file_part,
 )
-from ghga_connector.core.constants import MAX_RETRIES
-from ghga_connector.core.decorators import Retry
+from ghga_connector.core.retry import WithRetry
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
+MAX_RETRIES = 3
 
 
-class DirectoryDoesNotExist(RuntimeError, GHGAConnectorException):
+class DirectoryDoesNotExist(RuntimeError, KnownError):
     """Thrown, when the specified directory does not exist."""
 
     def __init__(self, output_dir: str):
@@ -55,7 +55,7 @@ class DirectoryDoesNotExist(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class FileAlreadyExistsError(RuntimeError, GHGAConnectorException):
+class FileAlreadyExistsError(RuntimeError, KnownError):
     """Thrown, when the specified file already exists."""
 
     def __init__(self, output_file: str):
@@ -63,7 +63,7 @@ class FileAlreadyExistsError(RuntimeError, GHGAConnectorException):
         super().__init__(message)
 
 
-class ApiNotReachable(RuntimeError, GHGAConnectorException):
+class ApiNotReachable(RuntimeError, KnownError):
     """Thrown, when the api is not reachable."""
 
     def __init__(self, api_url: str):
@@ -113,8 +113,7 @@ def upload(  # noqa C901, pylint: disable=unused-argument
     """
     Command to upload a file
     """
-
-    Retry.set_retries(max_retries)
+    WithRetry.set_retries(max_retries)
 
     if not os.path.isfile(file_path):
         message_display.failure(f"The file {file_path} does not exist.")
@@ -200,12 +199,13 @@ def download(  # pylint: disable=too-many-arguments, disable=unused-argument
     max_retries: int = typer.Argument(
         default=MAX_RETRIES,
         help="Number of times to retry failed part downloads",
-        callback=Retry.set_retries,
     ),
 ):
     """
     Command to download a file
     """
+    WithRetry.set_retries(max_retries)
+
     if not os.path.isdir(output_dir):
         raise DirectoryDoesNotExist(output_dir)
 

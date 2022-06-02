@@ -24,6 +24,8 @@ from ghga_connector.core.file_operations import (
     download_content_range,
     download_file_parts,
 )
+from ghga_connector.core.retry import WithRetry
+from tests.fixtures.retry import max_retries  # noqa: F401
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 
 
@@ -39,9 +41,14 @@ from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: 
     ],
 )
 def test_download_content_range(
-    start: int, end: int, file_size: int, s3_fixture: S3Fixture  # noqa: F811
+    start: int,
+    end: int,
+    file_size: int,
+    s3_fixture: S3Fixture,  # noqa: F811
+    max_retries: int,  # noqa: F811
 ):
     """Test the `download_content_range` function."""
+    WithRetry.set_retries(max_retries)
     # prepare state and the expected result:
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
     download_url = s3_fixture.storage.get_object_download_url(
@@ -62,9 +69,10 @@ def test_download_content_range(
     [None, 3],
 )
 def test_download_file_parts(
-    from_part: Optional[int], s3_fixture: S3Fixture  # noqa: F811
+    from_part: Optional[int], s3_fixture: S3Fixture, max_retries: int  # noqa: F811
 ):
     """Test the `download_file_parts` function."""
+    WithRetry.set_retries(max_retries)
     # prepare state and the expected result:
     part_size = 5 * 1024 * 1024
     big_object = get_big_s3_object(s3_fixture)

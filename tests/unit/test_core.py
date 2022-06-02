@@ -16,16 +16,15 @@
 
 """Tests for the core functions of the cli"""
 
-from contextlib import nullcontext
 import pytest
 
 from ghga_connector.core import check_url
-from ghga_connector.core.decorators import Retry
 from ghga_connector.core.exceptions import (
     FatalError,
     MaxRetriesReached,
-    RequestFailedError,
+    RetryAbortException,
 )
+from ghga_connector.core.retry import WithRetry
 
 
 @pytest.mark.parametrize(
@@ -44,23 +43,34 @@ def test_check_url(api_url, wait_time, expected_response):
 @pytest.mark.parametrize(
     "retry_exceptions,final_exception",
     [
+        ([None], None),
+        ([RuntimeError], RuntimeError),
+        (
+            [RuntimeError, TypeError, None],
+            None,
+        ),
         (
             [RuntimeError, TypeError, ValueError],
             MaxRetriesReached,
-        )
-        # (3, MaxRetriesReached, False),
-        # (3, FatalError, True),
+        ),
+        (
+            [RuntimeError, TypeError, FatalError],
+            RetryAbortException,
+        ),
     ],
 )
-def test_retry(retry_exceptions: list[Exception], final_exception: Exception):
+def test_retry(
+    retry_exceptions: list[type[Exception]], final_exception: type[Exception]
+):
     """
     Test the Retry class decorator
     """
     # initialize state for the decorator
-    Retry.max_retries = len(retry_exceptions) - 1
+    WithRetry.set_retries(len(retry_exceptions) - 1)
 
     curr_retry = 0
 
+    @WithRetry
     def exception_producer():
         """
         Generate exceptions based on expected behavior
@@ -71,11 +81,13 @@ def test_retry(retry_exceptions: list[Exception], final_exception: Exception):
         curr_retry += 1
 
         if isinstance(exception, Exception):
-            raise exception()
+            raise exception
 
     try:
         exception_producer()
     except final_exception as final_error:
-        if isinstance(final_error, MaxRetriesReached):
+        if isinstance(final_error, MaxRetriesReached):  # pylint: disable=broad-except
             for idx, retry_error in enumerate(final_error.causes):
                 assert isinstance(retry_error, retry_exceptions[idx])
+    finally:
+        WithRetry.max_retries = None

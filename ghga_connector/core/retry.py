@@ -16,16 +16,19 @@
 
 """Reusable decorators"""
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
-from ghga_connector.core.constants import MAX_RETRIES
-from ghga_connector.core.exceptions import FatalError, MaxRetriesReached
+from ghga_connector.core.exceptions import (
+    FatalError,
+    MaxRetriesReached,
+    RetryAbortException,
+)
 
 
-class Retry:
+class WithRetry:
     """Class decorator providing common retry logic"""
 
-    max_retries: int = MAX_RETRIES
+    max_retries: Optional[int] = None
 
     def __init__(self, func: Callable) -> None:
         """
@@ -41,14 +44,21 @@ class Retry:
         """
 
         def retry():
-            exception_causes = []
+            if WithRetry.max_retries is None:
+                raise ValueError("max_retries was not set")
+
+            exception_causes: list[Exception] = []
             # try calling decorated function at least once
-            for i in range(Retry.max_retries + 1):
+            for i in range(WithRetry.max_retries + 1):
                 try:
                     func = self.func(*args, **kwargs)
                     return func
                 except Exception as exception:  # pylint: disable=broad-except
                     if isinstance(exception, FatalError):
+                        if len(exception_causes) > 0:
+                            raise RetryAbortException(
+                                self.func.__name__, exception_causes
+                            ) from exception
                         raise exception
                     exception_causes.append(exception)
                     # Use exponential backoff for retries
@@ -62,7 +72,12 @@ class Retry:
     @classmethod
     def set_retries(cls, max_retries: int) -> None:
         """
-        Use this method when setting the number of retries
-        from commandline options by callback
+        Setting max retries with sanity checks
         """
+        if max_retries < 0:
+            raise ValueError(
+                f"Invalid, negative number provided for max_retries: {max_retries}"
+            )
+        if cls.max_retries is not None:
+            raise ValueError("max_retries is already set")
         cls.max_retries = max_retries

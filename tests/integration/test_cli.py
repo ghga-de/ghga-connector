@@ -35,6 +35,7 @@ from ghga_connector.core import BadResponseCodeError, MaxWaitTimeExceeded
 
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
+from ..fixtures.retry import max_retries  # noqa: F401
 from ..fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 
 
@@ -48,10 +49,7 @@ from ..fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
     ],
 )
 def test_multipart_download(
-    file_size,
-    part_size,
-    s3_fixture: S3Fixture,  # noqa F811
-    tmp_path,
+    file_size, part_size, s3_fixture: S3Fixture, tmp_path, max_retries: int  # noqa F811
 ):
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
@@ -71,7 +69,6 @@ def test_multipart_download(
         s3_download_file_size=file_size_,
     ) as api:
         api_url = api.get_connection_url()
-
         try:
             download(
                 api_url=api_url,
@@ -79,6 +76,7 @@ def test_multipart_download(
                 output_dir=tmp_path,
                 max_wait_time=int(60),
                 part_size=part_size,
+                max_retries=max_retries,
             )
         except Exception as exception:
             raise exception
@@ -113,6 +111,7 @@ def test_download(
     expected_exception,
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path,
+    max_retries: int,  # noqa F811
 ):
     """Test the download of a file"""
 
@@ -144,6 +143,7 @@ def test_download(
                 output_dir=output_dir,
                 max_wait_time=int(max_wait_time),
                 part_size=DEFAULT_PART_SIZE,
+                max_retries=max_retries,
             )
             assert expected_exception is None
             assert cmp(output_dir / file.file_id, file.file_path)
@@ -165,6 +165,7 @@ def test_upload(
     file_name,
     expected_exception,
     s3_fixture: S3Fixture,  # noqa F811
+    max_retries: int,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
@@ -191,6 +192,7 @@ def test_upload(
                 api_url=api_url,
                 file_id=uploadable_file.file_id,
                 file_path=str(uploadable_file.file_path.resolve()),
+                max_retries=max_retries,
             )
 
             s3_fixture.storage.complete_multipart_upload(
@@ -219,6 +221,7 @@ def test_multipart_upload(
     file_size: int,
     anticipated_part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
+    max_retries: int,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
@@ -267,6 +270,7 @@ def test_multipart_upload(
                     api_url=api_url,
                     file_id=file_id,
                     file_path=file.name,
+                    max_retries=max_retries,
                 )
 
             # confirm upload

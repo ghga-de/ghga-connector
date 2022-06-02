@@ -24,12 +24,12 @@ from typing import Iterator, Sequence
 
 import pycurl
 
-from ghga_connector.core.decorators import Retry
+from ghga_connector.core.retry import WithRetry
 
 from .exceptions import BadResponseCodeError, RequestFailedError
 
 
-@Retry
+@WithRetry
 def download_content_range(
     *,
     download_url: str,
@@ -135,7 +135,7 @@ def read_file_parts(
         yield file_part
 
 
-@Retry
+@WithRetry
 def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     """Upload File"""
 

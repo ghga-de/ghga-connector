@@ -30,8 +30,10 @@ from ghga_connector.core import (
 )
 from ghga_connector.core.api_calls import get_part_upload_urls
 from ghga_connector.core.exceptions import MaxPartNoExceededError, MaxRetriesReached
+from ghga_connector.core.retry import WithRetry
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
+from ..fixtures.retry import max_retries  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -46,14 +48,12 @@ from ..fixtures.mock_api.testcontainer import MockAPIContainer
     ],
 )
 def test_patch_multipart_upload(
-    bad_url,
-    upload_id,
-    upload_status,
-    expected_exception,
+    bad_url, upload_id, upload_status, expected_exception, max_retries  # noqa: F811
 ):
     """
     Test the patch_multipart_upload function
     """
+    WithRetry.set_retries(max_retries)
     with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
@@ -76,7 +76,7 @@ def test_patch_multipart_upload(
         (9999, 10001, MaxPartNoExceededError),
     ],
 )
-def test_get_part_upload_ulrs(
+def test_get_part_upload_urls(
     from_part: Optional[int],
     end_part: int,
     exception: Optional[Exception],

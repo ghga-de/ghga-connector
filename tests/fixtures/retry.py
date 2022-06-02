@@ -13,7 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from typing import Generator
 
-"""Constants used throught the core."""
+import pytest
 
-MAX_PART_NUMBER = 10000
+from ghga_connector.core.retry import WithRetry
+
+
+@pytest.fixture
+def max_retries() -> Generator[int, None, None]:
+    """
+    Fixture dealing with cleanup for all tests touching functions
+    annotated with the 'WithRetry' class decorator.
+    Those tests need to request this fixture and use 'WithRetry.set_retries'
+    with the yielded value as argument.
+    As some tests call into functions that set 'WithRetry.maxretries'
+    and it is not allowed to be set if it already has a non 'None' value,
+    this is required for now
+    """
+    max_retries = 0
+    yield max_retries
+    WithRetry.max_retries = None

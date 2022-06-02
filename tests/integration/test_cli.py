@@ -49,7 +49,11 @@ from ..fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
     ],
 )
 def test_multipart_download(
-    file_size, part_size, s3_fixture: S3Fixture, tmp_path, max_retries: int  # noqa F811
+    file_size,
+    part_size,
+    s3_fixture: S3Fixture,  # noqa F811
+    tmp_path,
+    max_retries: int,  # noqa F811
 ):
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)

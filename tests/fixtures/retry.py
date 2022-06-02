@@ -13,24 +13,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from typing import Generator
+from typing import Generator, Optional
 
 import pytest
 
 from ghga_connector.core.retry import WithRetry
 
 
-@pytest.fixture
-def max_retries() -> Generator[int, None, None]:
+class RetryFixture:
+    """A helper class to get and set (overwrite) ."""
+
+    @property
+    def max_retries(self) -> Optional[int]:
+        """returns the current max_retries value"""
+        return WithRetry._max_retries
+
+    @max_retries.setter
+    def max_retries(self, value: int):
+        """Overwrite the default value of max_retries"""
+        WithRetry._max_retries = value
+
+
+def retry_fixure_factory(
+    default_retries: Optional[int],
+) -> Generator[RetryFixture, None, None]:
     """
-    Fixture dealing with cleanup for all tests touching functions
-    annotated with the 'WithRetry' class decorator.
-    Those tests need to request this fixture and use 'WithRetry.set_retries'
-    with the yielded value as argument.
-    As some tests call into functions that set 'WithRetry.maxretries'
-    and it is not allowed to be set if it already has a non 'None' value,
-    this is required for now
+    Creates a fixture with a default value for the max_retries parameter.
     """
-    max_retries = 0
-    yield max_retries
-    WithRetry.max_retries = None
+
+    @pytest.fixture
+    def fixture() -> Generator[RetryFixture, None, None]:
+        """
+        Fixture dealing with cleanup for all tests touching functions
+        annotated with the 'WithRetry' class decorator.
+        Those tests need to request this fixture and use 'WithRetry.set_retries'.
+        """
+        # set the max_retries default value for testing:
+        WithRetry._max_retries = default_retries
+
+        # provide functionality to set/read/overwrite the max_retries param:
+        yield RetryFixture()
+
+        # Resets the max_retries parameter to `None`:
+        WithRetry._max_retries = None
+
+    return fixture
+
+
+retry_fixture = retry_fixure_factory(None)
+zero_retry_fixture = retry_fixure_factory(0)

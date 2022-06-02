@@ -86,7 +86,7 @@ def test_retry(
     try:
         exception_producer()
     except final_exception as final_error:
-        if isinstance(final_error, MaxRetriesReached):  # pylint: disable=broad-except
+        if isinstance(final_error, MaxRetriesReached):
             for idx, retry_error in enumerate(final_error.causes):
                 assert isinstance(retry_error, retry_exceptions[idx])
     finally:

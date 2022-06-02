@@ -29,14 +29,14 @@ from ghga_connector.core.exceptions import (
 class WithRetry:
     """Class decorator providing common retry logic"""
 
-    max_retries: Optional[int] = None
+    _max_retries: Optional[int] = None
 
     def __init__(self, func: Callable) -> None:
         """
         Class decorators get the decorated function as argument
         and need to store it for the actual call
         """
-        self.func = func
+        self._func = func
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """
@@ -45,20 +45,19 @@ class WithRetry:
         """
 
         def retry():
-            if WithRetry.max_retries is None:
+            if WithRetry._max_retries is None:
                 raise ValueError("max_retries was not set")
 
             error_causes: list[KnownError] = []
             # try calling decorated function at least once
-            for i in range(WithRetry.max_retries + 1):
+            for i in range(WithRetry._max_retries + 1):
                 try:
-                    func = self.func(*args, **kwargs)
-                    return func
+                    return self._func(*args, **kwargs)
                 except KnownError as error:  # unkown errors are raised immediately
                     if isinstance(error, FatalError):
                         if len(error_causes) > 0:
                             raise RetryAbortException(
-                                func_name=self.func.__name__, causes=error_causes
+                                func_name=self._func.__name__, causes=error_causes
                             ) from error
                         raise error
                     error_causes.append(error)
@@ -66,7 +65,7 @@ class WithRetry:
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))
                     time.sleep(exponential_backoff)
-            raise MaxRetriesReached(func_name=self.func.__name__, causes=error_causes)
+            raise MaxRetriesReached(func_name=self._func.__name__, causes=error_causes)
 
         return retry()
 
@@ -79,6 +78,6 @@ class WithRetry:
             raise ValueError(
                 f"Invalid, negative number provided for max_retries: {max_retries}"
             )
-        if cls.max_retries is not None:
+        if cls._max_retries is not None:
             raise ValueError("max_retries is already set")
-        cls.max_retries = max_retries
+        cls._max_retries = max_retries

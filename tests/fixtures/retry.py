@@ -20,8 +20,22 @@ import pytest
 from ghga_connector.core.retry import WithRetry
 
 
+class RetryFixture:
+    """A helper class to get and set (overwrite) ."""
+
+    @property
+    def max_retries(self) -> int:
+        """returns the current max_retries value"""
+        return WithRetry._max_retries  # type: ignore
+
+    @max_retries.setter
+    def max_retries(self, value: int):
+        """Overwrite the default value of max_retries"""
+        WithRetry._max_retries = value
+
+
 @pytest.fixture
-def max_retries() -> Generator[int, None, None]:
+def retry_fixture() -> Generator[RetryFixture, None, None]:
     """
     Fixture dealing with cleanup for all tests touching functions
     annotated with the 'WithRetry' class decorator.
@@ -31,6 +45,12 @@ def max_retries() -> Generator[int, None, None]:
     and it is not allowed to be set if it already has a non 'None' value,
     this is required for now
     """
-    max_retries = 0
-    yield max_retries
-    WithRetry.max_retries = None
+
+    # set the max_retries default value for testing:
+    WithRetry._max_retries = 0
+
+    # provide functionality to overwrite the default
+    yield RetryFixture()
+
+    # Reset the max_retries parameter to None:
+    WithRetry._max_retries = None

@@ -90,4 +90,4 @@ def test_retry(
             for idx, retry_error in enumerate(final_error.causes):
                 assert isinstance(retry_error, retry_exceptions[idx])
     finally:
-        WithRetry.max_retries = None
+        WithRetry._max_retries = None

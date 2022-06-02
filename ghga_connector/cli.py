@@ -101,7 +101,7 @@ message_display: AbstractMessageDisplay = CLIMessageDisplay()
 
 
 @cli.command()
-def upload(  # noqa C901, pylint: disable=unused-argument
+def upload(  # noqa C901
     api_url: str = typer.Option(..., help="Url to the upload contoller"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
@@ -183,7 +183,7 @@ def upload(  # noqa C901, pylint: disable=unused-argument
 
 
 @cli.command()
-def download(  # pylint: disable=too-many-arguments, disable=unused-argument
+def download(  # pylint: disable=too-many-arguments
     api_url: str = typer.Option(..., help="Url to the DRS3"),
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     output_dir: str = typer.Option(

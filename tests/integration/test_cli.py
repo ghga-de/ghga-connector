@@ -20,6 +20,7 @@ import os
 import pathlib
 from filecmp import cmp
 from pathlib import Path
+from typing import Optional
 
 import pytest
 import typer
@@ -79,7 +80,7 @@ def test_multipart_download(
                 api_url=api_url,
                 file_id=big_object.object_id,
                 output_dir=tmp_path,
-                max_wait_time=int(60),
+                max_wait_time=60,
                 part_size=part_size,
                 max_retries=0,
             )
@@ -113,7 +114,7 @@ def test_download(
     bad_outdir: bool,
     file_name: str,
     max_wait_time: int,
-    expected_exception: type[Exception],
+    expected_exception: type[Optional[Exception]],
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     retry_fixture: RetryFixture,  # noqa: F811
@@ -168,7 +169,7 @@ def test_download(
 def test_upload(
     bad_url: bool,
     file_name: str,
-    expected_exception: type[Exception],
+    expected_exception: type[Optional[Exception]],
     s3_fixture: S3Fixture,  # noqa F811
     retry_fixture: RetryFixture,  # noqa F811
 ):

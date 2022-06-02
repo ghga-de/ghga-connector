@@ -50,7 +50,7 @@ def test_patch_multipart_upload(
     bad_url: bool,
     upload_id: str,
     upload_status: UploadStatus,
-    expected_exception: type[Exception],
+    expected_exception: type[Optional[Exception]],
     zero_retry_fixture: RetryFixture,  # noqa F811
 ):
     """

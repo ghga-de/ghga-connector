@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from typing import Generator, Optional
+from typing import Callable, Generator, Optional
 
 import pytest
 
@@ -36,7 +36,7 @@ class RetryFixture:
 
 def retry_fixure_factory(
     default_retries: Optional[int],
-) -> Generator[RetryFixture, None, None]:
+) -> Callable[[], Generator[RetryFixture, None, None]]:
     """
     Creates a fixture with a default value for the max_retries parameter.
     """

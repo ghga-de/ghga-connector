@@ -15,7 +15,6 @@
 #
 
 """Tests for the core functions of the cli"""
-
 import pytest
 
 from ghga_connector.core import check_url
@@ -32,7 +31,7 @@ from ghga_connector.core.retry import WithRetry
     # Google has a higher availability than ghga.de
     [("https://www.google.de/", 1000, True), ("https://bad_url", 1000, False)],
 )
-def test_check_url(api_url, wait_time, expected_response):
+def test_check_url(api_url: str, wait_time: int, expected_response: bool):
     """
     Test the check_url function
     """
@@ -60,7 +59,8 @@ def test_check_url(api_url, wait_time, expected_response):
     ],
 )
 def test_retry(
-    retry_exceptions: list[type[Exception]], final_exception: type[Exception]
+    retry_exceptions: list[type[Exception]],
+    final_exception: type[Exception],
 ):
     """
     Test the Retry class decorator

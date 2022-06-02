@@ -48,7 +48,11 @@ from ..fixtures.retry import max_retries  # noqa: F401
     ],
 )
 def test_patch_multipart_upload(
-    bad_url, upload_id, upload_status, expected_exception, max_retries  # noqa: F811
+    bad_url: bool,
+    upload_id: str,
+    upload_status: UploadStatus,
+    expected_exception: type[Exception],
+    max_retries: int,  # noqa: F811
 ):
     """
     Test the patch_multipart_upload function

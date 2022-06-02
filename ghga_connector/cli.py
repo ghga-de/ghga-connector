@@ -190,7 +190,7 @@ def download(  # pylint: disable=too-many-arguments
         ..., help="The directory to put the downloaded file"
     ),
     max_wait_time: int = typer.Argument(
-        "60",
+        60,
         help="Maximal time in seconds to wait before quitting without a download. ",
     ),
     part_size: int = typer.Argument(

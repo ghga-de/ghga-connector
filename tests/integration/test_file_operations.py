@@ -69,7 +69,9 @@ def test_download_content_range(
     [None, 3],
 )
 def test_download_file_parts(
-    from_part: Optional[int], s3_fixture: S3Fixture, max_retries: int  # noqa: F811
+    from_part: Optional[int],
+    s3_fixture: S3Fixture,  # noqa: F811
+    max_retries: int,  # noqa: F811
 ):
     """Test the `download_file_parts` function."""
     WithRetry.set_retries(max_retries)

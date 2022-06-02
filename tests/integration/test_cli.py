@@ -17,6 +17,7 @@
 """Tests for the up- and download functions of the cli"""
 
 import os
+import pathlib
 from filecmp import cmp
 from pathlib import Path
 
@@ -49,10 +50,10 @@ from ..fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
     ],
 )
 def test_multipart_download(
-    file_size,
-    part_size,
+    file_size: int,
+    part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
-    tmp_path,
+    tmp_path: pathlib.Path,
     max_retries: int,  # noqa F811
 ):
     """Test the multipart download of a file"""
@@ -94,27 +95,27 @@ def test_multipart_download(
 @pytest.mark.parametrize(
     "bad_url,bad_outdir,file_name,max_wait_time,expected_exception",
     [
-        (True, False, "file_downloadable", "60", ApiNotReachable),
-        (False, False, "file_downloadable", "60", None),
+        (True, False, "file_downloadable", 60, ApiNotReachable),
+        (False, False, "file_downloadable", 60, None),
         (
             False,
             False,
             "file_not_downloadable",
-            "60",
+            60,
             BadResponseCodeError,
         ),
-        (False, False, "file_retry", "60", MaxWaitTimeExceeded),
-        (False, True, "file_downloadable", "60", DirectoryDoesNotExist),
+        (False, False, "file_retry", 60, MaxWaitTimeExceeded),
+        (False, True, "file_downloadable", 60, DirectoryDoesNotExist),
     ],
 )
 def test_download(
-    bad_url,
-    bad_outdir,
-    file_name,
-    max_wait_time,
-    expected_exception,
+    bad_url: bool,
+    bad_outdir: bool,
+    file_name: str,
+    max_wait_time: int,
+    expected_exception: type[Exception],
     s3_fixture: S3Fixture,  # noqa F811
-    tmp_path,
+    tmp_path: pathlib.Path,
     max_retries: int,  # noqa F811
 ):
     """Test the download of a file"""
@@ -145,7 +146,7 @@ def test_download(
                 api_url=api_url,
                 file_id=file.file_id,
                 output_dir=output_dir,
-                max_wait_time=int(max_wait_time),
+                max_wait_time=max_wait_time,
                 part_size=DEFAULT_PART_SIZE,
                 max_retries=max_retries,
             )
@@ -165,9 +166,9 @@ def test_download(
     ],
 )
 def test_upload(
-    bad_url,
-    file_name,
-    expected_exception,
+    bad_url: bool,
+    file_name: str,
+    expected_exception: type[Exception],
     s3_fixture: S3Fixture,  # noqa F811
     max_retries: int,  # noqa F811
 ):

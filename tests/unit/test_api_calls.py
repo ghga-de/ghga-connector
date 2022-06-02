@@ -32,7 +32,7 @@ from ghga_connector.core.api_calls import get_part_upload_urls
 from ghga_connector.core.exceptions import MaxPartNoExceededError, MaxRetriesReached
 
 from ..fixtures.mock_api.testcontainer import MockAPIContainer
-from ..fixtures.retry import RetryFixture, retry_fixture  # noqa: F401
+from ..fixtures.retry import RetryFixture, zero_retry_fixture  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -51,7 +51,7 @@ def test_patch_multipart_upload(
     upload_id: str,
     upload_status: UploadStatus,
     expected_exception: type[Exception],
-    retry_fixture: RetryFixture,  # noqa F811
+    zero_retry_fixture: RetryFixture,  # noqa F811
 ):
     """
     Test the patch_multipart_upload function

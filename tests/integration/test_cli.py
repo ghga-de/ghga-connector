@@ -26,14 +26,14 @@ import pytest
 import typer
 from ghga_service_chassis_lib.utils import big_temp_file
 
-from ghga_connector.cli import (
+from ghga_connector.cli import download, upload
+from ghga_connector.core import (
     DEFAULT_PART_SIZE,
     ApiNotReachable,
+    BadResponseCodeError,
     DirectoryDoesNotExist,
-    download,
-    upload,
+    MaxWaitTimeExceeded,
 )
-from ghga_connector.core import BadResponseCodeError, MaxWaitTimeExceeded
 
 from ..fixtures import state
 from ..fixtures.mock_api.testcontainer import MockAPIContainer

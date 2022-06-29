@@ -46,6 +46,7 @@ from .retry import WithRetry
 
 # define core-wide constants
 MAX_RETRIES = 3
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 
 def check_url(api_url, wait_time=1000) -> bool:

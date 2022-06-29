@@ -20,14 +20,13 @@
 import typer
 
 from ghga_connector.core import (
+    DEFAULT_PART_SIZE,
     MAX_RETRIES,
     AbstractMessageDisplay,
     MessageColors,
     download_core,
     upload_core,
 )
-
-DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 
 class CLIMessageDisplay(AbstractMessageDisplay):

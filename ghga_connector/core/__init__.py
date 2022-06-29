@@ -49,5 +49,11 @@ from .file_operations import (  # noqa: F401
     read_file_parts,
     upload_file_part,
 )
-from .main import MAX_RETRIES, check_url, download_core, upload_core  # noqa: F401
+from .main import (  # noqa: F401
+    DEFAULT_PART_SIZE,
+    MAX_RETRIES,
+    check_url,
+    download_core,
+    upload_core,
+)
 from .message_display import AbstractMessageDisplay, MessageColors  # noqa: F401

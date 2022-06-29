@@ -23,16 +23,17 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
-import typer
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import download, upload
-from ghga_connector.core import (
-    DEFAULT_PART_SIZE,
+from ghga_connector.core import DEFAULT_PART_SIZE
+from ghga_connector.core.exceptions import (
     ApiNotReachable,
     BadResponseCodeError,
     DirectoryDoesNotExist,
+    FileDoesNotExistError,
     MaxWaitTimeExceeded,
+    NoUploadPossibleError,
 )
 
 from ..fixtures import state
@@ -160,10 +161,10 @@ def test_download(
 @pytest.mark.parametrize(
     "bad_url,file_name,expected_exception",
     [
-        (True, "file_uploadable", typer.Abort),
+        (True, "file_uploadable", ApiNotReachable),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", typer.Abort),
-        (False, "file_with_bad_path", typer.Abort),
+        (False, "file_not_uploadable", NoUploadPossibleError),
+        (False, "file_with_bad_path", FileDoesNotExistError),
     ],
 )
 def test_upload(

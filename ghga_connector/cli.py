@@ -72,16 +72,13 @@ def upload(  # noqa C901
     Command to upload a file
     """
 
-    try:
-        upload_core(
-            api_url=api_url,
-            file_id=file_id,
-            file_path=file_path,
-            max_retries=max_retries,
-            message_display=message_display,
-        )
-    except Exception as error:
-        raise typer.Abort() from error
+    upload_core(
+        api_url=api_url,
+        file_id=file_id,
+        file_path=file_path,
+        max_retries=max_retries,
+        message_display=message_display,
+    )
 
 
 @cli.command()
@@ -107,15 +104,12 @@ def download(  # pylint: disable=too-many-arguments
     Command to download a file
     """
 
-    try:
-        download_core(
-            api_url=api_url,
-            file_id=file_id,
-            output_dir=output_dir,
-            max_wait_time=max_wait_time,
-            part_size=part_size,
-            max_retries=max_retries,
-            message_display=message_display,
-        )
-    except Exception as error:
-        raise typer.Abort() from error
+    download_core(
+        api_url=api_url,
+        file_id=file_id,
+        output_dir=output_dir,
+        max_wait_time=max_wait_time,
+        part_size=part_size,
+        max_retries=max_retries,
+        message_display=message_display,
+    )

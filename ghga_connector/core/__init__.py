@@ -35,6 +35,7 @@ from .exceptions import (  # noqa: F401
     DirectoryDoesNotExist,
     FileAlreadyExistsError,
     FileDoesNotExistError,
+    FileNotRegisteredError,
     KnownError,
     MaxRetriesReached,
     MaxWaitTimeExceeded,

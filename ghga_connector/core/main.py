@@ -34,6 +34,7 @@ from .exceptions import (
     DirectoryDoesNotExist,
     FileAlreadyExistsError,
     FileDoesNotExistError,
+    FileNotRegisteredError,
     MaxRetriesReached,
     NoUploadPossibleError,
     RequestFailedError,
@@ -61,7 +62,7 @@ def check_url(api_url, wait_time=1000) -> bool:
     return True
 
 
-def upload_core(  # noqa C901
+def upload_core(  # noqa C901, pylint: disable=too-many-statements
     api_url: str,
     file_id: str,
     file_path: str,
@@ -97,6 +98,9 @@ def upload_core(  # noqa C901
         message_display.failure(
             f"The user is not registered as a Data Submitter for the file with id '{file_id}'."
         )
+        raise error
+    except FileNotRegisteredError as error:
+        message_display.failure(f"The file with the id {file_id} is not registered.")
         raise error
     except BadResponseCodeError as error:
         message_display.failure(

@@ -32,6 +32,7 @@ from ghga_connector.core import (
     BadResponseCodeError,
     DirectoryDoesNotExist,
     FileDoesNotExistError,
+    FileNotRegisteredError,
     MaxWaitTimeExceeded,
 )
 
@@ -162,7 +163,7 @@ def test_download(
     [
         (True, "file_uploadable", ApiNotReachable),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", BadResponseCodeError),
+        (False, "file_not_uploadable", FileNotRegisteredError),
         (False, "file_with_bad_path", FileDoesNotExistError),
     ],
 )

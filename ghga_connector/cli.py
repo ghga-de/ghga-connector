@@ -19,17 +19,10 @@
 
 import typer
 
-from ghga_connector.core import (
-    DEFAULT_PART_SIZE,
-    MAX_RETRIES,
-    AbstractMessageDisplay,
-    MessageColors,
-    download_core,
-    upload_core,
-)
+from ghga_connector import core
 
 
-class CLIMessageDisplay(AbstractMessageDisplay):
+class CLIMessageDisplay(core.AbstractMessageDisplay):
     """
     Command line writer message display implementation,
     using different color based on information type
@@ -39,23 +32,23 @@ class CLIMessageDisplay(AbstractMessageDisplay):
         """
         Write message with default color to stdout
         """
-        typer.secho(message, fg=MessageColors.DEFAULT)
+        typer.secho(message, fg=core.MessageColors.DEFAULT)
 
     def success(self, message: str):
         """
         Write message to stdout representing information about a successful operation
         """
-        typer.secho(message, fg=MessageColors.SUCCESS)
+        typer.secho(message, fg=core.MessageColors.SUCCESS)
 
     def failure(self, message: str):
         """
         Write message to stderr representing information about a failed operation
         """
-        typer.secho(message, fg=MessageColors.FAILURE, err=True)
+        typer.secho(message, fg=core.MessageColors.FAILURE, err=True)
 
 
 cli = typer.Typer()
-message_display: AbstractMessageDisplay = CLIMessageDisplay()
+message_display: core.AbstractMessageDisplay = CLIMessageDisplay()
 
 
 @cli.command()
@@ -64,7 +57,7 @@ def upload(  # noqa C901
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: str = typer.Option(..., help="The path to the file to upload"),
     max_retries: int = typer.Argument(
-        default=MAX_RETRIES,
+        default=core.MAX_RETRIES,
         help="Number of times to retry failed part uploads",
     ),
 ):
@@ -72,7 +65,7 @@ def upload(  # noqa C901
     Command to upload a file
     """
 
-    upload_core(
+    core.upload(
         api_url=api_url,
         file_id=file_id,
         file_path=file_path,
@@ -93,10 +86,10 @@ def download(  # pylint: disable=too-many-arguments
         help="Maximal time in seconds to wait before quitting without a download.",
     ),
     part_size: int = typer.Argument(
-        DEFAULT_PART_SIZE, help="Part size of the downloaded chunks."
+        core.DEFAULT_PART_SIZE, help="Part size of the downloaded chunks."
     ),
     max_retries: int = typer.Argument(
-        default=MAX_RETRIES,
+        default=core.MAX_RETRIES,
         help="Number of times to retry failed part downloads",
     ),
 ):
@@ -104,7 +97,7 @@ def download(  # pylint: disable=too-many-arguments
     Command to download a file
     """
 
-    download_core(
+    core.download(
         api_url=api_url,
         file_id=file_id,
         output_dir=output_dir,

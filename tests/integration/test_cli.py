@@ -26,8 +26,8 @@ import pytest
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import download, upload
-from ghga_connector.core import DEFAULT_PART_SIZE
-from ghga_connector.core.exceptions import (
+from ghga_connector.core import (
+    DEFAULT_PART_SIZE,
     ApiNotReachable,
     BadResponseCodeError,
     DirectoryDoesNotExist,

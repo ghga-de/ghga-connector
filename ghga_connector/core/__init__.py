@@ -28,23 +28,22 @@ from .api_calls import (  # noqa: F401
     patch_multipart_upload,
     start_multipart_upload,
 )
-
-# from .exceptions import (  # noqa: F401
-#     ApiNotReachable,
-#     BadResponseCodeError,
-#     CantChangeUploadStatus,
-#     DirectoryDoesNotExist,
-#     FileAlreadyExistsError,
-#     FileDoesNotExistError,
-#     KnownError,
-#     MaxRetriesReached,
-#     MaxWaitTimeExceeded,
-#     NoS3AccessMethod,
-#     NoUploadPossibleError,
-#     RequestFailedError,
-#     UploadNotRegisteredError,
-#     UserHasNoUploadAccess,
-# )
+from .exceptions import (  # noqa: F401
+    ApiNotReachable,
+    BadResponseCodeError,
+    CantChangeUploadStatus,
+    DirectoryDoesNotExist,
+    FileAlreadyExistsError,
+    FileDoesNotExistError,
+    KnownError,
+    MaxRetriesReached,
+    MaxWaitTimeExceeded,
+    NoS3AccessMethod,
+    NoUploadPossibleError,
+    RequestFailedError,
+    UploadNotRegisteredError,
+    UserHasNoUploadAccess,
+)
 from .file_operations import (  # noqa: F401
     download_file_parts,
     read_file_parts,

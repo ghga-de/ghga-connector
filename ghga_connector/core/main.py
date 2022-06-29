@@ -62,7 +62,7 @@ def check_url(api_url, wait_time=1000) -> bool:
     return True
 
 
-def upload_core(  # noqa C901, pylint: disable=too-many-statements
+def upload(  # noqa C901, pylint: disable=too-many-statements
     api_url: str,
     file_id: str,
     file_path: str,
@@ -162,7 +162,7 @@ def upload_file_parts(
             upload_file_part(presigned_url=upload_url, part=part)
 
 
-def download_core(  # pylint: disable=too-many-arguments
+def download(  # pylint: disable=too-many-arguments
     api_url: str,
     file_id: str,
     output_dir: str,

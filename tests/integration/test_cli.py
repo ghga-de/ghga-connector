@@ -33,7 +33,6 @@ from ghga_connector.core import (
     DirectoryDoesNotExist,
     FileDoesNotExistError,
     MaxWaitTimeExceeded,
-    NoUploadPossibleError,
 )
 
 from ..fixtures import state
@@ -163,7 +162,7 @@ def test_download(
     [
         (True, "file_uploadable", ApiNotReachable),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", NoUploadPossibleError),
+        (False, "file_not_uploadable", BadResponseCodeError),
         (False, "file_with_bad_path", FileDoesNotExistError),
     ],
 )

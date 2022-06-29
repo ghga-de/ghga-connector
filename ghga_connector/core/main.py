@@ -68,7 +68,7 @@ def upload_core(  # noqa C901
     max_retries: int = MAX_RETRIES,
 ) -> None:
     """
-    Command to upload a file
+    Core command to upload a file. Can be called by CLI, GUI, etc.
     """
     WithRetry.set_retries(max_retries)
 
@@ -167,7 +167,7 @@ def download_core(  # pylint: disable=too-many-arguments
     max_retries: int = MAX_RETRIES,
 ) -> None:
     """
-    Command to download a file
+    Core command to download a file. Can be called by CLI, GUI, etc.
     """
     WithRetry.set_retries(max_retries)
 

@@ -51,8 +51,10 @@ class UploadInitTranslator(ResponseExceptionTranslator):
 
     def __init__(self, file_id: str) -> None:
         spec = {
-            400: {"existingActiveUpload": NoUploadPossibleError(file_id=file_id)},
-            403: {"noFileAccess": UserHasNoFileAccess(file_id=file_id)},
+            400: {
+                "existingActiveUpload": lambda: NoUploadPossibleError(file_id=file_id)
+            },
+            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
         }
         super().__init__(spec)
 
@@ -62,8 +64,10 @@ class PartUploadURLTranslator(ResponseExceptionTranslator):
 
     def __init__(self, upload_id: str) -> None:
         spec = {
-            403: {"noFileAccess": UserHasNoUploadAccess(upload_id=upload_id)},
-            404: {"noSuchUpload": UploadNotRegisteredError(upload_id=upload_id)},
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
         }
         super().__init__(spec)
 
@@ -74,12 +78,14 @@ class PatchMultipartUploadTranslator(ResponseExceptionTranslator):
     def __init__(self, upload_id: str, upload_status: str) -> None:
         spec = {
             400: {
-                "uploadNotPending": CantChangeUploadStatus(
+                "uploadNotPending": lambda: CantChangeUploadStatus(
                     upload_id=upload_id, upload_status=upload_status
                 )
             },
-            403: {"noFileAccess": UserHasNoUploadAccess(upload_id=upload_id)},
-            404: {"noSuchUpload": UploadNotRegisteredError(upload_id=upload_id)},
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
         }
         super().__init__(spec)
 
@@ -89,8 +95,10 @@ class UploadInfoTranslator(ResponseExceptionTranslator):
 
     def __init__(self, upload_id: str) -> None:
         spec = {
-            403: {"noFileAccess": UserHasNoUploadAccess(upload_id=upload_id)},
-            404: {"noSuchUpload": UploadNotRegisteredError(upload_id=upload_id)},
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
         }
         super().__init__(spec)
 
@@ -100,7 +108,7 @@ class FileMetadataTranslator(ResponseExceptionTranslator):
 
     def __init__(self, file_id: str) -> None:
         spec = {
-            403: {"noFileAccess": UserHasNoFileAccess(file_id=file_id)},
-            404: {"fileNotRegistered": FileNotRegisteredError(file_id=file_id)},
+            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
+            404: {"fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id)},
         }
         super().__init__(spec)

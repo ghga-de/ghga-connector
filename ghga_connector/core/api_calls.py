@@ -26,7 +26,7 @@ from typing import Dict, Iterator, Tuple, Union
 import requests
 
 from ghga_connector.core.constants import MAX_PART_NUMBER
-from ghga_connector.core.exception_specs import (
+from ghga_connector.core.httpyexpect_translation import (
     FileMetadataTranslator,
     PartUploadURLTranslator,
     PatchMultipartUploadTranslator,

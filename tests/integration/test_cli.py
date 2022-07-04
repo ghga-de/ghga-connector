@@ -27,15 +27,8 @@ import pytest
 from ghga_service_chassis_lib.utils import big_temp_file
 
 from ghga_connector.cli import download, upload
+from ghga_connector.core import exceptions
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
-from ghga_connector.core.exceptions import (
-    ApiNotReachable,
-    BadResponseCodeError,
-    DirectoryDoesNotExist,
-    FileDoesNotExistError,
-    FileNotRegisteredError,
-    MaxWaitTimeExceeded,
-)
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.testcontainer import MockAPIContainer
@@ -94,16 +87,17 @@ def test_multipart_download(
 @pytest.mark.parametrize(
     "bad_url,bad_outdir,file_name,expected_exception",
     [
-        (True, False, "file_downloadable", ApiNotReachable),
-        (False, False, "file_downloadable", None),
+        (True, False, "file_downloadable", 60, exceptions.ApiNotReachable),
+        (False, False, "file_downloadable", 60, None),
         (
             False,
             False,
             "file_not_downloadable",
-            BadResponseCodeError,
+            60,
+            exceptions.BadResponseCodeError,
         ),
-        (False, False, "file_retry", MaxWaitTimeExceeded),
-        (False, True, "file_downloadable", DirectoryDoesNotExist),
+        (False, False, "file_retry", 60, exceptions.MaxWaitTimeExceeded),
+        (False, True, "file_downloadable", 60, exceptions.DirectoryDoesNotExist),
     ],
 )
 def test_download(
@@ -154,10 +148,10 @@ def test_download(
 @pytest.mark.parametrize(
     "bad_url,file_name,expected_exception",
     [
-        (True, "file_uploadable", ApiNotReachable),
+        (True, "file_uploadable", exceptions.ApiNotReachable),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", FileNotRegisteredError),
-        (False, "file_with_bad_path", FileDoesNotExistError),
+        (False, "file_not_uploadable", exceptions.FileNotRegisteredError),
+        (False, "file_with_bad_path", exceptions.FileDoesNotExistError),
     ],
 )
 def test_upload(

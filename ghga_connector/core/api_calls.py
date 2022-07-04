@@ -25,21 +25,8 @@ from typing import Dict, Iterator, Tuple, Union
 
 import requests
 
+from ghga_connector.core import exceptions
 from ghga_connector.core.constants import MAX_PART_NUMBER
-from ghga_connector.core.exceptions import (
-    BadResponseCodeError,
-    CantChangeUploadStatus,
-    FileNotRegisteredError,
-    MaxPartNoExceededError,
-    MaxWaitTimeExceeded,
-    NoS3AccessMethod,
-    NoUploadPossibleError,
-    RequestFailedError,
-    RetryTimeExpectedError,
-    UploadNotRegisteredError,
-    UserHasNoFileAccess,
-    UserHasNoUploadAccess,
-)
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.retry import WithRetry
 
@@ -79,7 +66,7 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     try:
         response = requests.post(url=url, headers=headers, data=serialized_data)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -112,7 +99,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     try:
         response = requests.post(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -155,7 +142,7 @@ def get_part_upload_urls(
     for part_no in range(from_part, MAX_PART_NUMBER + 1):
         yield get_url_func(api_url=api_url, upload_id=upload_id, part_no=part_no)
 
-    raise MaxPartNoExceededError()
+    raise exceptions.MaxPartNoExceededError()
 
 
 @WithRetry
@@ -177,7 +164,7 @@ def patch_multipart_upload(
     try:
         response = requests.patch(url=url, headers=headers, data=serialized_data)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 204:
@@ -215,7 +202,7 @@ def get_upload_info(
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -244,7 +231,7 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -283,16 +270,16 @@ def download_api_call(
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
         if status_code != 202:
-            raise BadResponseCodeError(url=url, response_code=status_code)
+            raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
         headers = response.headers
         if "retry-after" not in headers:
-            raise RetryTimeExpectedError(url)
+            raise exceptions.RetryTimeExpectedError(url)
 
         return (NO_DOWNLOAD_URL, NO_FILE_SIZE, int(headers["retry-after"]))
 
@@ -307,7 +294,7 @@ def download_api_call(
             break
 
     if download_url is None:
-        raise NoS3AccessMethod(url)
+        raise exceptions.NoS3AccessMethod(url)
 
     return download_url, file_size, NO_RETRY_TIME
 
@@ -319,7 +306,7 @@ def start_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     try:
         multipart_upload = initiate_multipart_upload(api_url=api_url, file_id=file_id)
         return multipart_upload
-    except NoUploadPossibleError as error:
+    except exceptions.NoUploadPossibleError as error:
         file_metadata = get_file_metadata(api_url=api_url, file_id=file_id)
         upload_id = file_metadata["current_upload_id"]
         if upload_id is None:
@@ -357,12 +344,12 @@ def await_download_url(
     while wait_time < max_wait_time:
         try:
             response_body = download_api_call(api_url=api_url, file_id=file_id)
-        except BadResponseCodeError as error:
+        except exceptions.BadResponseCodeError as error:
             message_display.failure(
                 "The request was invalid and returnd a wrong HTTP status code."
             )
             raise error
-        except RequestFailedError as error:
+        except exceptions.RequestFailedError as error:
             message_display.failure("The request has failed.")
             raise error
 
@@ -379,4 +366,4 @@ def await_download_url(
         )
         sleep(retry_time)
 
-    raise MaxWaitTimeExceeded(max_wait_time)
+    raise exceptions.MaxWaitTimeExceeded(max_wait_time)

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import requests
 
+from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import (
     UploadStatus,
     await_download_url,
@@ -29,20 +30,6 @@ from ghga_connector.core.api_calls import (
     start_multipart_upload,
 )
 from ghga_connector.core.constants import MAX_RETRIES
-from ghga_connector.core.exceptions import (
-    ApiNotReachable,
-    BadResponseCodeError,
-    CantChangeUploadStatus,
-    DirectoryDoesNotExist,
-    FileAlreadyExistsError,
-    FileDoesNotExistError,
-    FileNotRegisteredError,
-    MaxRetriesReached,
-    NoUploadPossibleError,
-    RequestFailedError,
-    UploadNotRegisteredError,
-    UserHasNoUploadAccess,
-)
 from ghga_connector.core.file_operations import (
     download_file_parts,
     read_file_parts,
@@ -79,41 +66,41 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
 
     if not os.path.isfile(file_path):
         message_display.failure(f"The file {file_path} does not exist.")
-        raise FileDoesNotExistError(file_path=file_path)
+        raise exceptions.FileDoesNotExistError(file_path=file_path)
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
-        raise ApiNotReachable(api_url=api_url)
+        raise exceptions.ApiNotReachable(api_url=api_url)
 
     try:
         upload_id, part_size = start_multipart_upload(api_url=api_url, file_id=file_id)
-    except NoUploadPossibleError as error:
+    except exceptions.NoUploadPossibleError as error:
         message_display.failure(
             f"This user can't start a multipart upload for the file_id '{file_id}'"
         )
         raise error
-    except UploadNotRegisteredError as error:
+    except exceptions.UploadNotRegisteredError as error:
         message_display.failure(
             f"The pending upload for file '{file_id}' does not exist."
         )
         raise error
-    except UserHasNoUploadAccess as error:
+    except exceptions.UserHasNoUploadAccess as error:
         message_display.failure(
             f"The user is not registered as a Data Submitter for the file with id '{file_id}'."
         )
         raise error
-    except FileNotRegisteredError as error:
+    except exceptions.FileNotRegisteredError as error:
         message_display.failure(f"The file with the id {file_id} is not registered.")
         raise error
-    except BadResponseCodeError as error:
+    except exceptions.BadResponseCodeError as error:
         message_display.failure(
             "The request was invalid and returnd a wrong HTTP status code."
         )
         raise error
-    except CantChangeUploadStatus as error:
+    except exceptions.CantChangeUploadStatus as error:
         message_display.failure(f"The file with id '{file_id}' was already uploaded.")
         raise error
-    except RequestFailedError as error:
+    except exceptions.RequestFailedError as error:
         message_display.failure("The request has failed.")
         raise error
 
@@ -124,7 +111,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
             part_size=part_size,
             file_path=file_path,
         )
-    except MaxRetriesReached as error:
+    except exceptions.MaxRetriesReached as error:
         message_display.failure(
             "The upload has failed too many times. The upload was aborted."
         )
@@ -136,12 +123,12 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
             upload_id=upload_id,
             upload_status=UploadStatus.UPLOADED,
         )
-    except BadResponseCodeError as error:
+    except exceptions.BadResponseCodeError as error:
         message_display.failure(
             f"The request to confirm the upload with id {upload_id} was invalid."
         )
         raise error
-    except RequestFailedError as error:
+    except exceptions.RequestFailedError as error:
         message_display.failure(f"Confirming the upload with id {upload_id} failed.")
         raise error
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
@@ -183,11 +170,11 @@ def download(  # pylint: disable=too-many-arguments
 
     if not os.path.isdir(output_dir):
         message_display.failure(f"The directory {output_dir} does not exist.")
-        raise DirectoryDoesNotExist(output_dir)
+        raise exceptions.DirectoryDoesNotExist(output_dir)
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
-        raise ApiNotReachable(api_url)
+        raise exceptions.ApiNotReachable(api_url)
 
     download_url, file_size = await_download_url(
         api_url=api_url,
@@ -201,7 +188,7 @@ def download(  # pylint: disable=too-many-arguments
     output_file = os.path.join(output_dir, file_id)
     if os.path.isfile(output_file):
         message_display.failure(f"The file {output_file} already exists.")
-        raise FileAlreadyExistsError(output_file)
+        raise exceptions.FileAlreadyExistsError(output_file)
 
     try:
         download_parts(
@@ -210,7 +197,7 @@ def download(  # pylint: disable=too-many-arguments
             output_file=output_file,
             part_size=part_size,
         )
-    except MaxRetriesReached as error:
+    except exceptions.MaxRetriesReached as error:
         # Remove file, if the download failed.
         os.remove(output_file)
         raise error

@@ -167,7 +167,7 @@ class UploadNotRegisteredError(RuntimeError, KnownError, FatalError):
 class BadResponseCodeError(RuntimeError, FatalError):
     """Thrown, when a request returns an unexpected response code (e.g. 500)"""
 
-    def __init__(self, url: str, response_code: int):
+    def __init__(self, *, url: str, response_code: int):
         self.response_code = response_code
         message = f"The request to {url} failed with response code {response_code}"
         super().__init__(message)
@@ -219,7 +219,7 @@ class CantChangeUploadStatus(RuntimeError, KnownError, FatalError):
     (response code 400)
     """
 
-    def __init__(self, upload_id: str, upload_status: str):
+    def __init__(self, *, upload_id: str, upload_status: str):
         message = f"The upload with id '{upload_id}' can't be set to '{upload_status}'."
         super().__init__(message)
 

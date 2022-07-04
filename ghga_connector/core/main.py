@@ -21,14 +21,15 @@ from pathlib import Path
 
 import requests
 
-from .api_calls import (
+from ghga_connector.core.api_calls import (
     UploadStatus,
     await_download_url,
     get_part_upload_urls,
     patch_multipart_upload,
     start_multipart_upload,
 )
-from .exceptions import (
+from ghga_connector.core.constants import MAX_RETRIES
+from ghga_connector.core.exceptions import (
     ApiNotReachable,
     BadResponseCodeError,
     CantChangeUploadStatus,
@@ -42,17 +43,16 @@ from .exceptions import (
     UploadNotRegisteredError,
     UserHasNoUploadAccess,
 )
-from .file_operations import download_file_parts, read_file_parts, upload_file_part
-from .message_display import AbstractMessageDisplay
-from .retry import WithRetry
+from ghga_connector.core.file_operations import (
+    download_file_parts,
+    read_file_parts,
+    upload_file_part,
+)
+from ghga_connector.core.message_display import AbstractMessageDisplay
+from ghga_connector.core.retry import WithRetry
 
-# define core-wide constants
-MAX_RETRIES = 3
-MAX_WAIT_TIME = 60 * 60
-DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
-
-def check_url(api_url, wait_time=1000) -> bool:
+def check_url(api_url, *, wait_time=1000) -> bool:
     """
     Checks, if an url is reachable within a certain time
     """
@@ -65,6 +65,7 @@ def check_url(api_url, wait_time=1000) -> bool:
 
 
 def upload(  # noqa C901, pylint: disable=too-many-statements
+    *,
     api_url: str,
     file_id: str,
     file_path: Path,
@@ -147,6 +148,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
 
 
 def upload_file_parts(
+    *,
     api_url: str,
     upload_id: str,
     part_size: int,
@@ -165,6 +167,7 @@ def upload_file_parts(
 
 
 def download(  # pylint: disable=too-many-arguments
+    *,
     api_url: str,
     file_id: str,
     output_dir: Path,
@@ -218,6 +221,7 @@ def download(  # pylint: disable=too-many-arguments
 
 
 def download_parts(
+    *,
     file_size: int,
     download_url: str,
     output_file: str,

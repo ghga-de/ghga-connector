@@ -24,9 +24,8 @@ from typing import Iterator, Sequence
 
 import pycurl
 
+from ghga_connector.core.exceptions import BadResponseCodeError, RequestFailedError
 from ghga_connector.core.retry import WithRetry
-
-from .exceptions import BadResponseCodeError, RequestFailedError
 
 
 @WithRetry

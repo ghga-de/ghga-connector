@@ -26,11 +26,7 @@ from typing import Dict, Iterator, Tuple, Union
 import requests
 
 from ghga_connector.core.constants import MAX_PART_NUMBER
-from ghga_connector.core.http_translation import ResponseExceptionTranslator
-from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.retry import WithRetry
-
-from .exceptions import (
+from ghga_connector.core.exceptions import (
     BadResponseCodeError,
     CantChangeUploadStatus,
     FileNotRegisteredError,
@@ -44,6 +40,8 @@ from .exceptions import (
     UserHasNoFileAccess,
     UserHasNoUploadAccess,
 )
+from ghga_connector.core.message_display import AbstractMessageDisplay
+from ghga_connector.core.retry import WithRetry
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
@@ -65,7 +63,7 @@ class UploadStatus(str, Enum):
 
 
 @WithRetry
-def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
+def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     """
     Perform a RESTful API call to initiate a multipart upload
     Returns an upload id and a part size
@@ -162,7 +160,7 @@ def get_part_upload_urls(
 
 @WithRetry
 def patch_multipart_upload(
-    api_url: str, upload_id: str, upload_status: UploadStatus
+    *, api_url: str, upload_id: str, upload_status: UploadStatus
 ) -> None:
     """
     Set the status of a specific upload attempt.
@@ -202,6 +200,7 @@ def patch_multipart_upload(
 
 
 def get_upload_info(
+    *,
     api_url: str,
     upload_id: str,
 ) -> Dict:
@@ -233,7 +232,7 @@ def get_upload_info(
 
 
 @WithRetry
-def get_file_metadata(api_url: str, file_id: str) -> Dict:
+def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     """
     Get all file metadata
     """
@@ -262,7 +261,7 @@ def get_file_metadata(api_url: str, file_id: str) -> Dict:
 
 
 def download_api_call(
-    api_url: str, file_id: str
+    *, api_url: str, file_id: str
 ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
     """
     Perform a RESTful API call to retrieve a presigned download URL.
@@ -289,7 +288,7 @@ def download_api_call(
     status_code = response.status_code
     if status_code != 200:
         if status_code != 202:
-            raise BadResponseCodeError(url, status_code)
+            raise BadResponseCodeError(url=url, response_code=status_code)
 
         headers = response.headers
         if "retry-after" not in headers:
@@ -313,7 +312,7 @@ def download_api_call(
     return download_url, file_size, NO_RETRY_TIME
 
 
-def start_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
+def start_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     """Try to initiate a multipart upload. If it fails, try to cancel the current upload
     can and then try to initiate a multipart upload again."""
 
@@ -341,6 +340,7 @@ def start_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
 
 
 def await_download_url(
+    *,
     api_url: str,
     file_id: str,
     max_wait_time: int,
@@ -356,7 +356,7 @@ def await_download_url(
     wait_time = 0
     while wait_time < max_wait_time:
         try:
-            response_body = download_api_call(api_url, file_id)
+            response_body = download_api_call(api_url=api_url, file_id=file_id)
         except BadResponseCodeError as error:
             message_display.failure(
                 "The request was invalid and returnd a wrong HTTP status code."

@@ -48,7 +48,7 @@ from .retry import WithRetry
 
 # define core-wide constants
 MAX_RETRIES = 3
-MAX_WAIT_TIME = 60
+MAX_WAIT_TIME = 60 * 60
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 

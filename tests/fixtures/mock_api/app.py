@@ -280,16 +280,14 @@ async def ulc_post_files_uploads(state: StatePost):
         raise HttpException(
             status_code=403,
             exception_id="noFileAccess",
-            description=(
-                f'Can`t start multipart upload for file with file id "{file_id}".'
-            ),
+            description=f'Can`t start multipart upload for file with file id "{file_id}".',
             data={},
         )
 
     raise HttpException(
         status_code=400,
         exception_id="fileNotRegistered",
-        description=(f'The file with the file_id "{file_id}" does not exist.'),
+        description=f'The file with the file_id "{file_id}" does not exist.',
         data={},
     )
 
@@ -315,7 +313,7 @@ async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int
     raise HttpException(
         status_code=404,
         exception_id="noSuchUpload",
-        description=(f'The file with the upload id "{upload_id}" does not exist.'),
+        description=f'The file with the upload id "{upload_id}" does not exist.',
         data={},
     )
 
@@ -335,9 +333,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
         raise HttpException(
             status_code=400,
             exception_id="uploadNotPending",
-            description=(
-                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
-            ),
+            description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
             data={},
         )
 
@@ -348,9 +344,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
         raise HttpException(
             status_code=400,
             exception_id="uploadStatusChange",
-            description=(
-                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
-            ),
+            description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
             data={},
         )
 
@@ -358,15 +352,13 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
         raise HttpException(
             status_code=400,
             exception_id="uploadNotPending",
-            description=(
-                f'The upload with id "{upload_id}" can`t be set to "{upload_status}"'
-            ),
+            description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
             data={},
         )
 
     raise HttpException(
         status_code=404,
         exception_id="noSuchUpload",
-        description=(f'The upload with id "{upload_id}" does not exist'),
+        description=f'The upload with id "{upload_id}" does not exist',
         data={},
     )

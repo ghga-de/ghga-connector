@@ -26,9 +26,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Literal
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
-from httpyexpect.server import HttpException
 from pydantic import BaseModel
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
@@ -132,7 +131,33 @@ class DrsObjectServe(BaseModel):
     access_methods: List[AccessMethod]
 
 
+class HttpException(Exception):
+    """Testing stand in for httpyexpect HttpException without content validation"""
+
+    def __init__(
+        self, *, status_code: int, exception_id: str, description: str, data: dict
+    ):
+        self.status_code = status_code
+        self.exception_id = exception_id
+        self.description = description
+        self.data = data
+        super().__init__(description)
+
+
 app = FastAPI()
+
+
+@app.exception_handler(HttpException)
+async def httpy_exception_handler(request: Request, exc: HttpException):
+    """Transform HttpException data into a proper response object"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "exception_id": exc.exception_id,
+            "description": exc.description,
+            "data": exc.data,
+        },
+    )
 
 
 @app.get("/ready", summary="readyness_probe")

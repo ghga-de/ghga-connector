@@ -30,8 +30,8 @@ from ghga_connector.core.httpyexpect_translation import (
     FileMetadataTranslator,
     PartUploadURLTranslator,
     PatchMultipartUploadTranslator,
-    UploadInfoTranslator,
-    UploadInitTranslator,
+    UploadCreationTranslator,
+    UploadDetailsTranslator,
 )
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.retry import WithRetry
@@ -86,7 +86,7 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = UploadInitTranslator(file_id=file_id)
+        exception_translator = UploadCreationTranslator(file_id=file_id)
         exception_translator.handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
@@ -199,7 +199,7 @@ def get_upload_info(
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = UploadInfoTranslator(upload_id=upload_id)
+        exception_translator = UploadDetailsTranslator(upload_id=upload_id)
         exception_translator.handle(response=response)
         raise BadResponseCodeError(url, status_code)
 

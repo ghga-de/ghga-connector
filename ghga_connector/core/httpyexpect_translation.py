@@ -46,21 +46,42 @@ class ResponseExceptionTranslator:
         translator.raise_for_error()
 
 
-class UploadInitTranslator(ResponseExceptionTranslator):
-    """Handler for multipart upload initialization requests"""
+class FileMetadataTranslator(ResponseExceptionTranslator):
+    """
+    Handler for file metadata requests
+    Endpoint: /files/{file_id}
+    """
+
+    def __init__(self, file_id: str) -> None:
+        spec = {
+            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
+            404: {"fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id)},
+        }
+        super().__init__(spec)
+
+
+class UploadCreationTranslator(ResponseExceptionTranslator):
+    """
+    Handler for multipart upload initialization requests
+    Endpoint: /uploads
+    """
 
     def __init__(self, file_id: str) -> None:
         spec = {
             400: {
-                "existingActiveUpload": lambda: NoUploadPossibleError(file_id=file_id)
+                "existingActiveUpload": lambda: NoUploadPossibleError(file_id=file_id),
+                "fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id),
             },
             403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
         }
         super().__init__(spec)
 
 
-class PartUploadURLTranslator(ResponseExceptionTranslator):
-    """Handler for signed part url retrieval requests"""
+class UploadDetailsTranslator(ResponseExceptionTranslator):
+    """
+    Handler for requests retrieving information about an ongoing upload
+    Endpoint: /uploads/{upload_id}, Method: get
+    """
 
     def __init__(self, upload_id: str) -> None:
         spec = {
@@ -73,14 +94,20 @@ class PartUploadURLTranslator(ResponseExceptionTranslator):
 
 
 class PatchMultipartUploadTranslator(ResponseExceptionTranslator):
-    """Handler for multipart upload state change requests"""
+    """
+    Handler for multipart upload state change requests
+    Endpoint: /uploads/{upload_id}, Method: patch
+    """
 
     def __init__(self, upload_id: str, upload_status: str) -> None:
         spec = {
             400: {
                 "uploadNotPending": lambda: CantChangeUploadStatus(
                     upload_id=upload_id, upload_status=upload_status
-                )
+                ),
+                "uploadStatusChange": lambda: CantChangeUploadStatus(
+                    upload_id=upload_id, upload_status=upload_status
+                ),
             },
             403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
             404: {
@@ -90,8 +117,11 @@ class PatchMultipartUploadTranslator(ResponseExceptionTranslator):
         super().__init__(spec)
 
 
-class UploadInfoTranslator(ResponseExceptionTranslator):
-    """Handler for requests retrieving information about an ongoing upload"""
+class PartUploadURLTranslator(ResponseExceptionTranslator):
+    """
+    Handler for signed part url retrieval requests
+    Endpoint: /uploads/{upload_id}/parts/{part_no}/signed_urls
+    """
 
     def __init__(self, upload_id: str) -> None:
         spec = {
@@ -99,16 +129,5 @@ class UploadInfoTranslator(ResponseExceptionTranslator):
             404: {
                 "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
             },
-        }
-        super().__init__(spec)
-
-
-class FileMetadataTranslator(ResponseExceptionTranslator):
-    """Handler for file metadata requests"""
-
-    def __init__(self, file_id: str) -> None:
-        spec = {
-            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
-            404: {"fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id)},
         }
         super().__init__(spec)

@@ -96,7 +96,7 @@ class UploadDetailsTranslator(ResponseExceptionTranslator):
 class PatchMultipartUploadTranslator(ResponseExceptionTranslator):
     """
     Handler for multipart upload state change requests
-    Endpoint: /uploads/{upload_id}, Method: patch
+    Endpoint: PATCH /uploads/{upload_id}
     """
 
     def __init__(self, upload_id: str, upload_status: str) -> None:

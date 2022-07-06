@@ -63,7 +63,7 @@ class FileMetadataTranslator(ResponseExceptionTranslator):
 class UploadCreationTranslator(ResponseExceptionTranslator):
     """
     Handler for multipart upload initialization requests
-    Endpoint: /uploads
+    Endpoint: POST /uploads
     """
 
     def __init__(self, file_id: str) -> None:

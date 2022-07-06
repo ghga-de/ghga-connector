@@ -49,7 +49,7 @@ class ResponseExceptionTranslator:
 class FileMetadataTranslator(ResponseExceptionTranslator):
     """
     Handler for file metadata requests
-    Endpoint: /files/{file_id}
+    Endpoint: GET /files/{file_id}
     """
 
     def __init__(self, file_id: str) -> None:

@@ -225,7 +225,7 @@ async def ulc_get_files(file_id: str):
         status_code=404,
         exception_id="fileNotRegistered",
         description=f'The file with the file_id "{file_id}" does not exist.',
-        data={},
+        data={"file_id": file_id},
     )
 
 
@@ -245,7 +245,7 @@ async def ulc_get_uploads(upload_id: str):
         status_code=404,
         exception_id="noSuchUpload",
         description=f'The upload with the id "{upload_id}" does not exist.',
-        data={},
+        data={"upload_id": upload_id},
     )
 
 
@@ -281,14 +281,14 @@ async def ulc_post_files_uploads(state: StatePost):
             status_code=403,
             exception_id="noFileAccess",
             description=f'Can`t start multipart upload for file with file id "{file_id}".',
-            data={},
+            data={"file_id": file_id},
         )
 
     raise HttpException(
         status_code=400,
         exception_id="fileNotRegistered",
         description=f'The file with the file_id "{file_id}" does not exist.',
-        data={},
+        data={"file_id": file_id},
     )
 
 
@@ -314,7 +314,7 @@ async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int
         status_code=404,
         exception_id="noSuchUpload",
         description=f'The file with the upload id "{upload_id}" does not exist.',
-        data={},
+        data={"upload_id": upload_id},
     )
 
 
@@ -334,7 +334,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
             status_code=400,
             exception_id="uploadNotPending",
             description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
-            data={},
+            data={"upload_id": upload_id, "current_upload_status": upload_id},
         )
 
     if upload_id == "pending":
@@ -345,7 +345,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
             status_code=400,
             exception_id="uploadStatusChange",
             description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
-            data={},
+            data={"upload_id": upload_id, "target_status": upload_status},
         )
 
     if upload_id == "uploadable":
@@ -353,12 +353,12 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
             status_code=400,
             exception_id="uploadNotPending",
             description=f'The upload with id "{upload_id}" can`t be set to "{upload_status}"',
-            data={},
+            data={"upload_id": upload_id, "current_upload_status": upload_id},
         )
 
     raise HttpException(
         status_code=404,
         exception_id="noSuchUpload",
         description=f'The upload with id "{upload_id}" does not exist',
-        data={},
+        data={"upload_id": upload_id},
     )

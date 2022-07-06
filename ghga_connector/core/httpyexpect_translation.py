@@ -120,7 +120,7 @@ class PatchMultipartUploadTranslator(ResponseExceptionTranslator):
 class PartUploadURLTranslator(ResponseExceptionTranslator):
     """
     Handler for signed part url retrieval requests
-    Endpoint: /uploads/{upload_id}/parts/{part_no}/signed_urls
+    Endpoint: POST /uploads/{upload_id}/parts/{part_no}/signed_urls
     """
 
     def __init__(self, upload_id: str) -> None:

@@ -26,24 +26,23 @@ from typing import Dict, Iterator, Tuple, Union
 import requests
 
 from ghga_connector.core.constants import MAX_PART_NUMBER
-from ghga_connector.core.httpyexpect_translation import (
-    FileMetadataTranslator,
-    PartUploadURLTranslator,
-    PatchMultipartUploadTranslator,
-    UploadCreationTranslator,
-    UploadDetailsTranslator,
-)
+from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.retry import WithRetry
 
 from .exceptions import (
     BadResponseCodeError,
+    CantChangeUploadStatus,
+    FileNotRegisteredError,
     MaxPartNoExceededError,
     MaxWaitTimeExceeded,
     NoS3AccessMethod,
     NoUploadPossibleError,
     RequestFailedError,
     RetryTimeExpectedError,
+    UploadNotRegisteredError,
+    UserHasNoFileAccess,
+    UserHasNoUploadAccess,
 )
 
 # Constants for clarity of return values
@@ -86,8 +85,14 @@ def initiate_multipart_upload(api_url: str, file_id: str) -> Tuple[str, int]:
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = UploadCreationTranslator(file_id=file_id)
-        exception_translator.handle(response=response)
+        spec = {
+            400: {
+                "existingActiveUpload": lambda: NoUploadPossibleError(file_id=file_id),
+                "fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id),
+            },
+            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
+        }
+        ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
     response_body = response.json()
@@ -113,8 +118,13 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = PartUploadURLTranslator(upload_id=upload_id)
-        exception_translator.handle(response=response)
+        spec = {
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
+        }
+        ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
     response_body = response.json()
@@ -173,10 +183,21 @@ def patch_multipart_upload(
 
     status_code = response.status_code
     if status_code != 204:
-        exception_translator = PatchMultipartUploadTranslator(
-            upload_id=upload_id, upload_status=upload_status
-        )
-        exception_translator.handle(response=response)
+        spec = {
+            400: {
+                "uploadNotPending": lambda: CantChangeUploadStatus(
+                    upload_id=upload_id, upload_status=upload_status
+                ),
+                "uploadStatusChange": lambda: CantChangeUploadStatus(
+                    upload_id=upload_id, upload_status=upload_status
+                ),
+            },
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
+        }
+        ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
 
@@ -199,8 +220,13 @@ def get_upload_info(
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = UploadDetailsTranslator(upload_id=upload_id)
-        exception_translator.handle(response=response)
+        spec = {
+            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            404: {
+                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+            },
+        }
+        ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
     return response.json()
@@ -223,8 +249,11 @@ def get_file_metadata(api_url: str, file_id: str) -> Dict:
 
     status_code = response.status_code
     if status_code != 200:
-        exception_translator = FileMetadataTranslator(file_id=file_id)
-        exception_translator.handle(response=response)
+        spec = {
+            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
+            404: {"fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id)},
+        }
+        ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise BadResponseCodeError(url, status_code)
 
     file_metadata = response.json()

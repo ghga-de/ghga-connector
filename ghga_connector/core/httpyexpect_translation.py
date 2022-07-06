@@ -80,7 +80,7 @@ class UploadCreationTranslator(ResponseExceptionTranslator):
 class UploadDetailsTranslator(ResponseExceptionTranslator):
     """
     Handler for requests retrieving information about an ongoing upload
-    Endpoint: /uploads/{upload_id}, Method: get
+    Endpoint: GET /uploads/{upload_id}
     """
 
     def __init__(self, upload_id: str) -> None:

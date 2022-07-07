@@ -18,6 +18,7 @@
 
 import os
 import pathlib
+from contextlib import nullcontext
 from filecmp import cmp
 from pathlib import Path
 from typing import Optional
@@ -135,13 +136,13 @@ def test_download(
             "ghga_connector.cli.config",
             get_test_config(download_api=api_url),
         ):
-            try:
+            with pytest.raises(
+                expected_exception
+            ) if expected_exception else nullcontext():
                 download(file_id=file.file_id, output_dir=output_dir)
 
-                assert expected_exception is None
-                assert cmp(output_dir / file.file_id, file.file_path)
-            except Exception as exception:
-                assert isinstance(exception, expected_exception)
+        if not expected_exception:
+            assert cmp(output_dir / file.file_id, file.file_path)
 
 
 @pytest.mark.parametrize(
@@ -181,7 +182,9 @@ def test_upload(
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         with patch("ghga_connector.cli.config", get_test_config(upload_api=api_url)):
-            try:
+            with pytest.raises(
+                expected_exception
+            ) if expected_exception else nullcontext():
                 upload(
                     file_id=uploadable_file.file_id,
                     file_path=str(uploadable_file.file_path.resolve()),
@@ -193,13 +196,10 @@ def test_upload(
                     object_id=uploadable_file.file_id,
                 )
 
-                assert expected_exception is None
                 assert s3_fixture.storage.does_object_exist(
                     bucket_id=uploadable_file.grouping_label,
                     object_id=uploadable_file.file_id,
                 )
-            except Exception as exception:
-                assert isinstance(exception, expected_exception)
 
 
 @pytest.mark.parametrize(

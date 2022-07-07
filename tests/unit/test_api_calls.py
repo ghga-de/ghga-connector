@@ -61,15 +61,12 @@ def test_patch_multipart_upload(
     with MockAPIContainer() as api:
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
-        try:
+        with pytest.raises(expected_exception) if expected_exception else nullcontext():
             patch_multipart_upload(
                 api_url=api_url,
                 upload_id=upload_id,
                 upload_status=upload_status,
             )
-            assert expected_exception is None
-        except Exception as exception:
-            assert isinstance(exception, expected_exception)
 
 
 @pytest.mark.parametrize(

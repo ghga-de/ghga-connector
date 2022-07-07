@@ -67,7 +67,7 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     try:
         response = requests.post(url=url, headers=headers, data=serialized_data)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 200:

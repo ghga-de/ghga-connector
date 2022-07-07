@@ -77,7 +77,7 @@ class CollectiveError(RuntimeError, KnownError):
 class DirectoryDoesNotExist(RuntimeError, KnownError):
     """Thrown, when the specified directory does not exist."""
 
-    def __init__(self, output_dir: Path):
+    def __init__(self, *, output_dir: Path):
         message = f"The directory {output_dir} does not exist."
         super().__init__(message)
 
@@ -85,7 +85,7 @@ class DirectoryDoesNotExist(RuntimeError, KnownError):
 class FileAlreadyExistsError(RuntimeError, KnownError):
     """Thrown, when the specified file already exists."""
 
-    def __init__(self, output_file: str):
+    def __init__(self, *, output_file: str):
         message = f"The file {output_file} does already exist."
         super().__init__(message)
 
@@ -93,7 +93,7 @@ class FileAlreadyExistsError(RuntimeError, KnownError):
 class FileDoesNotExistError(RuntimeError, KnownError):
     """Thrown, when the specified file already exists."""
 
-    def __init__(self, file_path: Path):
+    def __init__(self, *, file_path: Path):
         message = f"The file {file_path} does not exist."
         super().__init__(message)
 
@@ -101,7 +101,7 @@ class FileDoesNotExistError(RuntimeError, KnownError):
 class ApiNotReachable(RuntimeError, KnownError):
     """Thrown, when the api is not reachable."""
 
-    def __init__(self, api_url: str):
+    def __init__(self, *, api_url: str):
         message = f"The url {api_url} is currently not reachable."
         super().__init__(message)
 
@@ -121,7 +121,7 @@ class RetryAbortException(CollectiveError, FatalError):
 class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request didn't contain a retry time even though it was expected."""
 
-    def __init__(self, url: str):
+    def __init__(self, *, url: str):
         message = (
             f"No `Retry-After` header in response from server following the url: {url}"
         )
@@ -131,7 +131,7 @@ class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
 class RequestFailedError(RuntimeError, KnownError):
     """Thrown, when a request fails without returning a response code"""
 
-    def __init__(self, url: str):
+    def __init__(self, *, url: str):
         message = f"The request to {url} failed."
         super().__init__(message)
 
@@ -140,7 +140,7 @@ class NoS3AccessMethod(RuntimeError, KnownError, FatalError):
     """Thrown, when a request returns the desired response code, but no S3 Access
     Method"""
 
-    def __init__(self, url: str):
+    def __init__(self, *, url: str):
         message = f"The request to {url} did not return an S3 Access Method."
         super().__init__(message)
 
@@ -148,7 +148,7 @@ class NoS3AccessMethod(RuntimeError, KnownError, FatalError):
 class FileNotRegisteredError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request for a file returns a 404 error."""
 
-    def __init__(self, file_id: str):
+    def __init__(self, *, file_id: str):
         message = (
             f"The request for the file {file_id} failed, "
             "because this file id does not exist."
@@ -159,7 +159,7 @@ class FileNotRegisteredError(RuntimeError, KnownError, FatalError):
 class UploadNotRegisteredError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request for a multipart upload returns a 404 error."""
 
-    def __init__(self, upload_id: str):
+    def __init__(self, *, upload_id: str):
         message = (
             f"The request for the upload with the id '{upload_id}' failed, "
             "because this upload does not exist."
@@ -179,7 +179,7 @@ class BadResponseCodeError(RuntimeError, FatalError):
 class NoUploadPossibleError(RuntimeError, KnownError, FatalError):
     """Thrown, when a multipart upload currently can't be started (response code 400)"""
 
-    def __init__(self, file_id: str):
+    def __init__(self, *, file_id: str):
         message = (
             "It is not possible to start a multipart upload for file with id"
             + f" '{file_id}', because this download is already pending or has been"
@@ -195,7 +195,7 @@ class UserHasNoUploadAccess(RuntimeError, KnownError, FatalError):
     (response code 403)
     """
 
-    def __init__(self, upload_id: str):
+    def __init__(self, *, upload_id: str):
         message = (
             "This user is not registered as data submitter "
             f"for the file corresponding to the upload_id '{upload_id}'."
@@ -209,7 +209,7 @@ class UserHasNoFileAccess(RuntimeError, KnownError, FatalError):
     a specific file id (response code 403)
     """
 
-    def __init__(self, file_id: str):
+    def __init__(self, *, file_id: str):
         message = (
             "This user is not registered as data submitter "
             f"for the file with the id '{file_id}'."
@@ -232,7 +232,7 @@ class MaxWaitTimeExceeded(RuntimeError, KnownError):
     """Thrown, when the specified wait time for getting a download url has been
     exceeded."""
 
-    def __init__(self, max_wait_time: int):
+    def __init__(self, *, max_wait_time: int):
         message = f"Exceeded maximum wait time of {max_wait_time} seconds."
         super().__init__(message)
 
@@ -252,8 +252,6 @@ class MaxPartNoExceededError(RuntimeError):
     This exception is a bug.
     """
 
-    def __init__(
-        self,
-    ):
+    def __init__(self):
         message = f"No more than ({MAX_PART_NUMBER}) file parts can be up-/downloaded."
         super().__init__(message)

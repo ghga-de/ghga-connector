@@ -38,7 +38,7 @@ def test_check_url(api_url: str, wait_time: int, expected_response: bool):
     """
     Test the check_url function
     """
-    response = check_url(api_url, wait_time)
+    response = check_url(api_url, wait_time=wait_time)
     assert response == expected_response
 
 

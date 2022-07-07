@@ -27,6 +27,7 @@ import requests
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.constants import MAX_PART_NUMBER
+from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.retry import WithRetry
 
@@ -72,13 +73,19 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     if status_code != 200:
         spec = {
             400: {
-                "existingActiveUpload": lambda: NoUploadPossibleError(file_id=file_id),
-                "fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id),
+                "existingActiveUpload": lambda: exceptions.NoUploadPossibleError(
+                    file_id=file_id
+                ),
+                "fileNotRegistered": lambda: exceptions.FileNotRegisteredError(
+                    file_id=file_id
+                ),
             },
-            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
+            403: {
+                "noFileAccess": lambda: exceptions.UserHasNoFileAccess(file_id=file_id)
+            },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
-        raise BadResponseCodeError(url, status_code)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     response_body = response.json()
 
@@ -104,13 +111,19 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     status_code = response.status_code
     if status_code != 200:
         spec = {
-            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            403: {
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                    upload_id=upload_id
+                )
+            },
             404: {
-                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+                "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
+                    upload_id=upload_id
+                )
             },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
-        raise BadResponseCodeError(url, status_code)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     response_body = response.json()
     presigned_url = response_body["presigned_url"]
@@ -170,20 +183,26 @@ def patch_multipart_upload(
     if status_code != 204:
         spec = {
             400: {
-                "uploadNotPending": lambda: CantChangeUploadStatus(
+                "uploadNotPending": lambda: exceptions.CantChangeUploadStatus(
                     upload_id=upload_id, upload_status=upload_status
                 ),
-                "uploadStatusChange": lambda: CantChangeUploadStatus(
+                "uploadStatusChange": lambda: exceptions.CantChangeUploadStatus(
                     upload_id=upload_id, upload_status=upload_status
                 ),
             },
-            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            403: {
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                    upload_id=upload_id
+                )
+            },
             404: {
-                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+                "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
+                    upload_id=upload_id
+                )
             },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
-        raise BadResponseCodeError(url, status_code)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
 
 def get_upload_info(
@@ -207,13 +226,19 @@ def get_upload_info(
     status_code = response.status_code
     if status_code != 200:
         spec = {
-            403: {"noFileAccess": lambda: UserHasNoUploadAccess(upload_id=upload_id)},
+            403: {
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                    upload_id=upload_id
+                )
+            },
             404: {
-                "noSuchUpload": lambda: UploadNotRegisteredError(upload_id=upload_id)
+                "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
+                    upload_id=upload_id
+                )
             },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
-        raise BadResponseCodeError(url, status_code)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     return response.json()
 
@@ -236,11 +261,17 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     status_code = response.status_code
     if status_code != 200:
         spec = {
-            403: {"noFileAccess": lambda: UserHasNoFileAccess(file_id=file_id)},
-            404: {"fileNotRegistered": lambda: FileNotRegisteredError(file_id=file_id)},
+            403: {
+                "noFileAccess": lambda: exceptions.UserHasNoFileAccess(file_id=file_id)
+            },
+            404: {
+                "fileNotRegistered": lambda: exceptions.FileNotRegisteredError(
+                    file_id=file_id
+                )
+            },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
-        raise BadResponseCodeError(url, status_code)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     file_metadata = response.json()
 

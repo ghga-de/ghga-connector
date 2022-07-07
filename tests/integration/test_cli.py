@@ -87,17 +87,16 @@ def test_multipart_download(
 @pytest.mark.parametrize(
     "bad_url,bad_outdir,file_name,expected_exception",
     [
-        (True, False, "file_downloadable", 60, exceptions.ApiNotReachable),
-        (False, False, "file_downloadable", 60, None),
+        (True, False, "file_downloadable", exceptions.ApiNotReachable),
+        (False, False, "file_downloadable", None),
         (
             False,
             False,
             "file_not_downloadable",
-            60,
             exceptions.BadResponseCodeError,
         ),
-        (False, False, "file_retry", 60, exceptions.MaxWaitTimeExceeded),
-        (False, True, "file_downloadable", 60, exceptions.DirectoryDoesNotExist),
+        (False, False, "file_retry", exceptions.MaxWaitTimeExceeded),
+        (False, True, "file_downloadable", exceptions.DirectoryDoesNotExist),
     ],
 )
 def test_download(

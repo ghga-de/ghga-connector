@@ -29,7 +29,7 @@ from ghga_connector.core.api_calls import (
     patch_multipart_upload,
     start_multipart_upload,
 )
-from ghga_connector.core.constants import MAX_RETRIES
+from ghga_connector.core.constants import MAX_RETRIES, MAX_WAIT_TIME
 from ghga_connector.core.file_operations import (
     download_file_parts,
     read_file_parts,

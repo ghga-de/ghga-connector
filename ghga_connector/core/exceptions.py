@@ -47,15 +47,16 @@ class FatalError(Exception):
 class CollectiveError(RuntimeError, KnownError):
     """
     An error that can have one or more direct causes.
-    Please note, this is different from using the `raise ... from ...` statement since the#
-    statement only allows to capture one direct cause.
+    Please note, this is different from using the `raise ... from ...` statement since
+    the statement only allows to capture one direct cause.
     """
 
     def __init__(self, *, base_message: str, causes: list[KnownError]):
 
         if len(causes) < 1:
             raise TypeError(
-                "Collective error must receive at least one causal error but zero were given"
+                "Collective error must receive at least one causal error but zero were"
+                + " given"
             )
 
         self.causes = causes
@@ -108,7 +109,8 @@ class ApiNotReachable(RuntimeError, KnownError):
 class RetryAbortException(CollectiveError, FatalError):
     """
     Raised on encountering a FatalError in the WithRetry decorator.
-    Information about all preceding exceptions encountered before the FatalError is attached.
+    Information about all preceding exceptions encountered before the FatalError is
+    attached.
     """
 
     def __init__(self, *, func_name: str, causes: list[KnownError]):
@@ -135,7 +137,8 @@ class RequestFailedError(RuntimeError, KnownError):
 
 
 class NoS3AccessMethod(RuntimeError, KnownError, FatalError):
-    """Thrown, when a request returns the desired response code, but no S3 Access Method"""
+    """Thrown, when a request returns the desired response code, but no S3 Access
+    Method"""
 
     def __init__(self, url: str):
         message = f"The request to {url} did not return an S3 Access Method."
@@ -178,8 +181,9 @@ class NoUploadPossibleError(RuntimeError, KnownError, FatalError):
 
     def __init__(self, file_id: str):
         message = (
-            f"It is not possible to start a multipart upload for file with id '{file_id}', "
-            "because this download is already pending or has been accepted."
+            "It is not possible to start a multipart upload for file with id"
+            + f" '{file_id}', because this download is already pending or has been"
+            + " accepted."
         )
         super().__init__(message)
 
@@ -225,7 +229,8 @@ class CantChangeUploadStatus(RuntimeError, KnownError, FatalError):
 
 
 class MaxWaitTimeExceeded(RuntimeError, KnownError):
-    """Thrown, when the specified wait time for getting a download url has been exceeded."""
+    """Thrown, when the specified wait time for getting a download url has been
+    exceeded."""
 
     def __init__(self, max_wait_time: int):
         message = f"Exceeded maximum wait time of {max_wait_time} seconds."

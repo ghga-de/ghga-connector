@@ -30,7 +30,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
-from ghga_connector.core.constants import DEFAULT_PART_SIZE
+DEFAULT_PART_SIZE = 16 * 1024 * 1024
 
 
 class UploadStatus(str, Enum):

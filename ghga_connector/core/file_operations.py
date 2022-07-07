@@ -47,7 +47,7 @@ def download_content_range(
         curl.perform()
         status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
-        raise exceptions.RequestFailedError(download_url) from pycurl_error
+        raise exceptions.RequestFailedError(url=download_url) from pycurl_error
     finally:
         curl.close()
 
@@ -150,7 +150,7 @@ def upload_file_part(*, presigned_url: str, part: bytes) -> None:
         curl.perform()
         status_code = curl.getinfo(pycurl.RESPONSE_CODE)
     except pycurl.error as pycurl_error:
-        raise exceptions.RequestFailedError(presigned_url) from pycurl_error
+        raise exceptions.RequestFailedError(url=presigned_url) from pycurl_error
     finally:
         curl.close()
 

@@ -170,11 +170,11 @@ def download(  # pylint: disable=too-many-arguments
 
     if not os.path.isdir(output_dir):
         message_display.failure(f"The directory {output_dir} does not exist.")
-        raise exceptions.DirectoryDoesNotExist(output_dir)
+        raise exceptions.DirectoryDoesNotExist(output_dir=output_dir)
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
-        raise exceptions.ApiNotReachable(api_url)
+        raise exceptions.ApiNotReachable(api_url=api_url)
 
     download_url, file_size = await_download_url(
         api_url=api_url,
@@ -188,7 +188,7 @@ def download(  # pylint: disable=too-many-arguments
     output_file = os.path.join(output_dir, file_id)
     if os.path.isfile(output_file):
         message_display.failure(f"The file {output_file} already exists.")
-        raise exceptions.FileAlreadyExistsError(output_file)
+        raise exceptions.FileAlreadyExistsError(output_file=output_file)
 
     try:
         download_parts(

@@ -106,7 +106,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     try:
         response = requests.post(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -177,7 +177,7 @@ def patch_multipart_upload(
     try:
         response = requests.patch(url=url, headers=headers, data=serialized_data)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 204:
@@ -221,7 +221,7 @@ def get_upload_info(
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -256,7 +256,7 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -301,7 +301,7 @@ def download_api_call(
     try:
         response = requests.get(url=url, headers=headers)
     except requests.exceptions.RequestException as request_error:
-        raise exceptions.RequestFailedError(url) from request_error
+        raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
     if status_code != 200:
@@ -310,7 +310,7 @@ def download_api_call(
 
         headers = response.headers
         if "retry-after" not in headers:
-            raise exceptions.RetryTimeExpectedError(url)
+            raise exceptions.RetryTimeExpectedError(url=url)
 
         return (NO_DOWNLOAD_URL, NO_FILE_SIZE, int(headers["retry-after"]))
 
@@ -325,7 +325,7 @@ def download_api_call(
             break
 
     if download_url is None:
-        raise exceptions.NoS3AccessMethod(url)
+        raise exceptions.NoS3AccessMethod(url=url)
 
     return download_url, file_size, NO_RETRY_TIME
 
@@ -397,4 +397,4 @@ def await_download_url(
         )
         sleep(retry_time)
 
-    raise exceptions.MaxWaitTimeExceeded(max_wait_time)
+    raise exceptions.MaxWaitTimeExceeded(max_wait_time=max_wait_time)

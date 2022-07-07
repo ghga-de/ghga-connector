@@ -28,9 +28,9 @@ from ghga_connector.core.api_calls import (
     patch_multipart_upload,
 )
 from ghga_connector.core.exceptions import (
-    CantChangeUploadStatus,
+    CantChangeUploadStatusError,
     MaxPartNoExceededError,
-    MaxRetriesReached,
+    MaxRetriesReachedError,
     UploadNotRegisteredError,
 )
 from tests.fixtures.mock_api.testcontainer import MockAPIContainer
@@ -42,10 +42,10 @@ from tests.fixtures.retry import RetryFixture, zero_retry_fixture  # noqa: F401
     [
         (False, "pending", UploadStatus.UPLOADED, None),
         (False, "uploaded", UploadStatus.CANCELLED, None),
-        (False, "pending", UploadStatus.CANCELLED, CantChangeUploadStatus),
-        (False, "uploadable", UploadStatus.UPLOADED, CantChangeUploadStatus),
+        (False, "pending", UploadStatus.CANCELLED, CantChangeUploadStatusError),
+        (False, "uploadable", UploadStatus.UPLOADED, CantChangeUploadStatusError),
         (False, "not_uploadable", UploadStatus.UPLOADED, UploadNotRegisteredError),
-        (True, "uploaded", UploadStatus.UPLOADED, MaxRetriesReached),
+        (True, "uploaded", UploadStatus.UPLOADED, MaxRetriesReachedError),
     ],
 )
 def test_patch_multipart_upload(

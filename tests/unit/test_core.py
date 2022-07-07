@@ -22,8 +22,8 @@ import pytest
 from ghga_connector.core.exceptions import (
     CollectiveError,
     FatalError,
-    MaxRetriesReached,
-    RetryAbortException,
+    MaxRetriesReachedError,
+    RetryAbortError,
 )
 from ghga_connector.core.main import check_url
 from ghga_connector.core.retry import WithRetry
@@ -53,11 +53,11 @@ def test_check_url(api_url: str, wait_time: int, expected_response: bool):
         ),
         (
             [RuntimeError, TypeError, ValueError],
-            MaxRetriesReached,
+            MaxRetriesReachedError,
         ),
         (
             [RuntimeError, TypeError, FatalError],
-            RetryAbortException,
+            RetryAbortError,
         ),
     ],
 )

@@ -51,7 +51,7 @@ class WithRetry:
                 except exceptions.KnownError as error:  # unkown errors are raised immediately
                     if isinstance(error, exceptions.FatalError):
                         if len(error_causes) > 0:
-                            raise exceptions.RetryAbortException(
+                            raise exceptions.RetryAbortError(
                                 func_name=self._func.__name__, causes=error_causes
                             ) from error
                         raise error
@@ -60,7 +60,7 @@ class WithRetry:
                     backoff_factor = 0.5
                     exponential_backoff = backoff_factor * (2 ** (i))
                     time.sleep(exponential_backoff)
-            raise exceptions.MaxRetriesReached(
+            raise exceptions.MaxRetriesReachedError(
                 func_name=self._func.__name__, causes=error_causes
             )
 

@@ -81,7 +81,9 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
                 ),
             },
             403: {
-                "noFileAccess": lambda: exceptions.UserHasNoFileAccess(file_id=file_id)
+                "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    file_id=file_id
+                )
             },
         }
         ResponseExceptionTranslator(spec=spec).handle(response=response)
@@ -112,7 +114,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     if status_code != 200:
         spec = {
             403: {
-                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
                     upload_id=upload_id
                 )
             },
@@ -183,15 +185,15 @@ def patch_multipart_upload(
     if status_code != 204:
         spec = {
             400: {
-                "uploadNotPending": lambda: exceptions.CantChangeUploadStatus(
+                "uploadNotPending": lambda: exceptions.CantChangeUploadStatusError(
                     upload_id=upload_id, upload_status=upload_status
                 ),
-                "uploadStatusChange": lambda: exceptions.CantChangeUploadStatus(
+                "uploadStatusChange": lambda: exceptions.CantChangeUploadStatusError(
                     upload_id=upload_id, upload_status=upload_status
                 ),
             },
             403: {
-                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
                     upload_id=upload_id
                 )
             },
@@ -227,7 +229,7 @@ def get_upload_info(
     if status_code != 200:
         spec = {
             403: {
-                "noFileAccess": lambda: exceptions.UserHasNoUploadAccess(
+                "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
                     upload_id=upload_id
                 )
             },
@@ -262,7 +264,9 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     if status_code != 200:
         spec = {
             403: {
-                "noFileAccess": lambda: exceptions.UserHasNoFileAccess(file_id=file_id)
+                "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    file_id=file_id
+                )
             },
             404: {
                 "fileNotRegistered": lambda: exceptions.FileNotRegisteredError(
@@ -325,7 +329,7 @@ def download_api_call(
             break
 
     if download_url is None:
-        raise exceptions.NoS3AccessMethod(url=url)
+        raise exceptions.NoS3AccessMethodError(url=url)
 
     return download_url, file_size, NO_RETRY_TIME
 
@@ -397,4 +401,4 @@ def await_download_url(
         )
         sleep(retry_time)
 
-    raise exceptions.MaxWaitTimeExceeded(max_wait_time=max_wait_time)
+    raise exceptions.MaxWaitTimeExceededError(max_wait_time=max_wait_time)

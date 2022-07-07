@@ -74,7 +74,7 @@ class CollectiveError(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class DirectoryDoesNotExist(RuntimeError, KnownError):
+class DirectoryDoesNotExistError(RuntimeError, KnownError):
     """Thrown, when the specified directory does not exist."""
 
     def __init__(self, *, output_dir: Path):
@@ -98,7 +98,7 @@ class FileDoesNotExistError(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class ApiNotReachable(RuntimeError, KnownError):
+class ApiNotReachableError(RuntimeError, KnownError):
     """Thrown, when the api is not reachable."""
 
     def __init__(self, *, api_url: str):
@@ -106,7 +106,7 @@ class ApiNotReachable(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class RetryAbortException(CollectiveError, FatalError):
+class RetryAbortError(CollectiveError, FatalError):
     """
     Raised on encountering a FatalError in the WithRetry decorator.
     Information about all preceding exceptions encountered before the FatalError is
@@ -136,7 +136,7 @@ class RequestFailedError(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class NoS3AccessMethod(RuntimeError, KnownError, FatalError):
+class NoS3AccessMethodError(RuntimeError, KnownError, FatalError):
     """Thrown, when a request returns the desired response code, but no S3 Access
     Method"""
 
@@ -188,7 +188,7 @@ class NoUploadPossibleError(RuntimeError, KnownError, FatalError):
         super().__init__(message)
 
 
-class UserHasNoUploadAccess(RuntimeError, KnownError, FatalError):
+class UserHasNoUploadAccessError(RuntimeError, KnownError, FatalError):
     """
     Thrown when a user does not have the credentials to get or change
     details of an ongoing upload with a specific upload id
@@ -203,7 +203,7 @@ class UserHasNoUploadAccess(RuntimeError, KnownError, FatalError):
         super().__init__(message)
 
 
-class UserHasNoFileAccess(RuntimeError, KnownError, FatalError):
+class UserHasNoFileAccessError(RuntimeError, KnownError, FatalError):
     """
     Thrown when a user does not have the credentials for
     a specific file id (response code 403)
@@ -217,7 +217,7 @@ class UserHasNoFileAccess(RuntimeError, KnownError, FatalError):
         super().__init__(message)
 
 
-class CantChangeUploadStatus(RuntimeError, KnownError, FatalError):
+class CantChangeUploadStatusError(RuntimeError, KnownError, FatalError):
     """
     Thrown when the upload status of a file can't be set to the requested status
     (response code 400)
@@ -228,7 +228,7 @@ class CantChangeUploadStatus(RuntimeError, KnownError, FatalError):
         super().__init__(message)
 
 
-class MaxWaitTimeExceeded(RuntimeError, KnownError):
+class MaxWaitTimeExceededError(RuntimeError, KnownError):
     """Thrown, when the specified wait time for getting a download url has been
     exceeded."""
 
@@ -237,7 +237,7 @@ class MaxWaitTimeExceeded(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class MaxRetriesReached(CollectiveError, FatalError):
+class MaxRetriesReachedError(CollectiveError, FatalError):
     """Thrown, when the specified number of retries has been exceeded."""
 
     def __init__(self, *, func_name: str, causes: list[KnownError]):

@@ -70,7 +70,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
-        raise exceptions.ApiNotReachable(api_url=api_url)
+        raise exceptions.ApiNotReachableError(api_url=api_url)
 
     try:
         upload_id, part_size = start_multipart_upload(api_url=api_url, file_id=file_id)
@@ -84,7 +84,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
             f"The pending upload for file '{file_id}' does not exist."
         )
         raise error
-    except exceptions.UserHasNoUploadAccess as error:
+    except exceptions.UserHasNoUploadAccessError as error:
         message_display.failure(
             f"The user is not registered as a Data Submitter for the file with id '{file_id}'."
         )
@@ -97,7 +97,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
             "The request was invalid and returnd a wrong HTTP status code."
         )
         raise error
-    except exceptions.CantChangeUploadStatus as error:
+    except exceptions.CantChangeUploadStatusError as error:
         message_display.failure(f"The file with id '{file_id}' was already uploaded.")
         raise error
     except exceptions.RequestFailedError as error:
@@ -111,7 +111,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements
             part_size=part_size,
             file_path=file_path,
         )
-    except exceptions.MaxRetriesReached as error:
+    except exceptions.MaxRetriesReachedError as error:
         message_display.failure(
             "The upload has failed too many times. The upload was aborted."
         )
@@ -170,11 +170,11 @@ def download(  # pylint: disable=too-many-arguments
 
     if not os.path.isdir(output_dir):
         message_display.failure(f"The directory {output_dir} does not exist.")
-        raise exceptions.DirectoryDoesNotExist(output_dir=output_dir)
+        raise exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
-        raise exceptions.ApiNotReachable(api_url=api_url)
+        raise exceptions.ApiNotReachableError(api_url=api_url)
 
     download_url, file_size = await_download_url(
         api_url=api_url,
@@ -197,7 +197,7 @@ def download(  # pylint: disable=too-many-arguments
             output_file=output_file,
             part_size=part_size,
         )
-    except exceptions.MaxRetriesReached as error:
+    except exceptions.MaxRetriesReachedError as error:
         # Remove file, if the download failed.
         os.remove(output_file)
         raise error

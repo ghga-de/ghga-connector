@@ -8,15 +8,11 @@ jobs:
   pypi-publish:
     name: Publish tagged release on PyPI
     runs-on: ubuntu-latest
-    services:
-      rabbitmq:
-        image: rabbitmq:3-management
-        ports:
-          - 5672:5672
-          - 15672:15672
     steps:
       - name: install system packages
-        run: sudo apt install libcurl4-openssl-dev libssl-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install --fix-missing libcurl4-openssl-dev libssl-dev
 
       - uses: actions/checkout@v2
 
@@ -41,6 +37,7 @@ jobs:
           python -m
           pip install
           build
+          typing-extensions=="4.3.0"
           --user
 
       - name: Build a binary wheel and a source tarball

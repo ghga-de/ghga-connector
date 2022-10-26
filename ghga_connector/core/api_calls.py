@@ -26,10 +26,10 @@ from typing import Dict, Iterator, Tuple, Union
 import requests
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.constants import MAX_PART_NUMBER
+from ghga_connector.core.constants import MAX_PART_NUMBER, TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.retry import WithRetry
+from ghga_connector.core.session import SESSION
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
@@ -50,7 +50,6 @@ class UploadStatus(str, Enum):
     UPLOADED = "uploaded"
 
 
-@WithRetry
 def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     """
     Perform a RESTful API call to initiate a multipart upload
@@ -65,7 +64,9 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
 
     # Make function call to get upload url
     try:
-        response = requests.post(url=url, headers=headers, data=serialized_data)
+        response = SESSION.post(
+            url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
+        )
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -94,7 +95,6 @@ def initiate_multipart_upload(*, api_url: str, file_id: str) -> Tuple[str, int]:
     return response_body["upload_id"], int(response_body["part_size"])
 
 
-@WithRetry
 def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     """
     Get a presigned url to upload a specific part
@@ -106,7 +106,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
 
     # Make function call to get upload url
     try:
-        response = requests.post(url=url, headers=headers)
+        response = SESSION.post(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -160,7 +160,6 @@ def get_part_upload_urls(
     raise exceptions.MaxPartNoExceededError()
 
 
-@WithRetry
 def patch_multipart_upload(
     *, api_url: str, upload_id: str, upload_status: UploadStatus
 ) -> None:
@@ -177,7 +176,9 @@ def patch_multipart_upload(
     serialized_data = json.dumps(post_data)
 
     try:
-        response = requests.patch(url=url, headers=headers, data=serialized_data)
+        response = SESSION.patch(
+            url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
+        )
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -221,7 +222,7 @@ def get_upload_info(
     headers = {"Accept": "*/*", "Content-Type": "application/json"}
 
     try:
-        response = requests.get(url=url, headers=headers)
+        response = SESSION.get(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -245,7 +246,6 @@ def get_upload_info(
     return response.json()
 
 
-@WithRetry
 def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     """
     Get all file metadata
@@ -256,7 +256,7 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
     try:
-        response = requests.get(url=url, headers=headers)
+        response = SESSION.get(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -303,7 +303,7 @@ def download_api_call(
 
     # Make function call to get upload url
     try:
-        response = requests.get(url=url, headers=headers)
+        response = SESSION.get(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 

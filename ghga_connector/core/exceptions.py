@@ -44,36 +44,6 @@ class FatalError(Exception):
     """
 
 
-class CollectiveError(RuntimeError, KnownError):
-    """
-    An error that can have one or more direct causes.
-    Please note, this is different from using the `raise ... from ...` statement since
-    the statement only allows to capture one direct cause.
-    """
-
-    def __init__(self, *, base_message: str, causes: list[KnownError]):
-
-        if len(causes) < 1:
-            raise TypeError(
-                "Collective error must receive at least one causal error but zero were"
-                + " given"
-            )
-
-        self.causes = causes
-        message = (
-            f"{base_message}\nThis error was caused by following prior exceptions:"
-        )
-
-        for i, cause in enumerate(causes):
-            if not isinstance(cause, KnownError):
-                raise TypeError(
-                    "A causal error of an error collection was unkown."
-                ) from cause
-
-            message += f"\n  {i+1}: {cause}"
-        super().__init__(message)
-
-
 class DirectoryDoesNotExistError(RuntimeError, KnownError):
     """Thrown, when the specified directory does not exist."""
 
@@ -104,18 +74,6 @@ class ApiNotReachableError(RuntimeError, KnownError):
     def __init__(self, *, api_url: str):
         message = f"The url {api_url} is currently not reachable."
         super().__init__(message)
-
-
-class RetryAbortError(CollectiveError, FatalError):
-    """
-    Raised on encountering a FatalError in the WithRetry decorator.
-    Information about all preceding exceptions encountered before the FatalError is
-    attached.
-    """
-
-    def __init__(self, *, func_name: str, causes: list[KnownError]):
-        base_message = f"'{func_name}' raised a FatalError."
-        super().__init__(base_message=base_message, causes=causes)
 
 
 class RetryTimeExpectedError(RuntimeError, KnownError, FatalError):
@@ -237,12 +195,12 @@ class MaxWaitTimeExceededError(RuntimeError, KnownError):
         super().__init__(message)
 
 
-class MaxRetriesReachedError(CollectiveError, FatalError):
+class MaxRetriesReachedError(RuntimeError, FatalError):
     """Thrown, when the specified number of retries has been exceeded."""
 
-    def __init__(self, *, func_name: str, causes: list[KnownError]):
+    def __init__(self, *, func_name: str):
         base_message = f"Exceeded maximum retries for '{func_name}'."
-        super().__init__(base_message=base_message, causes=causes)
+        super().__init__(base_message)
 
 
 class MaxPartNoExceededError(RuntimeError):

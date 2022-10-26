@@ -19,17 +19,16 @@ Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
 import math
-from io import BufferedReader, BytesIO
+from io import BufferedReader
 from typing import Iterator, Sequence
 
-import pycurl
-import pycurl_requests as requests
+import requests
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.retry import WithRetry
+from ghga_connector.core.constants import TIMEOUT
+from ghga_connector.core.session import SESSION
 
 
-@WithRetry
 def download_content_range(
     *,
     download_url: str,
@@ -38,23 +37,16 @@ def download_content_range(
 ) -> bytes:
     """Download a specific range of a file's content using a presigned download url."""
 
-    bytes_stream = BytesIO()
-    curl = pycurl.Curl()
-
-    curl.setopt(curl.RANGE, f"{start}-{end}")
-    curl.setopt(curl.URL, download_url)
-    curl.setopt(curl.WRITEDATA, bytes_stream)
+    headers = {"Range": f"bytes={start}-{end}"}
     try:
-        curl.perform()
-        status_code = curl.getinfo(pycurl.RESPONSE_CODE)
-    except pycurl.error as pycurl_error:
-        raise exceptions.RequestFailedError(url=download_url) from pycurl_error
-    finally:
-        curl.close()
+        response = SESSION.get(download_url, headers=headers, timeout=TIMEOUT)
+        status_code = response.status_code
+    except requests.exceptions.RequestException as request_error:
+        raise exceptions.RequestFailedError(url=download_url) from request_error
 
     # 200, if the full file was returned, 206 else
-    if status_code in (200, 206):
-        return bytes_stream.getvalue()
+    if response.status_code in (200, 206):
+        return response.content
 
     raise exceptions.BadResponseCodeError(url=download_url, response_code=status_code)
 
@@ -135,11 +127,13 @@ def read_file_parts(
         yield file_part
 
 
-@WithRetry
 def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     """Upload File"""
 
-    response = requests.put(presigned_url, data=part)
+    try:
+        response = SESSION.put(presigned_url, data=part, timeout=TIMEOUT)
+    except requests.exceptions.RequestException as request_error:
+        raise exceptions.RequestFailedError(url=presigned_url) from request_error
     status_code = response.status_code
 
     if status_code == 200:

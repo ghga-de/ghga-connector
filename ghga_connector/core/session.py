@@ -12,12 +12,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+"""Handling seesion initialization for requests"""
 
-"""Constants used throught the core."""
+import requests
+from requests.adapters import HTTPAdapter, Retry
 
-DEFAULT_PART_SIZE = 16 * 1024 * 1024
-TIMEOUT = 120
-MAX_PART_NUMBER = 10000
-MAX_RETRIES = 3
-MAX_WAIT_TIME = 60 * 60
+
+def configure_session() -> requests.Session:
+    """Configure session with exponential backoff retry"""
+    with requests.session() as session:
+
+        retries = Retry(
+            total=6, backoff_factor=2, status_forcelist=[500, 502, 503, 504]
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+
+        session.mount("http://", adapter=adapter)
+        session.mount("https://", adapter=adapter)
+
+        return session
+
+
+SESSION = configure_session()

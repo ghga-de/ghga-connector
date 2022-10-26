@@ -68,7 +68,6 @@ def upload(  # noqa C901
         api_url=config.upload_api,
         file_id=file_id,
         file_path=file_path,
-        max_retries=config.max_retries,
         message_display=CLIMessageDisplay(),
     )
 
@@ -91,6 +90,5 @@ def download(  # pylint: disable=too-many-arguments
         output_dir=output_dir,
         max_wait_time=config.max_wait_time,
         part_size=config.part_size,
-        max_retries=config.max_retries,
         message_display=CLIMessageDisplay(),
     )

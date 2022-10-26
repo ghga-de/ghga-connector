@@ -34,7 +34,6 @@ from ghga_connector.core.exceptions import (
     UploadNotRegisteredError,
 )
 from tests.fixtures.mock_api.testcontainer import MockAPIContainer
-from tests.fixtures.retry import RetryFixture, zero_retry_fixture  # noqa: F401
 
 
 @pytest.mark.parametrize(
@@ -53,7 +52,6 @@ def test_patch_multipart_upload(
     upload_id: str,
     upload_status: UploadStatus,
     expected_exception: type[Optional[Exception]],
-    zero_retry_fixture: RetryFixture,  # noqa F811
 ):
     """
     Test the patch_multipart_upload function

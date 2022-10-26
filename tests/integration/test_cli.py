@@ -33,7 +33,6 @@ from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.testcontainer import MockAPIContainer
-from tests.fixtures.retry import RetryFixture, retry_fixture  # noqa: F401
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 
 
@@ -51,7 +50,6 @@ def test_multipart_download(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
-    retry_fixture: RetryFixture,  # noqa F811
 ):
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
@@ -107,7 +105,6 @@ def test_download(
     expected_exception: type[Optional[Exception]],
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
-    retry_fixture: RetryFixture,  # noqa: F811
 ):
     """Test the download of a file"""
 
@@ -159,7 +156,6 @@ def test_upload(
     file_name: str,
     expected_exception: type[Optional[Exception]],
     s3_fixture: S3Fixture,  # noqa F811
-    retry_fixture: RetryFixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 
@@ -213,7 +209,6 @@ def test_multipart_upload(
     file_size: int,
     anticipated_part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
-    retry_fixture: RetryFixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
 

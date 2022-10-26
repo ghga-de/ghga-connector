@@ -24,7 +24,7 @@
     "max_retries": {
       "title": "Max Retries",
       "description": "Number of times to retry failed API calls.",
-      "default": 6,
+      "default": 5,
       "env_names": [
         "ghga-connector_max_retries"
       ],

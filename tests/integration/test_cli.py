@@ -133,7 +133,7 @@ def test_download(
             "ghga_connector.cli.config",
             get_test_config(download_api=api_url),
         ):
-            with pytest.raises(
+            with pytest.raises(  # type: ignore
                 expected_exception
             ) if expected_exception else nullcontext():
                 download(file_id=file.file_id, output_dir=output_dir)
@@ -178,12 +178,12 @@ def test_upload(
         api_url = "http://bad_url" if bad_url else api.get_connection_url()
 
         with patch("ghga_connector.cli.config", get_test_config(upload_api=api_url)):
-            with pytest.raises(
+            with pytest.raises(  # type: ignore
                 expected_exception
             ) if expected_exception else nullcontext():
                 upload(
                     file_id=uploadable_file.file_id,
-                    file_path=str(uploadable_file.file_path.resolve()),
+                    file_path=uploadable_file.file_path.resolve(),
                 )
 
                 s3_fixture.storage.complete_multipart_upload(

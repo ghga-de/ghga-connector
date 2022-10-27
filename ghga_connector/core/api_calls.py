@@ -24,6 +24,7 @@ from time import sleep
 from typing import Dict, Iterator, Tuple, Union
 
 import requests
+from requests.structures import CaseInsensitiveDict
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.constants import MAX_PART_NUMBER, TIMEOUT
@@ -304,7 +305,10 @@ def download_api_call(
 
     # build url and headers
     url = f"{api_url}/objects/{file_id}"
-    headers = {"Accept": "application/json", "Content-Type": "application/json"}
+
+    headers = CaseInsensitiveDict(
+        {"Accept": "application/json", "Content-Type": "application/json"}
+    )
 
     # Make function call to get upload url
     try:

@@ -8,7 +8,7 @@
       "description": "URL to the root of the upload controller API.",
       "default": "https://hd-dev.ghga-dev.de/ucs",
       "env_names": [
-        "ghga-connector_upload_api"
+        "ghga_connector_upload_api"
       ],
       "type": "string"
     },
@@ -17,7 +17,7 @@
       "description": "URL to the root of the DRS-compatible API used for download.",
       "default": "https://hd-dev.ghga-dev.de/drs3/ga4gh/drs/v1",
       "env_names": [
-        "ghga-connector_download_api"
+        "ghga_connector_download_api"
       ],
       "type": "string"
     },
@@ -26,7 +26,7 @@
       "description": "Number of times to retry failed API calls.",
       "default": 5,
       "env_names": [
-        "ghga-connector_max_retries"
+        "ghga_connector_max_retries"
       ],
       "type": "integer"
     },
@@ -35,7 +35,7 @@
       "description": "Maximal time in seconds to wait before quitting without a download.",
       "default": 3600,
       "env_names": [
-        "ghga-connector_max_wait_time"
+        "ghga_connector_max_wait_time"
       ],
       "type": "integer"
     },
@@ -44,7 +44,7 @@
       "description": "The part size to use for download.",
       "default": 16777216,
       "env_names": [
-        "ghga-connector_part_size"
+        "ghga_connector_part_size"
       ],
       "type": "integer"
     }

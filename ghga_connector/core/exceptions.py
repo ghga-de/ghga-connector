@@ -195,7 +195,7 @@ class MaxPartNoExceededError(RuntimeError):
         super().__init__(message)
 
 
-def raise_if_max_retries(request_error: requests.exceptions.RequestException):
+def raise_if_max_retries(request_error: requests.exceptions.RequestException, url: str):
     """
     Check if request exception is caused by hitting max retries and raise accordingly
     """
@@ -205,5 +205,5 @@ def raise_if_max_retries(request_error: requests.exceptions.RequestException):
         ):
             max_retry_error = request_error.args[0]
             raise MaxRetriesReachedError(
-                url=max_retry_error.url, reason=str(max_retry_error.reason)
+                url=url, reason=str(max_retry_error.reason)
             ) from max_retry_error

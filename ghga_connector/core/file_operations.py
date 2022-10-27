@@ -41,7 +41,7 @@ def download_content_range(
     try:
         response = SESSION.get(download_url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error)
+        exceptions.raise_if_max_retries(request_error=request_error, url=download_url)
         raise exceptions.RequestFailedError(url=download_url) from request_error
 
     status_code = response.status_code
@@ -134,7 +134,7 @@ def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     try:
         response = SESSION.put(presigned_url, data=part, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error)
+        exceptions.raise_if_max_retries(request_error=request_error, url=presigned_url)
         raise exceptions.RequestFailedError(url=presigned_url) from request_error
 
     status_code = response.status_code

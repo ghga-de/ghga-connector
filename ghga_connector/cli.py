@@ -24,6 +24,7 @@ from ghga_connector import core
 from ghga_connector.config import Config
 
 config = Config()  # will be patched for testing
+core.constants.MAX_RETRIES = config.max_retries
 
 
 class CLIMessageDisplay(core.AbstractMessageDisplay):

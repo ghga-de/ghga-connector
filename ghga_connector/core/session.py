@@ -17,13 +17,15 @@
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
+from ghga_connector.core.constants import MAX_RETRIES
+
 
 def configure_session() -> requests.Session:
     """Configure session with exponential backoff retry"""
     with requests.session() as session:
 
         retries = Retry(
-            total=6, backoff_factor=2, status_forcelist=[500, 502, 503, 504]
+            total=MAX_RETRIES, backoff_factor=2, status_forcelist=[500, 502, 503, 504]
         )
         adapter = HTTPAdapter(max_retries=retries)
 

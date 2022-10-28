@@ -12,19 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Configuration for the global RequestsSession"""
 
-"""
-This sub-package contains the main business functionality of this service.
-It should not contain any service API-related code.
-"""
+import pytest
 
-from . import exceptions  # noqa: F401
-from .constants import (  # noqa: F401
-    DEFAULT_PART_SIZE,
-    MAX_PART_NUMBER,
-    MAX_RETRIES,
-    MAX_WAIT_TIME,
-)
-from .main import download, upload  # noqa: F401
-from .message_display import AbstractMessageDisplay, MessageColors  # noqa: F401
-from .session import configure_session  # noqa: F401
+from ghga_connector.core import MAX_RETRIES, configure_session
+
+
+@pytest.fixture(autouse=True)
+def default_session_configuration():
+    """Configure requests session with default number of max_retries"""
+    configure_session(max_retries=MAX_RETRIES)

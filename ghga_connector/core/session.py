@@ -17,22 +17,48 @@
 import requests
 from requests.adapters import HTTPAdapter, Retry
 
-from ghga_connector.core.constants import MAX_RETRIES
+
+class RequestsSession:
+    """Helper clas to make max_retries user configurable"""
+
+    session: requests.Session
+
+    @classmethod
+    def get(cls, *args, **kwargs):
+        """Delegate to session method"""
+        return cls.session.get(*args, **kwargs)
+
+    @classmethod
+    def patch(cls, *args, **kwargs):
+        """Delegate to session method"""
+        return cls.session.patch(*args, **kwargs)
+
+    @classmethod
+    def post(cls, *args, **kwargs):
+        """Delegate to session method"""
+        return cls.session.post(*args, **kwargs)
+
+    @classmethod
+    def put(cls, *args, **kwargs):
+        """Delegate to session method"""
+        return cls.session.put(*args, **kwargs)
 
 
-def configure_session() -> requests.Session:
+def configure_session(max_retries: int) -> requests.Session:
     """Configure session with exponential backoff retry"""
+
     with requests.session() as session:
+        # can't be negative - should we log this?
+        max_retries = max(0, max_retries)
 
         retries = Retry(
-            total=MAX_RETRIES, backoff_factor=2, status_forcelist=[500, 502, 503, 504]
+            total=max_retries,
+            backoff_factor=2,
+            status_forcelist=[500, 502, 503, 504],
         )
         adapter = HTTPAdapter(max_retries=retries)
 
         session.mount("http://", adapter=adapter)
         session.mount("https://", adapter=adapter)
 
-        return session
-
-
-SESSION = configure_session()
+        RequestsSession.session = session

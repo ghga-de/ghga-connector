@@ -63,7 +63,7 @@ def upload(  # noqa C901
     """
     Command to upload a file
     """
-    core.configure_session(config.max_retries)
+    core.RequestsSession.configure(config.max_retries)
     core.upload(
         api_url=config.upload_api,
         file_id=file_id,
@@ -83,7 +83,7 @@ def download(  # pylint: disable=too-many-arguments
     """
     Command to download a file
     """
-    core.configure_session(config.max_retries)
+    core.RequestsSession.configure(config.max_retries)
     core.download(
         api_url=config.download_api,
         file_id=file_id,

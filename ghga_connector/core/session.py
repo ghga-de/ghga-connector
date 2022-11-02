@@ -61,8 +61,3 @@ class RequestsSession:
     def put(cls, *args, **kwargs):
         """Delegate to session method"""
         return cls.session.put(*args, **kwargs)
-
-
-def configure_session(max_retries: int):
-    """Configure session with exponential backoff retry"""
-    RequestsSession.configure(max_retries)

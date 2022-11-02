@@ -16,10 +16,10 @@
 
 import pytest
 
-from ghga_connector.core import MAX_RETRIES, configure_session
+from ghga_connector.core import MAX_RETRIES, RequestsSession
 
 
 @pytest.fixture(autouse=True)
 def default_session_configuration():
     """Configure requests session with default number of max_retries"""
-    configure_session(max_retries=MAX_RETRIES)
+    RequestsSession.configure(max_retries=MAX_RETRIES)

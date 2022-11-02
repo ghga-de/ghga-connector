@@ -15,7 +15,7 @@
 #
 
 """
-Contains API calls to the API of the GHGA Storage implementationS
+Contains calls to the GHGA storage API
 """
 
 import json

@@ -1,2 +1,2 @@
 # Please only mention the non-default settings here:
-dummy_param: "some_value"
+max_retries: 2

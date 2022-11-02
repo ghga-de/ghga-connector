@@ -24,6 +24,25 @@ class RequestsSession:
     session: requests.Session
 
     @classmethod
+    def configure(cls, max_retries: int):
+        """Configure session with exponential backoff retry"""
+        with requests.session() as session:
+            # can't be negative - should we log this?
+            max_retries = max(0, max_retries)
+
+            retries = Retry(
+                total=max_retries,
+                backoff_factor=2,
+                status_forcelist=[500, 502, 503, 504],
+            )
+            adapter = HTTPAdapter(max_retries=retries)
+
+            session.mount("http://", adapter=adapter)
+            session.mount("https://", adapter=adapter)
+
+            RequestsSession.session = session
+
+    @classmethod
     def get(cls, *args, **kwargs):
         """Delegate to session method"""
         return cls.session.get(*args, **kwargs)
@@ -46,19 +65,4 @@ class RequestsSession:
 
 def configure_session(max_retries: int):
     """Configure session with exponential backoff retry"""
-
-    with requests.session() as session:
-        # can't be negative - should we log this?
-        max_retries = max(0, max_retries)
-
-        retries = Retry(
-            total=max_retries,
-            backoff_factor=2,
-            status_forcelist=[500, 502, 503, 504],
-        )
-        adapter = HTTPAdapter(max_retries=retries)
-
-        session.mount("http://", adapter=adapter)
-        session.mount("https://", adapter=adapter)
-
-        RequestsSession.session = session
+    RequestsSession.configure(max_retries)

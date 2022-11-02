@@ -40,7 +40,7 @@ class RequestsSession:
             session.mount("http://", adapter=adapter)
             session.mount("https://", adapter=adapter)
 
-            RequestsSession.session = session
+            cls.session = session
 
     @classmethod
     def get(cls, *args, **kwargs):

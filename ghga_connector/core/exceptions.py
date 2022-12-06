@@ -48,6 +48,14 @@ class FileDoesNotExistError(RuntimeError):
         super().__init__(message)
 
 
+class PubKeyFileDoesNotExistError(RuntimeError):
+    """Thrown, when the specified file already exists."""
+
+    def __init__(self, *, pubkey_path: Path):
+        message = f"The pubkey file {pubkey_path} does not exist."
+        super().__init__(message)
+
+
 class ApiNotReachableError(RuntimeError):
     """Thrown, when the api is not reachable."""
 

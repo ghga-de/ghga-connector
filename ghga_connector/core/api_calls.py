@@ -24,8 +24,8 @@ from pathlib import Path
 from time import sleep
 from typing import Dict, Iterator, Tuple, Union
 
+import crypt4gh.keys
 import requests
-import rsa
 from requests.structures import CaseInsensitiveDict
 
 from ghga_connector.core import exceptions
@@ -67,9 +67,7 @@ def initiate_multipart_upload(
     # build url and headers
     url = f"{api_url}/uploads"
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    with open(file=pubkey_path, mode="rb") as pubkey_file:
-        key_data = pubkey_file.read()
-        public_key = rsa.PublicKey.load_pkcs1_openssl_pem(key_data)
+    public_key = crypt4gh.keys.get_public_key(pubkey_path)
 
     post_data = {"file_id": file_id, "public_key": public_key}
     serialized_data = json.dumps(post_data)

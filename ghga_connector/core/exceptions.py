@@ -41,7 +41,7 @@ class FileAlreadyExistsError(RuntimeError):
 
 
 class FileDoesNotExistError(RuntimeError):
-    """Thrown, when the specified file already exists."""
+    """Thrown, when the specified file does not exist."""
 
     def __init__(self, *, file_path: Path):
         message = f"The file {file_path} does not exist."
@@ -49,10 +49,10 @@ class FileDoesNotExistError(RuntimeError):
 
 
 class PubKeyFileDoesNotExistError(RuntimeError):
-    """Thrown, when the specified file already exists."""
+    """Thrown, when the specified public key file already exists."""
 
     def __init__(self, *, pubkey_path: Path):
-        message = f"The pubkey file {pubkey_path} does not exist."
+        message = f"The public key file {pubkey_path} does not exist."
         super().__init__(message)
 
 

@@ -60,9 +60,9 @@ def upload(  # noqa C901
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
     pubkey_path: Path = typer.Argument(
-        "./pub.key",
+        "./key.pub",
         help="The path to a public key from the key pair that was used to encrypt the "
-        + "crypt4gh header. Defaults to the file pub.key in the current folder.",
+        + "crypt4gh envelope. Defaults to the file key.pub in the current folder.",
     ),
 ):
     """

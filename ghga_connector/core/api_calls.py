@@ -18,6 +18,7 @@
 Contains calls to the GHGA storage API
 """
 
+import base64
 import json
 from enum import Enum
 from pathlib import Path
@@ -67,7 +68,7 @@ def initiate_multipart_upload(
     # build url and headers
     url = f"{api_url}/uploads"
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
-    public_key = crypt4gh.keys.get_public_key(pubkey_path)
+    public_key = base64.b64encode(crypt4gh.keys.get_public_key(pubkey_path)).decode()
 
     post_data = {"file_id": file_id, "public_key": public_key}
     serialized_data = json.dumps(post_data)

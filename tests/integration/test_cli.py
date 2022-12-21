@@ -34,10 +34,9 @@ from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.testcontainer import MockAPIContainer
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
+from tests.fixtures.utils import BASE_DIR
 
-PUBLIC_KEY_FILE = (
-    Path(__file__).parent.parent.parent.resolve() / "example_data/keypair/key.pub"
-)
+PUBLIC_KEY_FILE = BASE_DIR / "keypair/key.pub"
 
 
 @pytest.mark.parametrize(

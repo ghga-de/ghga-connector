@@ -113,7 +113,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     """
 
     # build url and headers
-    url = f"{api_url}/uploads/{upload_id}/parts/{part_no}/signed_posts"
+    url = f"{api_url}/uploads/{upload_id}/parts/{part_no}/signed_urls"
     headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
     # Make function call to get upload url

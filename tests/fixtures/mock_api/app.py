@@ -51,7 +51,7 @@ class StatePatch(BaseModel):
     Model containing a state parameter. Needed for the UCS patch: /uploads/... api call
     """
 
-    upload_status: UploadStatus
+    status: UploadStatus
 
 
 class StatePost(BaseModel):
@@ -324,7 +324,7 @@ async def ulc_patch_uploads(upload_id: str, state: StatePatch):
     """
     Mock for the ulc PATCH /uploads/{upload_id} call
     """
-    upload_status = state.upload_status
+    upload_status = state.status
 
     if upload_id == "uploaded":
         if upload_status == UploadStatus.CANCELLED:

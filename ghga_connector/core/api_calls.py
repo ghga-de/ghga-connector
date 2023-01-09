@@ -185,7 +185,7 @@ def patch_multipart_upload(
     # build url and headers
     url = f"{api_url}/uploads/{upload_id}"
     headers = {"Accept": "*/*", "Content-Type": "application/json"}
-    post_data = {"upload_status": upload_status}
+    post_data = {"status": upload_status}
     serialized_data = json.dumps(post_data)
 
     try:

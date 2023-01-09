@@ -141,7 +141,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     response_body = response.json()
-    presigned_url = response_body["presigned_url"]
+    presigned_url = response_body["url"]
 
     return presigned_url
 

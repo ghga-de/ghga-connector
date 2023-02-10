@@ -54,7 +54,15 @@ def download_content_range(
         redirect_range = response.headers["Redirect-Range"]
 
         headers = {"Range": redirect_range}
-        response = RequestsSession.get(url, headers=headers, timeout=TIMEOUT)
+
+        try:
+            response = RequestsSession.get(url, headers=headers, timeout=TIMEOUT)
+
+        except requests.exceptions.RequestException as request_error:
+            exceptions.raise_if_max_retries(
+                request_error=request_error, url=download_url
+            )
+            raise exceptions.RequestFailedError(url=download_url) from request_error
         status_code = response.status_code
 
     # 200, if the full file was returned, 206 else. This would also catch content

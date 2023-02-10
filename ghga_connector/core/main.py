@@ -178,6 +178,10 @@ def download(  # pylint: disable=too-many-arguments
         message_display.failure(f"The directory {output_dir} does not exist.")
         raise exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
 
+    if not os.path.isfile(pubkey_path):
+        message_display.failure(f"The file {pubkey_path} does not exist.")
+        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=pubkey_path)
+
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
         raise exceptions.ApiNotReachableError(api_url=api_url)

@@ -20,7 +20,7 @@ Contains Calls of the Presigned URLs in order to Up- and Download Files
 
 import math
 from io import BufferedReader
-from typing import Iterator, Sequence
+from typing import Iterator, Sequence, Tuple, Union
 
 import requests
 
@@ -40,7 +40,7 @@ def download_content_range(
     headers = {"Range": f"bytes={start}-{end}"}
     try:
         response = RequestsSession.get(
-            download_url, headers=headers, timeout=TIMEOUT, auto_redirect=False
+            download_url, headers=headers, timeout=TIMEOUT, allow_redirects=False
         )
     except requests.exceptions.RequestException as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=download_url)
@@ -91,7 +91,7 @@ def calc_part_ranges(
 
 def download_file_parts(
     *,
-    download_urls: Iterator,
+    download_urls: Iterator[Union[Tuple[str, int, None], Tuple[None, None, int]]],
     part_size: int,
     total_file_size: int,
     from_part: int = 1,

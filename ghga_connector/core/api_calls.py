@@ -361,7 +361,9 @@ def get_download_url(
     return download_url, file_size, NO_RETRY_TIME
 
 
-def get_download_urls(*, api_url: str, file_id: str, public_key: str):
+def get_download_urls(
+    *, api_url: str, file_id: str, public_key: str
+) -> Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]]:
     """
     For a specific mutli-part upload identified by the `file_id`, it returns an
     iterator to obtain download_urls.

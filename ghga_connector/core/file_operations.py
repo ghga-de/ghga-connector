@@ -91,7 +91,7 @@ def calc_part_ranges(
 
 def download_file_parts(
     *,
-    download_urls: Iterator[Union[Tuple[str, int, None], Tuple[None, None, int]]],
+    download_urls: Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]],
     part_size: int,
     total_file_size: int,
     from_part: int = 1,

@@ -84,7 +84,7 @@ def test_download_file_parts(
     )
 
     def url_generator() -> Iterator[
-        Union[Tuple[str, int, None], Tuple[None, None, int]]
+        Union[Tuple[None, None, int], Tuple[str, int, None]]
     ]:
         while True:
             yield download_url, 0, None

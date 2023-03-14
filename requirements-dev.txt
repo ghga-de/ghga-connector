@@ -1,5 +1,6 @@
 # requirements for development and testing this service
 
+ghga_service_chassis_lib[dev, s3]
 -r requirements-dev-common.txt
 
 # additional requirements can be listed here

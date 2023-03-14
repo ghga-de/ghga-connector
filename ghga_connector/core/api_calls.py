@@ -464,7 +464,7 @@ def get_file_header_envelope(file_id: str, api_url: str, public_key: bytes) -> b
     """
 
     # encode public key in base64 (url-safe)
-    public_key_encoded = base64.urlsafe_b64encode(public_key).decode()
+    public_key_encoded = base64.urlsafe_b64encode(public_key).decode("utf-8")
 
     # build url and headers
     url = f"{api_url}/objects/{file_id}/envelopes/{public_key_encoded}"

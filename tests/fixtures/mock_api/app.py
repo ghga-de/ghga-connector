@@ -192,7 +192,7 @@ async def drs3_objects(file_id: str):
             status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
         )
 
-    if file_id == "downloadable" or file_id == "big-downloadable":
+    if file_id in ("downloadable", "big-downloadable", "envelope-missing"):
 
         return DrsObjectServe(
             file_id=file_id,

@@ -100,6 +100,7 @@ def test_multipart_download(
         ),
         (False, False, "file_retry", exceptions.MaxWaitTimeExceededError),
         (False, True, "file_downloadable", exceptions.DirectoryDoesNotExistError),
+        (False, False, "file_envelope_missing", exceptions.FileNotRegisteredError),
     ],
 )
 def test_download(

@@ -182,7 +182,6 @@ async def ready():
 
 @app.get("/objects/{file_id}", summary="drs3_mock")
 async def drs3_objects(file_id: str):
-
     """
     Mock for the drs3 /objects/{file_id} call
     """
@@ -193,7 +192,6 @@ async def drs3_objects(file_id: str):
         )
 
     if file_id in ("downloadable", "big-downloadable", "envelope-missing"):
-
         return DrsObjectServe(
             file_id=file_id,
             self_uri=f"drs://localhost:8080//{file_id}",
@@ -351,7 +349,6 @@ async def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int
 
 @app.patch("/uploads/{upload_id}", summary="ulc_patch_uploads_mock", status_code=204)
 async def ulc_patch_uploads(upload_id: str, state: StatePatch):
-
     """
     Mock for the ulc PATCH /uploads/{upload_id} call
     """

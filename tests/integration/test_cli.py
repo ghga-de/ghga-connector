@@ -118,7 +118,6 @@ def test_download(
     file = state.FILES[file_name]
 
     if file.populate_storage:
-
         download_url = s3_fixture.storage.get_object_download_url(
             bucket_id=file.grouping_label,
             object_id=file.file_id,

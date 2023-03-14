@@ -1,6 +1,5 @@
 # requirements for development and testing this service
 
-ghga_service_chassis_lib[dev]==0.17.5
 ghga-service-chassis-lib[s3]==0.17.5
 
 -r requirements-dev-common.txt

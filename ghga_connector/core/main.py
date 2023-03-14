@@ -16,7 +16,6 @@
 
 """Main domain logic."""
 
-import base64
 import os
 from pathlib import Path
 
@@ -187,7 +186,7 @@ def download(  # pylint: disable=too-many-arguments
         message_display.failure(f"The url {api_url} is currently not reachable.")
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
-    public_key = base64.b64encode(crypt4gh.keys.get_public_key(pubkey_path))
+    public_key = crypt4gh.keys.get_public_key(pubkey_path)
 
     # check output file
     output_file = os.path.join(output_dir, file_id)
@@ -242,6 +241,7 @@ def download(  # pylint: disable=too-many-arguments
             f"The request to return information for file {file_id}"
             + " did not return an S3 access method."
         )
+        os.remove(output_file)
         raise error
 
     message_display.success(
@@ -269,7 +269,7 @@ def download_parts(
         download_urls=download_urls, part_size=part_size, total_file_size=file_size
     )
 
-    with open(output_file, "wb") as file:
+    with open(output_file, "ab") as file:
         try:
             for file_part in file_parts:
                 file.write(file_part)

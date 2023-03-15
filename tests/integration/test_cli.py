@@ -159,10 +159,10 @@ def test_download(
         tmp_file = tmp_path / "file_with_envelope"
 
         # Copy fake envelope into new temp file, then append the test file
-        with open(tmp_file, "wb") as file_write:
-            file_write.write(str.encode(fake_envelope))
+        with tmp_file.open("wb") as file_write:
             with file.file_path.open("rb") as file_read:
                 buffer = file_read.read()
+                file_write.write(str.encode(fake_envelope))
                 file_write.write(buffer)
 
         if not expected_exception:

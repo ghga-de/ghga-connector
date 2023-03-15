@@ -219,7 +219,7 @@ async def drs3_objects_envelopes(file_id: str, public_key: str):
     """
 
     if file_id in ("downloadable", "big-downloadable"):
-        response_str = b"This has to be a bytestring!"
+        response_str = str.encode(os.environ["FAKE_HEADER_ENVELOPE"])
         envelope = base64.b64encode(response_str).decode("utf-8")
         return HttpEnvelopeResponse(envelope=envelope)
 

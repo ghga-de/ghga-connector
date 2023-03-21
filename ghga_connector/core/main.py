@@ -72,6 +72,12 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
         message_display.failure(f"The file {user_pubkey_path} does not exist.")
         raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=user_pubkey_path)
 
+    if not os.path.isfile(user_private_key_path):
+        message_display.failure(f"The file {user_private_key_path} does not exist.")
+        raise exceptions.PrivateKeyFileDoesNotExistError(
+            private_key_path=user_private_key_path
+        )
+
     if not os.path.isfile(file_path):
         message_display.failure(f"The file {file_path} does not exist.")
         raise exceptions.FileDoesNotExistError(file_path=file_path)

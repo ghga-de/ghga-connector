@@ -57,11 +57,11 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
     Core command to upload a file. Can be called by CLI, GUI, etc.
     """
 
-    if not os.path.isfile(submitter_pubkey_path):
+    if not submitter_pubkey_path.is_file():
         message_display.failure(f"The file {submitter_pubkey_path} does not exist.")
         raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=submitter_pubkey_path)
 
-    if not os.path.isfile(submitter_private_key_path):
+    if not submitter_private_key_path.is_file():
         message_display.failure(
             f"The file {submitter_private_key_path} does not exist."
         )

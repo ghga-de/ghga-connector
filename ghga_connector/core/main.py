@@ -61,21 +61,23 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
     file_path: Path,
     message_display: AbstractMessageDisplay,
     server_pubkey: str,
-    user_pubkey_path: Path,
-    user_private_key_path: Path,
+    submitter_pubkey_path: Path,
+    submitter_private_key_path: Path,
 ) -> None:
     """
     Core command to upload a file. Can be called by CLI, GUI, etc.
     """
 
-    if not os.path.isfile(user_pubkey_path):
-        message_display.failure(f"The file {user_pubkey_path} does not exist.")
-        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=user_pubkey_path)
+    if not os.path.isfile(submitter_pubkey_path):
+        message_display.failure(f"The file {submitter_pubkey_path} does not exist.")
+        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=submitter_pubkey_path)
 
-    if not os.path.isfile(user_private_key_path):
-        message_display.failure(f"The file {user_private_key_path} does not exist.")
+    if not os.path.isfile(submitter_private_key_path):
+        message_display.failure(
+            f"The file {submitter_private_key_path} does not exist."
+        )
         raise exceptions.PrivateKeyFileDoesNotExistError(
-            private_key_path=user_private_key_path
+            private_key_path=submitter_private_key_path
         )
 
     if not os.path.isfile(file_path):
@@ -88,7 +90,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
 
     try:
         upload_id, part_size = start_multipart_upload(
-            api_url=api_url, file_id=file_id, pubkey_path=user_pubkey_path
+            api_url=api_url, file_id=file_id, pubkey_path=submitter_pubkey_path
         )
     except exceptions.NoUploadPossibleError as error:
         message_display.failure(
@@ -122,7 +124,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
 
     encryptor = Crypt4GHEncryptor(
         server_pubkey=server_pubkey,
-        user_private_key_path=user_private_key_path,
+        submitter_private_key_path=submitter_private_key_path,
     )
 
     encrypted_file_path = encryptor.encrypt_file(file_path=file_path)

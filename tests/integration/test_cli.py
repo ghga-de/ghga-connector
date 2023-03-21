@@ -213,8 +213,8 @@ def test_upload(
                 upload(
                     file_id=uploadable_file.file_id,
                     file_path=uploadable_file.file_path.resolve(),
-                    user_pubkey_path=Path(PUBLIC_KEY_FILE),
-                    user_private_key_path=Path(PRIVATE_KEY_FILE),
+                    submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                    submitter_private_key_path=Path(PRIVATE_KEY_FILE),
                 )
 
                 s3_fixture.storage.complete_multipart_upload(
@@ -290,8 +290,8 @@ def test_multipart_upload(
                 upload(
                     file_id=file_id,
                     file_path=Path(file.name),
-                    user_pubkey_path=Path(PUBLIC_KEY_FILE),
-                    user_private_key_path=Path(PRIVATE_KEY_FILE),
+                    submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                    submitter_private_key_path=Path(PRIVATE_KEY_FILE),
                 )
 
         # confirm upload

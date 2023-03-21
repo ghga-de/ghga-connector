@@ -59,12 +59,12 @@ def upload(  # noqa C901
     *,
     file_id: str = typer.Option(..., help="The id if the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
-    user_pubkey_path: Path = typer.Argument(
+    submitter_pubkey_path: Path = typer.Argument(
         "./key.pub",
         help="The path to a public key from the key pair that was announced in the "
         + "metadata. Defaults to the file key.pub in the current folder.",
     ),
-    user_private_key_path: Path = typer.Argument(
+    submitter_private_key_path: Path = typer.Argument(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to the file key.pub in the current folder.",
@@ -81,8 +81,8 @@ def upload(  # noqa C901
         file_path=file_path,
         message_display=CLIMessageDisplay(),
         server_pubkey=CONFIG.server_pubkey,
-        user_pubkey_path=user_pubkey_path,
-        user_private_key_path=user_private_key_path,
+        submitter_pubkey_path=submitter_pubkey_path,
+        submitter_private_key_path=submitter_private_key_path,
     )
 
 

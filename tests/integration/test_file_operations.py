@@ -106,6 +106,11 @@ def test_download_file_parts(
     # donwload file parts with dedicated function:
     download_file_parts(**kwargs)
 
-    while not queue.empty():
+    obtained = 0
+    while obtained < len(expected_bytes):
         start, obtained_bytes = queue.get()
+        obtained += len(obtained_bytes)
+        queue.task_done()
         assert expected_bytes[start : start + part_size] == obtained_bytes
+
+    assert obtained == len(expected_bytes)

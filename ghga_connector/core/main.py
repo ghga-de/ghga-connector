@@ -36,7 +36,7 @@ from ghga_connector.core.api_calls import (
 from ghga_connector.core.file_operations import (
     Crypt4GHEncryptor,
     calc_part_ranges,
-    download_parts,
+    download_file_parts,
     is_file_encrypted,
     read_file_parts,
     upload_file_part,
@@ -244,7 +244,7 @@ def download(  # pylint: disable=too-many-arguments
 
     # perform the download
     try:
-        download_file_parts(
+        download_parts(
             file_id=file_id,
             api_url=api_url,
             output_file=output_file,
@@ -268,7 +268,7 @@ def download(  # pylint: disable=too-many-arguments
     )
 
 
-def download_file_parts(
+def download_parts(
     *,
     max_concurrent_downloads: int = 5,
     max_queue_size: int = 10,
@@ -299,7 +299,7 @@ def download_file_parts(
     )
 
     # Download the file parts in parallel
-    download_parts(
+    download_file_parts(
         max_concurrent_downloads=max_concurrent_downloads,
         queue=queue,
         part_ranges=part_ranges,

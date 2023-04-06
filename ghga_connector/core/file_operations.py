@@ -105,7 +105,7 @@ def download_content_range(
     raise exceptions.BadResponseCodeError(url=download_url, response_code=status_code)
 
 
-def download_parts(
+def download_file_parts(
     max_concurrent_downloads: int,
     queue: Queue,
     part_ranges: Sequence[Tuple[int, int]],

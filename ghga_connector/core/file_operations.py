@@ -120,7 +120,6 @@ def download_file_parts(
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=max_concurrent_downloads
     ) as executor:
-        futures = []
         for part_range, download_url in zip(part_ranges, download_urls):
             kwargs: dict[str, Any] = {
                 "download_url": download_url[0],
@@ -129,10 +128,7 @@ def download_file_parts(
                 "queue": queue,
             }
 
-            future = executor.submit(download_part_funct, **kwargs)
-            futures.append(future)
-
-    print("Test")
+            executor.submit(download_part_funct, **kwargs)
 
 
 def calc_part_ranges(

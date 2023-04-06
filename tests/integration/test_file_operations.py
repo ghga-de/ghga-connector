@@ -65,12 +65,16 @@ def test_download_content_range(
     assert expected_bytes == obtained_bytes
 
 
+@pytest.mark.parametrize(
+    "part_size",
+    [5 * 1024 * 1024, 1 * 1024 * 1024],
+)
 def test_download_file_parts(
+    part_size: int,
     s3_fixture: S3Fixture,  # noqa: F811
 ):
     """Test the `download_file_parts` function."""
     # prepare state and the expected result:
-    part_size = 5 * 1024 * 1024
     big_object = get_big_s3_object(s3_fixture)
     total_file_size = len(big_object.content)
     expected_bytes = big_object.content

@@ -67,7 +67,7 @@ def test_download_content_range(
 
 @pytest.mark.parametrize(
     "part_size",
-    [5 * 1024 * 1024, 1 * 1024 * 1024],
+    [5 * 1024 * 1024, 3 * 1024 * 1024, 1 * 1024 * 1024],
 )
 def test_download_file_parts(
     part_size: int,

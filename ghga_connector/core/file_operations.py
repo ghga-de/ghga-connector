@@ -25,7 +25,7 @@ from io import BufferedReader
 from pathlib import Path
 from queue import Queue
 from tempfile import mkstemp
-from typing import Iterator, Sequence, Tuple, Union
+from typing import Any, Iterator, Sequence, Tuple, Union
 
 import crypt4gh.keys
 import crypt4gh.lib
@@ -84,7 +84,7 @@ def download_content_range(
     start: int,
     end: int,
     queue: Queue,
-) -> bytes:
+) -> None:
     """Download a specific range of a file's content using a presigned download url."""
 
     headers = {"Range": f"bytes={start}-{end}"}
@@ -100,7 +100,8 @@ def download_content_range(
 
     # 200, if the full file was returned, 206 else.
     if status_code in (200, 206):
-        queue.put(start, response.content)
+        queue.put((start, response.content))
+        return
 
     raise exceptions.BadResponseCodeError(url=download_url, response_code=status_code)
 
@@ -110,7 +111,7 @@ def download_file_parts(
     queue: Queue,
     part_ranges: Sequence[Tuple[int, int]],
     download_urls: Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]],
-    download_part=download_content_range,
+    download_part_funct=download_content_range,
 ) -> None:
     """
     Download stuff
@@ -121,10 +122,17 @@ def download_file_parts(
     ) as executor:
         futures = []
         for part_range, download_url in zip(part_ranges, download_urls):
-            future = executor.submit(
-                download_part, download_url, part_range[0], part_range[1], queue
-            )
+            kwargs: dict[str, Any] = {
+                "download_url": download_url[0],
+                "start": part_range[0],
+                "end": part_range[1],
+                "queue": queue,
+            }
+
+            future = executor.submit(download_part_funct, **kwargs)
             futures.append(future)
+
+    print("Test")
 
 
 def calc_part_ranges(

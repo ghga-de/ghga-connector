@@ -16,11 +16,13 @@
 
 """Test file operations"""
 
-from typing import Any, Iterator, Optional, Tuple, Union
+from queue import Queue
+from typing import Any, Iterator, Tuple, Union
 
 import pytest
 
 from ghga_connector.core.file_operations import (
+    calc_part_ranges,
     download_content_range,
     download_file_parts,
 )
@@ -52,20 +54,18 @@ def test_download_content_range(
     )
     expected_bytes = big_object.content[start : end + 1]
 
-    # donwload content range with dedicated function:
-    obtained_bytes = download_content_range(
-        download_url=download_url, start=start, end=end
-    )
+    queue: Queue = Queue(maxsize=10)
 
+    # donwload content range with dedicated function:
+    download_content_range(download_url=download_url, start=start, end=end, queue=queue)
+
+    obtained_start, obtained_bytes = queue.get()
+
+    assert start == obtained_start
     assert expected_bytes == obtained_bytes
 
 
-@pytest.mark.parametrize(
-    "from_part",
-    [None, 3],
-)
 def test_download_file_parts(
-    from_part: Optional[int],
     s3_fixture: S3Fixture,  # noqa: F811
 ):
     """Test the `download_file_parts` function."""
@@ -73,11 +73,7 @@ def test_download_file_parts(
     part_size = 5 * 1024 * 1024
     big_object = get_big_s3_object(s3_fixture)
     total_file_size = len(big_object.content)
-    if from_part is not None:
-        offset = (from_part - 1) * part_size
-        expected_bytes = big_object.content[offset:total_file_size]
-    else:
-        expected_bytes = big_object.content
+    expected_bytes = big_object.content
 
     download_url = s3_fixture.storage.get_object_download_url(
         object_id=big_object.object_id, bucket_id=big_object.bucket_id
@@ -91,18 +87,21 @@ def test_download_file_parts(
 
     download_urls = url_generator()
 
+    queue: Queue = Queue(maxsize=10)
+
+    part_ranges = calc_part_ranges(part_size=part_size, total_file_size=total_file_size)
+
     # prepare kwargs:
     kwargs: dict[str, Any] = {
         "download_urls": download_urls,
-        "part_size": part_size,
-        "total_file_size": total_file_size,
+        "queue": queue,
+        "part_ranges": part_ranges,
+        "max_concurrent_downloads": 5,
     }
-    if from_part is not None:
-        kwargs["from_part"] = from_part
 
     # donwload file parts with dedicated function:
-    obtained_bytes = bytes()
-    for part in download_file_parts(**kwargs):
-        obtained_bytes += part
+    download_file_parts(**kwargs)
 
-    assert expected_bytes == obtained_bytes
+    while not queue.empty():
+        start, obtained_bytes = queue.get()
+        assert expected_bytes[start : start + part_size] == obtained_bytes

@@ -305,7 +305,7 @@ def download_parts(
     )
 
     # Write the downloaded parts to a file
-    with open(output_file, "ab") as file:
+    with open(output_file, "wb") as file:
         downloaded_size = 0
         # put envelope in file
         file.write(envelope)

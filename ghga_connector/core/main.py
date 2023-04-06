@@ -306,12 +306,12 @@ def download_parts(
 
     # Write the downloaded parts to a file
     with open(output_file, "wb") as file:
-        downloaded_size = 0
         # put envelope in file
+        downloaded_size = len(envelope)
         file.write(envelope)
         while downloaded_size < file_size:
             start, part = queue.get()
-            file.seek(start)
+            file.seek(start + len(envelope))
             file.write(part)
             downloaded_size += len(part)
             queue.task_done()

@@ -119,7 +119,9 @@ def download(  # pylint: disable=too-many-arguments
         raise core.exceptions.PubkeyMismatchError()
 
     file_stager = core.FileStager(
-        api_url=CONFIG.download_api, message_display=message_display
+        api_url=CONFIG.download_api,
+        message_display=message_display,
+        max_wait_time=CONFIG.max_wait_time,
     )
     file_stager.check_and_stage(file_ids=wps_info.file_ids_with_ending.keys())
 

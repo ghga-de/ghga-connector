@@ -158,6 +158,7 @@ def test_download(
             "ghga_connector.cli.CONFIG",
             get_test_config(download_api=api_url, wps_file_list=[file.file_id]),
         ):
+            # needed to mock user input
             with patch(
                 "ghga_connector.core.batch_processing._get_input",
                 return_value="yes" if proceed_on_missing else "no",

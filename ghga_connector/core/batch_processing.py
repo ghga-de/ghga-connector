@@ -15,6 +15,7 @@
 """Module for btach processing specific code"""
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from time import sleep
 
 from ghga_connector.core import exceptions
@@ -28,7 +29,11 @@ class FileStager:
 
     api_url: str
     message_display: AbstractMessageDisplay
+    max_wait_time: int
+    # amount of seconds between staging attempts
+    retry_after: int = field(default=120)
 
+    time_started: datetime = field(default_factory=datetime.utcnow, init=False)
     staged_files: list[str] = field(default_factory=list, init=False)
     unstaged_files: list[str] = field(default_factory=list, init=False)
 
@@ -43,7 +48,6 @@ class FileStager:
             raise exceptions.ApiNotReachableError(api_url=self.api_url)
 
         unknown_ids = []
-
         for file_id in file_ids:
             try:
                 download_information = get_download_url(
@@ -81,9 +85,18 @@ class FileStager:
                 remaining_unstaged.append(file_id)
 
         self.unstaged_files = remaining_unstaged
+
         if self.unstaged_files and not self.staged_files:
-            print(self.staged_files, self.unstaged_files)
-            sleep(120)
+            time_waited = datetime.utcnow() - self.time_started
+            if time_waited.total_seconds() >= self.max_wait_time:
+                raise exceptions.MaxWaitTimeExceededError(
+                    max_wait_time=self.max_wait_time
+                )
+            self.message_display.display(
+                f"No staged files available, retrying in {self.retry_after} seconds for "
+                + f"{len(self.unstaged_files)} unstaged file(s)."
+            )
+            sleep(self.retry_after)
 
     def _handle_unknown(self, unknown_ids: list[str]):
         """Process user interaction for unknown file IDs"""

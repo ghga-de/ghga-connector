@@ -17,8 +17,6 @@
 """ CLI-specific wrappers around core functions."""
 
 import os
-import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import crypt4gh.keys
@@ -120,76 +118,20 @@ def download(  # pylint: disable=too-many-arguments
     if announced_user_pubkey != provided_pubkey:
         raise core.exceptions.PubkeyMismatchError()
 
-    file_stager = FileStager(message_display=message_display)
+    file_stager = core.FileStager(
+        api_url=CONFIG.download_api, message_display=message_display
+    )
     file_stager.check_and_stage(file_ids=wps_info.file_ids_with_ending.keys())
 
     while any((file_stager.staged_files, file_stager.unstaged_files)):
         for file_id in file_stager.staged_files:
-            try:
-                core.download(
-                    api_url=CONFIG.download_api,
-                    file_id=file_id,
-                    output_dir=output_dir,
-                    max_wait_time=CONFIG.max_wait_time,
-                    part_size=CONFIG.part_size,
-                    message_display=message_display,
-                    pubkey_path=pubkey_path,
-                )
-            except:
-                ...
-        file_stager.update_staged_files()
-
-
-@dataclass
-class FileStager:
-    """TODO"""
-
-    message_display: CLIMessageDisplay
-
-    staged_files: list[str] = []
-    unstaged_files: list[str] = []
-
-    def check_and_stage(self, file_ids: list[str]):
-        """TODO"""
-        unknown_ids = []
-
-        for file_id in file_ids:
-            try:
-                dl_url = core.get_download_url(
-                    api_url=CONFIG.download_api, file_id=file_id
-                )
-            except core.exceptions.BadResponseCodeError as error:
-                if error.response_code == 404:
-                    unknown_ids.append(file_id)
-                continue
-
-            if dl_url[0]:
-                self.staged_files.append(file_id)
-            else:
-                self.unstaged_files.append(file_id)
-
-        if unknown_ids:
-            message = f"No download exists for the following file IDs: {' ,'.join(unknown_ids)}"
-            self.message_display.failure(message)
-            message = (
-                "Some of the provided file IDs cannot be downloaded."
-                + "\nDo you want to proceed ?\n[Yes][No]\t"
+            core.download(
+                api_url=CONFIG.download_api,
+                file_id=file_id,
+                output_dir=output_dir,
+                max_wait_time=CONFIG.max_wait_time,
+                part_size=CONFIG.part_size,
+                message_display=message_display,
+                pubkey_path=pubkey_path,
             )
-            response = input(message)
-            if not response.lower() == "yes":
-                self.message_display.display("Aborting batch process")
-                sys.exit()
-            else:
-                self.message_display.display("Downloading remaining files")
-
-    def update_staged_files(self):
-        """TODO"""
-        self.staged_files = []
-        remaining_unstaged = []
-        for file_id in self.unstaged_files:
-            dl_url = core.get_download_url(api_url=CONFIG.download_api, file_id=file_id)
-            if dl_url[0]:
-                self.staged_files.append(file_id)
-            else:
-                remaining_unstaged.append(file_id)
-        self.unstaged_files = remaining_unstaged
+        file_stager.update_staged_files()

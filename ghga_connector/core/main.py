@@ -238,13 +238,10 @@ def download(  # pylint: disable=too-many-arguments
         )
         raise error
 
-    # put envelope in file
-    with open(output_file, "wb") as file:
-        file.write(envelope)
-
     # perform the download
     try:
         download_parts(
+            envelope=envelope,
             file_id=file_id,
             api_url=api_url,
             output_file=output_file,
@@ -277,6 +274,7 @@ def download_parts(
     api_url: str,
     file_id: str,
     output_file: str,
+    envelope: bytes,
 ):
     """
     Downloads a file from the given URL using multiple threads and saves it to a file.
@@ -309,6 +307,8 @@ def download_parts(
     # Write the downloaded parts to a file
     with open(output_file, "ab") as file:
         downloaded_size = 0
+        # put envelope in file
+        file.write(envelope)
         while downloaded_size < file_size:
             start, part = queue.get()
             file.seek(start)

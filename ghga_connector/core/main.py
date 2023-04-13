@@ -188,19 +188,11 @@ def download(  # pylint: disable=too-many-arguments # noqa: C901
     message_display: AbstractMessageDisplay,
     max_wait_time: int,
     pubkey_path: Path,
-    file_suffix: str = "",
+    file_extension: str = "",
 ) -> None:
     """
     Core command to download a file. Can be called by CLI, GUI, etc.
     """
-
-    if not output_dir.is_dir():
-        message_display.failure(f"The directory {output_dir} does not exist.")
-        raise exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
-
-    if not pubkey_path.is_file():
-        message_display.failure(f"The file {pubkey_path} does not exist.")
-        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=pubkey_path)
 
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
@@ -210,8 +202,8 @@ def download(  # pylint: disable=too-many-arguments # noqa: C901
 
     # construct file name with suffix, if given
     file_name = f"{file_id}"
-    if file_suffix:
-        file_name = f"{file_id}.{file_suffix}"
+    if file_extension:
+        file_name = f"{file_id}.{file_extension}"
 
     # check output file
     output_file = output_dir / f"{file_name}.c4gh"

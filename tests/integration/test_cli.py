@@ -89,6 +89,7 @@ def test_multipart_download(
                 download_api=api_url,
                 part_size=part_size,
                 wps_file_list=[big_object.object_id],
+                wps_file_endings=[""],
             ),
         ):
             download(
@@ -110,7 +111,7 @@ def test_multipart_download(
         (True, False, "file_downloadable", exceptions.ApiNotReachableError, True),
         (False, False, "file_downloadable", None, True),
         (False, False, "file_not_downloadable", None, True),
-        (False, False, "file_not_downloadable", None, False),
+        (False, False, "file_not_downloadable", SystemExit, False),
         (False, False, "file_retry", exceptions.MaxWaitTimeExceededError, True),
         (False, True, "file_downloadable", exceptions.DirectoryDoesNotExistError, True),
         (
@@ -158,7 +159,11 @@ def test_download(
 
         with patch(
             "ghga_connector.cli.CONFIG",
-            get_test_config(download_api=api_url, wps_file_list=[file.file_id]),
+            get_test_config(
+                download_api=api_url,
+                wps_file_list=[file.file_id],
+                wps_file_endings=[""],
+            ),
         ):
             # needed to mock user input
             with patch(

@@ -265,6 +265,8 @@ def download(  # pylint: disable=too-many-arguments # noqa: C901
         raise error
 
     # rename fully downloaded file
+    if output_file.exists():
+        raise exceptions.DownloadFinalizationError(file_path=output_file)
     output_file_ongoing.rename(output_file)
 
     message_display.success(

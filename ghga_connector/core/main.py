@@ -214,8 +214,7 @@ def download(  # pylint: disable=too-many-arguments # noqa: C901
     # with_suffix() might overwrite existing suffixes, do this instead
     output_file_ongoing = output_file.parent / (output_file.name + ".part")
     if output_file_ongoing.exists():
-        message_display.failure(f"An ongoing download exists: {output_file_ongoing}")
-        raise exceptions.FileAlreadyExistsError(output_file=str(output_file_ongoing))
+        output_file_ongoing.unlink()
 
     # stage download and get file size
     download_url_tuple = await_download_url(

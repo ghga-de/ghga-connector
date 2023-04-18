@@ -24,6 +24,14 @@ import urllib3.exceptions
 from ghga_connector.core.constants import MAX_PART_NUMBER
 
 
+class AbortBatchProcessError(RuntimeError):
+    """Thrown when user selected to not proceed with batch proccesing"""
+
+    def __init__(self):
+        message = "Aborting batch process"
+        super().__init__(message)
+
+
 class DirectoryDoesNotExistError(RuntimeError):
     """Thrown, when the specified directory does not exist."""
 

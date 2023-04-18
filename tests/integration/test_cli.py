@@ -111,7 +111,13 @@ def test_multipart_download(
         (True, False, "file_downloadable", exceptions.ApiNotReachableError, True),
         (False, False, "file_downloadable", None, True),
         (False, False, "file_not_downloadable", None, True),
-        (False, False, "file_not_downloadable", SystemExit, False),
+        (
+            False,
+            False,
+            "file_not_downloadable",
+            exceptions.AbortBatchProcessError,
+            False,
+        ),
         (False, False, "file_retry", exceptions.MaxWaitTimeExceededError, True),
         (False, True, "file_downloadable", exceptions.DirectoryDoesNotExistError, True),
         (
@@ -167,7 +173,7 @@ def test_download(
         ):
             # needed to mock user input
             with patch(
-                "ghga_connector.core.batch_processing._get_input",
+                "ghga_connector.core.batch_processing.CliInputHandler.get_input",
                 return_value="yes" if proceed_on_missing else "no",
             ):
                 with pytest.raises(  # type: ignore

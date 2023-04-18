@@ -122,20 +122,28 @@ def download(  # pylint: disable=too-many-arguments
     if announced_user_pubkey != provided_pubkey:
         raise core.exceptions.PubkeyMismatchError()
 
-    file_stager = core.FileStager(
+    file_ids_with_extension = wps_info.file_ids_with_extension
+
+    io_handler = core.CliIoHandler()
+    staging_parameters = core.StagingParameters(
         api_url=CONFIG.download_api,
-        file_ids_with_extension=wps_info.file_ids_with_extension,
-        message_display=message_display,
+        file_ids_with_extension=file_ids_with_extension,
         max_wait_time=CONFIG.max_wait_time,
+    )
+
+    file_stager = core.FileStager(
+        message_display=message_display,
+        io_handler=io_handler,
+        staging_parameters=staging_parameters,
     )
     file_stager.check_and_stage(output_dir=output_dir)
 
-    while any((file_stager.staged_files, file_stager.unstaged_files)):
-        for file_id in file_stager.staged_files:
+    while file_stager.file_ids_remain():
+        for file_id in file_stager.get_staged():
             core.download(
                 api_url=CONFIG.download_api,
                 file_id=file_id,
-                file_extension=file_stager.file_ids_with_extension[file_id],
+                file_extension=file_ids_with_extension[file_id],
                 output_dir=output_dir,
                 max_wait_time=CONFIG.max_wait_time,
                 part_size=CONFIG.part_size,

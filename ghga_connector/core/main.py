@@ -203,7 +203,7 @@ def download(  # pylint: disable=too-many-arguments # noqa: C901
     # construct file name with suffix, if given
     file_name = f"{file_id}"
     if file_extension:
-        file_name = f"{file_id}.{file_extension}"
+        file_name = f"{file_id}{file_extension}"
 
     # check output file
     output_file = output_dir / f"{file_name}.c4gh"

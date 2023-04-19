@@ -91,7 +91,7 @@ class LocalOutputHandler(OutputHandler):
         # check local files with and without extension
         for file_id, file_extension in self.file_ids_with_extension.items():
             if file_extension:
-                file = location / f"{file_id}.{file_extension}.c4gh"
+                file = location / f"{file_id}{file_extension}.c4gh"
             else:
                 file = location / f"{file_id}.c4gh"
 

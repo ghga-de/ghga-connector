@@ -5,8 +5,8 @@ part_size: 16777216
 server_pubkey: dummy-pubkey
 upload_api: https://hd-dev.ghga-dev.de/ucs
 wps_file_endings:
-- zip
-- tar.gz
+- .zip
+- .tar.gz
 wps_file_list:
 - file1
 - file2

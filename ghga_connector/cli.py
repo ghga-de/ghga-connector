@@ -94,9 +94,14 @@ def download(  # pylint: disable=too-many-arguments
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into"
     ),
-    pubkey_path: Path = typer.Argument(
+    submitter_pubkey_path: Path = typer.Argument(
         "./key.pub",
-        help="The path to a public key from the key pair that will be used to encrypt the "
+        help="The path to a public key from the key pair that was announced in the "
+        + "metadata. Defaults to the file key.pub in the current folder.",
+    ),
+    submitter_private_key_path: Path = typer.Argument(
+        "./key.sec",
+        help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to the file key.pub in the current folder.",
     ),
 ):
@@ -106,9 +111,11 @@ def download(  # pylint: disable=too-many-arguments
     core.RequestsSession.configure(CONFIG.max_retries)
     message_display = CLIMessageDisplay()
 
-    if not os.path.isfile(pubkey_path):
-        message_display.failure(f"The file {pubkey_path} does not exist.")
-        raise core.exceptions.PubKeyFileDoesNotExistError(pubkey_path=pubkey_path)
+    if not os.path.isfile(submitter_pubkey_path):
+        message_display.failure(f"The file {submitter_pubkey_path} does not exist.")
+        raise core.exceptions.PubKeyFileDoesNotExistError(
+            pubkey_path=submitter_pubkey_path
+        )
 
     if not output_dir.is_dir():
         message_display.failure(f"The directory {output_dir} does not exist.")
@@ -117,7 +124,7 @@ def download(  # pylint: disable=too-many-arguments
     wps_info = core.get_wps_info(config=CONFIG)
     # get and compare user public keys
     announced_user_pubkey = wps_info.user_pubkey
-    provided_pubkey = crypt4gh.keys.get_public_key(pubkey_path)
+    provided_pubkey = crypt4gh.keys.get_public_key(submitter_pubkey_path)
 
     if announced_user_pubkey != provided_pubkey:
         raise core.exceptions.PubkeyMismatchError()
@@ -148,6 +155,7 @@ def download(  # pylint: disable=too-many-arguments
                 max_wait_time=CONFIG.max_wait_time,
                 part_size=CONFIG.part_size,
                 message_display=message_display,
-                pubkey_path=pubkey_path,
+                pubkey_path=submitter_pubkey_path,
+                private_key_path=submitter_private_key_path,
             )
         file_stager.update_staged_files()

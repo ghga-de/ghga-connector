@@ -17,13 +17,12 @@
 This sub-package contains the api calls, this service makes for various purposes
 """
 
-from download import (  # noqa: F401
+from .download import (  # noqa: F401
     await_download_url,
     get_download_url,
     get_download_urls,
     get_file_header_envelope,
 )
-
 from .upload import (  # noqa: F401
     UploadStatus,
     get_file_metadata,

@@ -22,7 +22,7 @@ import pathlib
 from contextlib import nullcontext
 from filecmp import cmp
 from pathlib import Path
-from typing import Optional
+from typing import Any, List, Optional
 from unittest.mock import patch
 
 import crypt4gh.keys
@@ -45,7 +45,7 @@ PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
 
 
-def mock_input_wps_string(_: str):
+def mock_wps_token(_: int, __: Any) -> List[str]:
     """
     Helper util to mock user input
     """
@@ -55,8 +55,8 @@ def mock_input_wps_string(_: str):
 
     pubkey = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
 
-    wps_string = id + ":" + encrypt(token, pubkey)
-    return wps_string
+    wps_token = [id, encrypt(token, pubkey)]
+    return wps_token
 
 
 @pytest.mark.parametrize(
@@ -78,7 +78,7 @@ def test_multipart_download(
     monkeypatch,
 ):
     # The download function will ask the user for input.
-    monkeypatch.setattr("builtins.input", mock_input_wps_string)
+    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
 
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
@@ -162,7 +162,7 @@ def test_download(
     """Test the download of a file"""
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("builtins.input", mock_input_wps_string)
+    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
 
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
 

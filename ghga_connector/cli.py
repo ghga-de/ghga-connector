@@ -16,7 +16,6 @@
 
 """ CLI-specific wrappers around core functions."""
 
-import os
 from pathlib import Path
 
 import crypt4gh.keys
@@ -111,7 +110,7 @@ def download(  # pylint: disable=too-many-arguments
     core.RequestsSession.configure(CONFIG.max_retries)
     message_display = CLIMessageDisplay()
 
-    if not os.path.isfile(submitter_pubkey_path):
+    if not submitter_pubkey_path.is_file():
         message_display.failure(f"The file {submitter_pubkey_path} does not exist.")
         raise core.exceptions.PubKeyFileDoesNotExistError(
             pubkey_path=submitter_pubkey_path

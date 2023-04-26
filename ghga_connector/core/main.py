@@ -19,6 +19,7 @@
 import os
 from pathlib import Path
 from queue import Queue
+from typing import List
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import (
@@ -321,7 +322,7 @@ def download_parts(
             queue.task_done()
 
 
-def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay):
+def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay) -> List[str]:
     """
     Expect the work package id and access token as a comma separated string
     The user will have to input this manually to avoid it becomming part of the

@@ -20,13 +20,13 @@ This file contains general utility api calls
 import requests
 
 
-def check_url(api_url, *, wait_time=1000) -> bool:
+def check_url(api_url, *, wait_time=1) -> bool:
     """
     Checks, if an url is reachable within a certain time
     """
     try:
         # timeout takes seconds, was ms in curl, convert accordingly
-        requests.get(url=api_url, timeout=wait_time / 1000)
+        requests.get(url=api_url, timeout=wait_time)
     except requests.exceptions.RequestException:
         return False
     return True

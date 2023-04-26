@@ -17,7 +17,7 @@
 """Constants used throught the core."""
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
-TIMEOUT = 120
+TIMEOUT = 60
 MAX_PART_NUMBER = 10000
 MAX_RETRIES = 5
 MAX_WAIT_TIME = 60 * 60

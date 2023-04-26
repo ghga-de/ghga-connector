@@ -45,7 +45,7 @@ PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
 
 
-def mock_input_wps_sting():
+def mock_input_wps_string():
     """
     Helper util to mock user input
     """
@@ -73,7 +73,11 @@ def test_multipart_download(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
+    monkeypatch,
 ):
+    # The download function will ask the user for input.
+    monkeypatch.setattr("builtins.input", mock_input_wps_string())
+
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
 
@@ -151,8 +155,12 @@ def test_download(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     proceed_on_missing: bool,
+    monkeypatch,
 ):
     """Test the download of a file"""
+
+    # The download function will ask the user for input.
+    monkeypatch.setattr("builtins.input", mock_input_wps_string())
 
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
 

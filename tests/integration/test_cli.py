@@ -53,7 +53,9 @@ def mock_input_wps_string():
     id = "1"
     token = "abcde"
 
-    wps_string = id + encrypt(token, str(PUBLIC_KEY_FILE))
+    pubkey = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
+
+    wps_string = id + encrypt(token, pubkey)
     return wps_string
 
 

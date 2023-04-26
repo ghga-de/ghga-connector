@@ -23,7 +23,7 @@ from nacl.public import PrivateKey, PublicKey, SealedBox
 __all__ = ["encrypt", "decrypt"]
 
 
-def encrypt(data: str, key: str) -> str:
+def encrypt(data: str, key: bytes) -> str:
     """
     Encrypt a str of ASCII characters with a base64 encoded Crypt4GH key.
 

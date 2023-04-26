@@ -106,7 +106,7 @@ def download(  # pylint: disable=too-many-arguments
     ),
 ):
     """
-    Command to download a file
+    Command to download files
     """
     core.RequestsSession.configure(CONFIG.max_retries)
     message_display = CLIMessageDisplay()
@@ -121,12 +121,20 @@ def download(  # pylint: disable=too-many-arguments
         message_display.failure(f"The directory {output_dir} does not exist.")
         raise core.exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
 
+    submitter_public_key = crypt4gh.keys.get_public_key(filepath=submitter_pubkey_path)
+    submitter_private_key = crypt4gh.keys.get_private_key(
+        filepath=submitter_private_key_path, callback=None
+    )
+
+    # get work package access token and id from user input, will be used in later PR
+    _, token = core.main.get_wps_token(max_tries=3, message_display=message_display)
+    _ = core.crypt.decrypt(data=token, key=submitter_private_key)
+
     wps_info = core.get_wps_info(config=CONFIG)
     # get and compare user public keys
     announced_user_pubkey = wps_info.user_pubkey
-    provided_pubkey = crypt4gh.keys.get_public_key(submitter_pubkey_path)
 
-    if announced_user_pubkey != provided_pubkey:
+    if announced_user_pubkey != submitter_public_key:
         raise core.exceptions.PubkeyMismatchError()
 
     file_ids_with_extension = wps_info.file_ids_with_extension
@@ -155,7 +163,6 @@ def download(  # pylint: disable=too-many-arguments
                 max_wait_time=CONFIG.max_wait_time,
                 part_size=CONFIG.part_size,
                 message_display=message_display,
-                pubkey_path=submitter_pubkey_path,
-                private_key_path=submitter_private_key_path,
+                submitter_public_key=submitter_public_key,
             )
         file_stager.update_staged_files()

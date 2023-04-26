@@ -20,8 +20,6 @@ import base64
 
 from nacl.public import PrivateKey, PublicKey, SealedBox
 
-__all__ = ["encrypt", "decrypt"]
-
 
 def encrypt(data: str, key: bytes) -> str:
     """
@@ -30,10 +28,10 @@ def encrypt(data: str, key: bytes) -> str:
     The result will be base64 encoded again.
     """
     sealed_box = SealedBox(PublicKey(key))
-    decoded_data = bytes(data, encoding="ascii")
+    decoded_data = bytes(data, encoding="utf-8")
     encrypted = sealed_box.encrypt(decoded_data)
 
-    return base64.b64encode(encrypted).decode("ascii")
+    return base64.b64encode(encrypted).decode("utf-8")
 
 
 def decrypt(data: str, key: bytes) -> str:
@@ -44,7 +42,7 @@ def decrypt(data: str, key: bytes) -> str:
     """
 
     unseal_box = SealedBox(PrivateKey(key))
-    decoded_data = bytes(data, encoding="ascii")
-    decrytped = unseal_box.decrypt(decoded_data)
+    encoded_data = base64.b64decode(data)
+    decrytped = unseal_box.decrypt(encoded_data)
 
-    return base64.b64encode(decrytped).decode("ascii")
+    return base64.b64encode(decrytped).decode("utf-8")

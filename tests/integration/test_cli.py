@@ -45,7 +45,7 @@ PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
 
 
-def mock_input_wps_string():
+def mock_input_wps_string(_: str):
     """
     Helper util to mock user input
     """
@@ -55,7 +55,7 @@ def mock_input_wps_string():
 
     pubkey = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
 
-    wps_string = id + encrypt(token, pubkey)
+    wps_string = id + ":" + encrypt(token, pubkey)
     return wps_string
 
 
@@ -78,7 +78,7 @@ def test_multipart_download(
     monkeypatch,
 ):
     # The download function will ask the user for input.
-    monkeypatch.setattr("builtins.input", mock_input_wps_string())
+    monkeypatch.setattr("builtins.input", mock_input_wps_string)
 
     """Test the multipart download of a file"""
     big_object = get_big_s3_object(s3_fixture, object_size=file_size)
@@ -162,7 +162,7 @@ def test_download(
     """Test the download of a file"""
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("builtins.input", mock_input_wps_string())
+    monkeypatch.setattr("builtins.input", mock_input_wps_string)
 
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
 

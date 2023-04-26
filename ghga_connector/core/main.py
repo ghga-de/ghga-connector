@@ -20,9 +20,7 @@ import os
 from pathlib import Path
 from queue import Queue
 
-import crypt4gh.keys
-
-from ghga_connector.core import crypt, exceptions
+from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import (
     UploadStatus,
     await_download_url,
@@ -187,8 +185,7 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     part_size: int,
     message_display: AbstractMessageDisplay,
     max_wait_time: int,
-    pubkey_path: Path,
-    private_key_path: Path,
+    submitter_public_key: bytes,
     file_extension: str = "",
 ) -> None:
     """
@@ -198,11 +195,6 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     if not check_url(api_url):
         message_display.failure(f"The url {api_url} is currently not reachable.")
         raise exceptions.ApiNotReachableError(api_url=api_url)
-
-    submitter_public_key = crypt4gh.keys.get_public_key(filepath=pubkey_path)
-    submitter_private_key = crypt4gh.keys.get_private_key(
-        filepath=private_key_path, callback=None
-    )
 
     # construct file name with suffix, if given
     file_name = f"{file_id}"
@@ -219,10 +211,6 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     output_file_ongoing = output_file.parent / (output_file.name + ".part")
     if output_file_ongoing.exists():
         output_file_ongoing.unlink()
-
-    # get work package access token and id from user input, will be used in later PR
-    _, token = get_wps_token(max_tries=3, message_display=message_display)
-    _ = crypt.decrypt(data=token, key=submitter_private_key)
 
     # stage download and get file size
     download_url_tuple = await_download_url(
@@ -343,7 +331,7 @@ def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay):
         work_package_string = input(
             "Paste the complete work package string you got from the UI: "
         )
-        work_package_parts = work_package_string.split(",")
+        work_package_parts = work_package_string.split(":")
         if len(work_package_parts) != 2:
             message_display.display(
                 "Invalid input. Please enter the work package string you got from the UI unaltered."

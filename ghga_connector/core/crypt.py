@@ -18,22 +18,9 @@
 
 import base64
 
-from nacl.public import PublicKey, SealedBox
+from nacl.public import PrivateKey, PublicKey, SealedBox
 
-__all__ = ["encrypt", "decrypt", "decode_key"]
-
-
-def decode_key(key: str) -> PublicKey:
-    """
-    Return the given base64 encoded public key as a PublicKey object.
-
-    Raises a ValueError if the given key is invalid.
-    """
-    try:
-        decoded_key = base64.b64decode(key)
-    except base64.binascii.Error as error:  # type: ignore
-        raise ValueError(str(error)) from error
-    return PublicKey(decoded_key)
+__all__ = ["encrypt", "decrypt"]
 
 
 def encrypt(data: str, key: str) -> str:
@@ -42,9 +29,10 @@ def encrypt(data: str, key: str) -> str:
 
     The result will be base64 encoded again.
     """
-    sealed_box = SealedBox(decode_key(key))
+    sealed_box = SealedBox(PublicKey(key))
     decoded_data = bytes(data, encoding="ascii")
     encrypted = sealed_box.encrypt(decoded_data)
+
     return base64.b64encode(encrypted).decode("ascii")
 
 
@@ -55,7 +43,7 @@ def decrypt(data: str, key: bytes) -> str:
     The result will be base64 encoded again.
     """
 
-    unseal_box = SealedBox(PublicKey(key))
+    unseal_box = SealedBox(PrivateKey(key))
     decoded_data = bytes(data, encoding="ascii")
     decrytped = unseal_box.decrypt(decoded_data)
 

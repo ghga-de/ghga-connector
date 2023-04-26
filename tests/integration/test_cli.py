@@ -32,6 +32,7 @@ from ghga_service_chassis_lib.utils import big_temp_file
 from ghga_connector.cli import download, upload
 from ghga_connector.core import exceptions
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
+from ghga_connector.core.crypt import encrypt
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
@@ -42,6 +43,18 @@ from tests.fixtures.utils import BASE_DIR
 KEY_DIR = BASE_DIR / "keypair"
 PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
+
+
+def mock_input_wps_sting():
+    """
+    Helper util to mock user input
+    """
+
+    id = "1"
+    token = "abcde"
+
+    wps_string = id + encrypt(token, str(PUBLIC_KEY_FILE))
+    return wps_string
 
 
 @pytest.mark.parametrize(
@@ -94,7 +107,8 @@ def test_multipart_download(
         ):
             download(
                 output_dir=tmp_path,
-                pubkey_path=Path(PUBLIC_KEY_FILE),
+                submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                submitter_private_key_path=Path(PRIVATE_KEY_FILE),
             )
 
         big_file_content = str.encode(fake_envelope)
@@ -181,7 +195,8 @@ def test_download(
                 ) if expected_exception else nullcontext():
                     download(
                         output_dir=output_dir,
-                        pubkey_path=Path(PUBLIC_KEY_FILE),
+                        submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                        submitter_private_key_path=Path(PRIVATE_KEY_FILE),
                     )
 
         # BadResponseCode is no longer propagated and file at path does not exist

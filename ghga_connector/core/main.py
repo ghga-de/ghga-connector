@@ -324,7 +324,7 @@ def download_parts(
 
 def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay) -> List[str]:
     """
-    Expect the work package id and access token as a comma separated string
+    Expect the work package id and access token as a colon separated string
     The user will have to input this manually to avoid it becomming part of the
     command line history.
     """

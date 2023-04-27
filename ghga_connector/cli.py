@@ -21,6 +21,7 @@ from pathlib import Path
 
 import crypt4gh.keys
 import typer
+from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
 from ghga_connector.config import Config
@@ -128,7 +129,7 @@ def download(  # pylint: disable=too-many-arguments
 
     # get work package access token and id from user input, will be used in later PR
     _, token = core.main.get_wps_token(max_tries=3, message_display=message_display)
-    _ = core.crypt.decrypt(data=token, key=submitter_private_key)
+    _ = crypt.decrypt(data=token, key=submitter_private_key)
 
     wps_info = core.get_wps_info(config=CONFIG)
     # get and compare user public keys

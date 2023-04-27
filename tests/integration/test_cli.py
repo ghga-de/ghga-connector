@@ -28,11 +28,11 @@ from unittest.mock import patch
 import crypt4gh.keys
 import pytest
 from ghga_service_chassis_lib.utils import big_temp_file
+from ghga_service_commons.utils import crypt
 
 from ghga_connector.cli import download, upload
 from ghga_connector.core import exceptions
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
-from ghga_connector.core.crypt import encrypt
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
@@ -55,7 +55,7 @@ def mock_wps_token(max_tries: int, message_display: Any) -> List[str]:
 
     pubkey = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
 
-    wps_token = [id, encrypt(token, pubkey)]
+    wps_token = [id, crypt.encrypt(token, pubkey)]
     return wps_token
 
 

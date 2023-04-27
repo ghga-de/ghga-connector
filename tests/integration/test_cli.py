@@ -45,7 +45,7 @@ PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
 
 
-def mock_wps_token(_: int, __: Any) -> List[str]:
+def mock_wps_token(max_tries: int, message_display: Any) -> List[str]:
     """
     Helper util to mock user input
     """

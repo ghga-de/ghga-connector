@@ -20,6 +20,11 @@ This file contains all api calls related to obtaining work package and work orde
 import base64
 from dataclasses import dataclass
 
+import requests
+
+from ghga_connector.core import exceptions
+from ghga_connector.core.session import RequestsSession
+
 
 @dataclass
 class WPSInfo:
@@ -29,24 +34,36 @@ class WPSInfo:
 
     file_ids_with_extension: dict[str, str]
     ghga_pubkey: bytes
-    user_id: str
-    user_pubkey: bytes
 
 
-def get_wps_info(config):
+def get_wps_info(*, work_package_id: str, token: str, config) -> WPSInfo:
     """
     Call WPS endpoint and retrieve necessary information.
     For now, mock the call and return information from config.
     """
     ghga_pubkey = base64.b64decode(config.server_pubkey)
-    user_pubkey = base64.b64decode(config.wps_user_pubkey)
 
-    file_ids_with_ending = dict(zip(config.wps_file_list, config.wps_file_endings))
+    wps_api = config.wps_api_url
+    url = wps_api + f"/work-packages/{id}"
+
+    # send authorization header as bearer token
+    headers = {"Authorization": f"Bearer {token}"}
+
+    try:
+        response = RequestsSession.get(url=url, headers=headers)
+    except requests.exceptions.RequestException as request_error:
+        raise exceptions.RequestFailedError(url=url) from request_error
+
+    status_code = response.status_code
+    if status_code != 200:
+        if status_code == 403:
+            raise exceptions.NoWorkPackageAccessError(work_package_id=work_package_id)
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
+
+    response_body = response.json()
 
     wps_info = WPSInfo(
-        file_ids_with_extension=file_ids_with_ending,
+        file_ids_with_extension=response_body.files,
         ghga_pubkey=ghga_pubkey,
-        user_id=config.wps_user_id,
-        user_pubkey=user_pubkey,
     )
     return wps_info

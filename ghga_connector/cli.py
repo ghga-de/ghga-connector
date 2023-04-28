@@ -128,15 +128,14 @@ def download(  # pylint: disable=too-many-arguments
     )
 
     # get work package access token and id from user input, will be used in later PR
-    _, token = core.main.get_wps_token(max_tries=3, message_display=message_display)
-    _ = crypt.decrypt(data=token, key=submitter_private_key)
+    work_package_id, work_package_token = core.main.get_wps_token(
+        max_tries=3, message_display=message_display
+    )
+    decrypted_token = crypt.decrypt(data=work_package_token, key=submitter_private_key)
 
-    wps_info = core.get_wps_info(config=CONFIG)
-    # get and compare user public keys
-    announced_user_pubkey = wps_info.user_pubkey
-
-    if announced_user_pubkey != submitter_public_key:
-        raise core.exceptions.PubkeyMismatchError()
+    wps_info = core.get_wps_info(
+        work_package_id=work_package_id, token=decrypted_token, config=CONFIG
+    )
 
     file_ids_with_extension = wps_info.file_ids_with_extension
 

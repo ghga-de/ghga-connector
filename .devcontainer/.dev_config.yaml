@@ -1,7 +1,4 @@
 # Please only mention the non-default settings here:
 max_retries: 2
 server_pubkey: dummy-pubkey
-wps_file_list: ["file1", "file2"]
-wps_file_endings: [".zip", ".tar.gz"]
-wps_user_id: user_1
-wps_user_pubkey: P1oBHfr9AA37Kg8WW79RKKpDZlp77KoFx+n+3sLzPBY=
+wps_api_url: 127.0.0.1

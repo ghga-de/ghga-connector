@@ -288,3 +288,14 @@ class InvalidWorkPackageToken(RuntimeError):
     def __init__(self, *, tries: int):
         message = f"Parsing of the work package string failed {tries} times."
         super().__init__(message)
+
+
+class InvalidFileEndingError(RuntimeError):
+    """Thrown when the file to be decrypted does not have a .c4gh file ending"""
+
+    def __init__(self, *, path: Path):
+        message = (
+            f"The provided input file {path} probably is not a crypt4gh encrypted file."
+            + "If you still want to try to decrypt it, please ad a .c4gh file ending."
+        )
+        super().__init__(message)

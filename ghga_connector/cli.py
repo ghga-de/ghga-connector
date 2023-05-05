@@ -91,7 +91,7 @@ def upload(  # noqa C901
 def download(  # pylint: disable=too-many-arguments
     *,
     output_dir: Path = typer.Option(
-        ..., help="The directory to put the downloaded files into"
+        ..., help="The directory to put the downloaded files into."
     ),
     submitter_pubkey_path: Path = typer.Argument(
         "./key.pub",
@@ -165,3 +165,44 @@ def download(  # pylint: disable=too-many-arguments
                 submitter_public_key=submitter_public_key,
             )
         file_stager.update_staged_files()
+
+
+@cli.command()
+def decrypt(
+    *,
+    input_file: Path = typer.Option(
+        ..., help="Path to the file that should be decrypted."
+    ),
+    output_file: Path = typer.Option(
+        None,
+        help="Optional path to a location the decrypted file should be written to.",
+    ),
+    decryption_private_key_path: Path = typer.Option(
+        ...,
+        help="Path to the private key that should be used to decrypt the file.",
+    ),
+):
+    """Command to decrypt a downloaded file"""
+
+    message_display = CLIMessageDisplay()
+
+    if not input_file.match(".c4gh$"):
+        raise core.exceptions.InvalidFileEndingError(path=input_file)
+
+    # if no alternative output path is provided, just strip the .c4gh extension for the
+    # output file
+    if not output_file:
+        output_file = input_file.with_suffix("")
+    try:
+        core.decrypt_file(
+            input_file=input_file,
+            output_file=output_file,
+            decryption_private_key_path=decryption_private_key_path,
+        )
+    except ValueError as error:
+        message_display.failure(
+            f"Could not decrypt the provided file with the given key.\nError: {str(error)}"
+        )
+    message_display.success(
+        f"Successfully decrypted file {input_file} to location {output_file}."
+    )

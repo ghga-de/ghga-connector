@@ -61,6 +61,20 @@ class Crypt4GHEncryptor:
             return outfile_path
 
 
+class Crypt4GHDecryptor:
+    """Convenience class to deal with Crypt4GH decryption"""
+
+    def __init__(self, decryption_key_path: Path):
+        self.decryption_key = crypt4gh.keys.get_private_key(
+            decryption_key_path, callback=None
+        )
+
+    def decrypt_file(self, *, input_path: Path, output_path: Path):
+        """Decrypt provided file using Crypt4GH lib"""
+        keys = [(0, self.decryption_key, None)]
+        crypt4gh.lib.decrypt(keys=keys, infile=input_path, outfile=output_path)
+
+
 def is_file_encrypted(file_path: Path):
     """Checks if a file is Crypt4GH encrypted"""
 

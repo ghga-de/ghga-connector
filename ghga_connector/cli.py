@@ -186,7 +186,7 @@ def decrypt(
 
     message_display = CLIMessageDisplay()
 
-    if not input_file.match(".c4gh$"):
+    if not input_file.suffix == ".c4gh":
         raise core.exceptions.InvalidFileEndingError(path=input_file)
 
     # if no alternative output path is provided, just strip the .c4gh extension for the

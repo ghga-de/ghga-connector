@@ -12,13 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This file contains all api calls related to obtaining work package and work order tokens
 """
-
-import base64
-from dataclasses import dataclass
 
 import requests
 
@@ -26,25 +22,15 @@ from ghga_connector.core import exceptions
 from ghga_connector.core.session import RequestsSession
 
 
-@dataclass
-class WPSInfo:
-    """
-    Container for WPS endpoint information
-    """
-
-    file_ids_with_extension: dict[str, str]
-    ghga_pubkey: bytes
-
-
-def get_wps_info(*, work_package_id: str, token: str, config) -> WPSInfo:
+def get_wps_file_info(
+    *, work_package_id: str, token: str, wps_api_url: str
+) -> dict[str, str]:
     """
     Call WPS endpoint and retrieve necessary information.
     For now, mock the call and return information from config.
     """
-    ghga_pubkey = base64.b64decode(config.server_pubkey)
 
-    wps_api = config.wps_api_url
-    url = wps_api + f"/work-packages/{id}"
+    url = f"{wps_api_url}/work-packages/{work_package_id}"
 
     # send authorization header as bearer token
     headers = {"Authorization": f"Bearer {token}"}
@@ -62,8 +48,4 @@ def get_wps_info(*, work_package_id: str, token: str, config) -> WPSInfo:
 
     response_body = response.json()
 
-    wps_info = WPSInfo(
-        file_ids_with_extension=response_body.files,
-        ghga_pubkey=ghga_pubkey,
-    )
-    return wps_info
+    return response_body.files

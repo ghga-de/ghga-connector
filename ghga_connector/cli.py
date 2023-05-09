@@ -133,11 +133,11 @@ def download(  # pylint: disable=too-many-arguments
     )
     decrypted_token = crypt.decrypt(data=work_package_token, key=submitter_private_key)
 
-    wps_info = core.get_wps_info(
-        work_package_id=work_package_id, token=decrypted_token, config=CONFIG
+    file_ids_with_extension = core.get_wps_file_info(
+        work_package_id=work_package_id,
+        token=decrypted_token,
+        wps_api_url=CONFIG.wps_api_url,
     )
-
-    file_ids_with_extension = wps_info.file_ids_with_extension
 
     io_handler = core.CliIoHandler()
     staging_parameters = core.StagingParameters(

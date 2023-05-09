@@ -58,7 +58,7 @@
     },
     "wps_api_url": {
       "title": "Wps Api Url",
-      "description": "Url where to reach the WPS API.",
+      "description": "URL to the root of the WPS API.",
       "env_names": [
         "ghga_connector_wps_api_url"
       ],

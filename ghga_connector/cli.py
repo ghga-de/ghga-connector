@@ -238,7 +238,7 @@ def decrypt(  # noqa: C901
             "The following files were skipped as they are not .c4gh files"
         )
         for file in skipped_files:
-            message_display.display(file)
+            message_display.display(f"- {file}")
 
     if errors:
         message_display.failure("The following files could not be decrypted:")

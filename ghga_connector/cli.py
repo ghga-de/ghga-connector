@@ -169,11 +169,12 @@ def download(  # pylint: disable=too-many-arguments
 
 
 @cli.command()
-def decrypt(
+def decrypt(  # noqa: C901
     *,
-    input_files: list[Path] = typer.Option(
+    input_dir: Path = typer.Option(
         ...,
-        help="Paths to the files that should be decrypted using a common decryption key.",
+        help="Path to the directory containing files that should be decrypted using a "
+        + "common decryption key.",
     ),
     output_dir: Path = typer.Option(
         None,
@@ -189,14 +190,19 @@ def decrypt(
 
     message_display = CLIMessageDisplay()
 
+    if not input_dir.is_dir():
+        message_display.failure(
+            f"Input directory {input_dir} does not exist or is not a directory."
+        )
+
     if not output_dir:
         output_dir = Path(os.getcwd())
 
     errors = {}
-    for input_file in input_files:
-        if not input_file.suffix == ".c4gh":
-            error = core.exceptions.InvalidFileEndingError(path=input_file)
-            errors[str(input_file)] = str(error)
+    skipped_files = []
+    for input_file in input_dir.iterdir():
+        if not input_file.is_file() or not input_file.suffix == ".c4gh":
+            skipped_files.append((str(input_file)))
             continue
 
         # strip the .c4gh extension for the output file
@@ -223,6 +229,13 @@ def decrypt(
         message_display.success(
             f"Successfully decrypted file {input_file} to location {output_dir}."
         )
+
+    if skipped_files:
+        message_display.display(
+            "The following files were skipped as they are not .c4gh files"
+        )
+        for file in skipped_files:
+            message_display.display(file)
 
     if errors:
         message_display.failure("The following files could not be decrypted:")

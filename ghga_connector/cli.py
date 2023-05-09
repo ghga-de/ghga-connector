@@ -197,8 +197,9 @@ def decrypt(  # noqa: C901
 
     if not output_dir:
         output_dir = Path(os.getcwd())
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True)
+
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
 
     errors = {}
     skipped_files = []

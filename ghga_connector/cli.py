@@ -198,6 +198,11 @@ def decrypt(  # noqa: C901
     if not output_dir:
         output_dir = Path(os.getcwd())
 
+    if output_dir.exists() and not output_dir.is_dir():
+        message_display.failure(
+            f"Output directory location {input_dir} exists, but is not a directory."
+        )
+
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 

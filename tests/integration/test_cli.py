@@ -189,11 +189,7 @@ def test_download(
 
         with patch(
             "ghga_connector.cli.CONFIG",
-            get_test_config(
-                download_api=api_url,
-                wps_file_list=[file.file_id],
-                wps_file_endings=[""],
-            ),
+            get_test_config(download_api=api_url),
         ):
             # needed to mock user input
             with patch(

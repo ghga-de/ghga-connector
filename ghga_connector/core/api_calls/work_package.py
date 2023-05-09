@@ -48,4 +48,4 @@ def get_wps_file_info(
 
     response_body = response.json()
 
-    return response_body.files
+    return response_body["files"]

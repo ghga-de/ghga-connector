@@ -243,4 +243,4 @@ def decrypt(  # noqa: C901
     if errors:
         message_display.failure("The following files could not be decrypted:")
         for input_path, cause in errors.items():
-            message_display.failure(f"{input_path}:\n\t{cause}")
+            message_display.failure(f"- {input_path}:\n\t{cause}")

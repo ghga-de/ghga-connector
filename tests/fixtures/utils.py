@@ -15,6 +15,28 @@
 
 """Utils for Fixture handling"""
 
+
 from pathlib import Path
+from typing import Any
+
+import crypt4gh.keys
+from ghga_service_commons.utils import crypt
 
 BASE_DIR = Path(__file__).parent.resolve()
+KEY_DIR = BASE_DIR / "keypair"
+PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
+PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
+
+
+def mock_wps_token(max_tries: int, message_display: Any) -> list[str]:
+    """
+    Helper to mock user input
+    """
+
+    work_package_id = "wp_1"
+    token = "abcde"
+
+    private_key = crypt4gh.keys.get_public_key(PRIVATE_KEY_FILE)
+
+    wps_token = [work_package_id, crypt.encrypt(token, private_key)]
+    return wps_token

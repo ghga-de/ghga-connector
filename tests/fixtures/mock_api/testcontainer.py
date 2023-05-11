@@ -49,7 +49,7 @@ class MockAPIContainer(DockerContainer):
             port (int, optional):
                 The port to reach the FastAPI. Defaults to 8000.
         """
-        super(MockAPIContainer, self).__init__(image=image)
+        super().__init__(image=image)
 
         self._port = port
 

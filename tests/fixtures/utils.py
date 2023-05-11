@@ -36,7 +36,7 @@ def mock_wps_token(max_tries: int, message_display: Any) -> list[str]:
     work_package_id = "wp_1"
     token = "abcde"
 
-    private_key = crypt4gh.keys.get_public_key(PRIVATE_KEY_FILE)
+    public_key = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
 
-    wps_token = [work_package_id, crypt.encrypt(token, private_key)]
+    wps_token = [work_package_id, crypt.encrypt(token, public_key)]
     return wps_token

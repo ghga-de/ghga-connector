@@ -31,6 +31,7 @@ class WorkPackageAccessor:
 
     access_token: str
     api_url: str
+    dcs_api_url: str
     package_id: str
     submitter_private_key: str
 
@@ -55,7 +56,7 @@ class WorkPackageAccessor:
                 raise exceptions.NoWorkPackageAccessError(
                     work_package_id=self.package_id
                 )
-            raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
+            raise exceptions.InvalidWPSResponseError(url=url, response_code=status_code)
 
         response_body = response.json()
 
@@ -82,7 +83,7 @@ class WorkPackageAccessor:
                 raise exceptions.NoWorkPackageAccessError(
                     work_package_id=self.package_id
                 )
-            raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
+            raise exceptions.InvalidWPSResponseError(url=url, response_code=status_code)
 
         encrypted_token = response.json()
         return decrypt(data=encrypted_token, key=self.submitter_private_key)

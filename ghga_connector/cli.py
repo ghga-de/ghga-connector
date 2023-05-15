@@ -136,10 +136,10 @@ def download(  # pylint: disable=too-many-arguments
     work_package_accessor = core.WorkPackageAccessor(
         access_token=decrypted_token,
         api_url=CONFIG.wps_api_url,
+        dcs_api_url=CONFIG.download_api,
         package_id=work_package_id,
         submitter_private_key=submitter_private_key,
     )
-
     file_ids_with_extension = work_package_accessor.get_package_files()
 
     io_handler = core.CliIoHandler()

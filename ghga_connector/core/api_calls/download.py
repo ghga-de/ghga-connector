@@ -38,7 +38,7 @@ NO_FILE_SIZE = None
 NO_RETRY_TIME = None
 
 
-def get_download_url(
+def get_download_url(  # noqa: C901
     *, file_id: str, work_package_accessor: WorkPackageAccessor
 ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
     """
@@ -57,7 +57,7 @@ def get_download_url(
     decrypted_token = work_package_accessor.get_work_order_token(file_id=file_id)
 
     # build url and headers
-    url = f"{work_package_accessor.api_url}/objects/{file_id}"
+    url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}"
     headers = CaseInsensitiveDict(
         {
             "Accept": "application/json",
@@ -76,8 +76,13 @@ def get_download_url(
     status_code = response.status_code
     if status_code != 200:
         if status_code == 403:
-            # TODO
-            ...
+            content = response.json()
+            # handle both normal and httpyexpect 403 response
+            if "data" in content:
+                cause = content["data"]
+            else:
+                cause = content["detail"]
+            raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
         if status_code != 202:
             raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
@@ -177,7 +182,7 @@ def get_file_header_envelope(
     public_key_encoded = encode_key(public_key)
 
     # build url and headers
-    url = f"{work_package_accessor.api_url}/objects/{file_id}/envelopes/{public_key_encoded}"
+    url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}/envelopes/{public_key_encoded}"
 
     headers = CaseInsensitiveDict(
         {
@@ -200,8 +205,13 @@ def get_file_header_envelope(
 
     # For now unauthorized responses are not handled by httpyexpect
     if status_code == 403:
-        # TODO
-        ...
+        content = response.json()
+        # handle both normal and httpyexpect 403 response
+        if "data" in content:
+            cause = content["data"]
+        else:
+            cause = content["detail"]
+        raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
 
     spec = {
         404: {

@@ -172,7 +172,7 @@ async def httpy_exception_handler(request: Request, exc: HttpException):
     )
 
 
-@app.get("/ready", summary="readyness_probe")
+@app.get("/ready", summary="readiness_probe")
 async def ready():
     """
     Readyness probe.

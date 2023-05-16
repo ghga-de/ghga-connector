@@ -78,8 +78,8 @@ def get_download_url(  # noqa: C901
         if status_code == 403:
             content = response.json()
             # handle both normal and httpyexpect 403 response
-            if "data" in content:
-                cause = content["data"]
+            if "description" in content:
+                cause = content["description"]
             else:
                 cause = content["detail"]
             raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
@@ -207,8 +207,8 @@ def get_file_header_envelope(
     if status_code == 403:
         content = response.json()
         # handle both normal and httpyexpect 403 response
-        if "data" in content:
-            cause = content["data"]
+        if "description" in content:
+            cause = content["description"]
         else:
             cause = content["detail"]
         raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)

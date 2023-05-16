@@ -181,10 +181,25 @@ async def ready():
 
 
 @app.get("/objects/{file_id}", summary="drs3_mock")
-async def drs3_objects(file_id: str):
+async def drs3_objects(file_id: str, authorization=Header()):
     """
     Mock for the drs3 /objects/{file_id} call
     """
+
+    # simulate token authorization error
+    if authorization == "Bearer authfail_normal":
+        raise HTTPException(
+            status_code=403, detail="This is not the token you're looking for."
+        )
+
+    # simulate token file_id/object_id mismatch
+    if authorization == "Bearer file_id_mismatch":
+        raise HttpyException(
+            status_code=403,
+            exception_id="wrongFileAuthorizationError",
+            description="Endpoint file ID did not match file ID announced in work order token.",
+            data={},
+        )
 
     if file_id == "retry":
         return Response(
@@ -213,7 +228,7 @@ async def drs3_objects(file_id: str):
 
 
 @app.get("/objects/{file_id}/envelopes/{public_key}", summary="drs3_envelope_mock")
-async def drs3_objects_envelopes(file_id: str, public_key: str):
+async def drs3_objects_envelopes(file_id: str, public_key: str, authorization=Header()):
     """
     Mock for the dcs /objects/{file_id}/envelopes/{public_key} call
     """

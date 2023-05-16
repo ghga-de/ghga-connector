@@ -67,7 +67,7 @@ class WorkPackageAccessor:
         Call WPS endpoint to retrieve and decrypt work order token.
         """
 
-        url = f"{self.api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-token"
+        url = f"{self.api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-tokens"
 
         # send authorization header as bearer token
         headers = {"Authorization": f"Bearer {self.access_token}"}
@@ -85,5 +85,10 @@ class WorkPackageAccessor:
                 )
             raise exceptions.InvalidWPSResponseError(url=url, response_code=status_code)
 
-        encrypted_token = response.json()
-        return decrypt(data=encrypted_token, key=self.submitter_private_key)
+        encrypted_token = response.content
+        return _decrypt(data=encrypted_token, key=self.submitter_private_key)
+
+
+def _decrypt(*, data: str, key: str):
+    """Factored out decryption so this can be mocked."""
+    return decrypt(data=data, key=key)

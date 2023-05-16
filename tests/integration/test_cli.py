@@ -67,6 +67,10 @@ def test_multipart_download(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([big_object.object_id], [""]))),
     )
+    monkeypatch.setattr(
+        "ghga_connector.core.api_calls.work_package._decrypt",
+        lambda data, key: data,
+    )
 
     # right now the desired file size is only
     # approximately met by the provided big file:
@@ -153,6 +157,10 @@ def test_download(
     monkeypatch.setattr(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([file.file_id], [""]))),
+    )
+    monkeypatch.setattr(
+        "ghga_connector.core.api_calls.work_package._decrypt",
+        lambda data, key: data,
     )
 
     if file.populate_storage:

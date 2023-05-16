@@ -33,8 +33,8 @@ from ghga_connector.core.api_calls import (
     patch_multipart_upload,
 )
 from ghga_connector.core.exceptions import (
-    BadResponseCodeError,
     CantChangeUploadStatusError,
+    InvalidWPSResponseError,
     MaxPartNoExceededError,
     MaxRetriesReachedError,
     NoWorkPackageAccessError,
@@ -177,7 +177,7 @@ def test_get_wps_file_info():
         wp_id, wp_token = mock_wps_token(1, None)
         work_package_accessor = WorkPackageAccessor(
             access_token=wp_token,
-            api_url="http://127.0.0.1/work-packages/wp_1",
+            api_url="http://127.0.0.1",
             dcs_api_url="",
             package_id=wp_id,
             submitter_private_key="",
@@ -195,7 +195,7 @@ def test_get_wps_file_info():
             wp_id, wp_token = mock_wps_token(1, None)
             work_package_accessor = WorkPackageAccessor(
                 access_token=wp_token,
-                api_url="http://127.0.0.1/work-packages/wp_1",
+                api_url="http://127.0.0.1",
                 dcs_api_url="",
                 package_id=wp_id,
                 submitter_private_key="",
@@ -208,11 +208,11 @@ def test_get_wps_file_info():
         "ghga_connector.core.session.RequestsSession.session",
         MockSession(response=patched_response),
     ):
-        with pytest.raises(BadResponseCodeError):
+        with pytest.raises(InvalidWPSResponseError):
             wp_id, wp_token = mock_wps_token(1, None)
             work_package_accessor = WorkPackageAccessor(
                 access_token=wp_token,
-                api_url="http://127.0.0.1/work-packages/wp_1",
+                api_url="http://127.0.0.1",
                 dcs_api_url="",
                 package_id=wp_id,
                 submitter_private_key="",

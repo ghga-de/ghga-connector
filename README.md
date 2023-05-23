@@ -11,7 +11,7 @@ GHGA Connector - A CLI client application for interacting with the GHGA system.
 <!-- Please provide a short overview of the features of this service.-->
 
 The GHGA Connector is a command line client facilitating interaction with the file storage infrastructure of GHGA.
-To this end, it provides commands for the up- and download of files that interact with the Upload Controller Service (https://github.com/ghga-de/upload-controller-service) and Download Controller Service (https://github.com/ghga-de/download-controller-service), respectively.
+To this end, it provides commands for the up- and download of files that interact with the RESTful APIs exposed by the Upload Controller Service (https://github.com/ghga-de/upload-controller-service) and Download Controller Service (https://github.com/ghga-de/download-controller-service), respectively.
 
 When uploading, the Connector expects an unencrypted file that is subsequently encrypted according to the Crypt4GH standard (https://www.ga4gh.org/news_item/crypt4gh-a-secure-method-for-sharing-human-genetic-data/) and only afterwards uploaded to the GHGA storage infrastructure.
 

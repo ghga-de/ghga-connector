@@ -18,7 +18,7 @@
 from dataclasses import dataclass
 from typing import AsyncGenerator, List
 
-import pytest
+import pytest_asyncio
 from ghga_service_commons.utils.temp_files import big_temp_file
 from hexkit.providers.s3 import S3Config, S3ObjectStorage
 from hexkit.providers.s3.testutils import (
@@ -115,8 +115,8 @@ async def populate_storage(
         )
 
 
-@pytest.fixture
-async def s3_fixture() -> S3Fixture:
+@pytest_asyncio.fixture
+async def s3_fixture() -> AsyncGenerator[S3Fixture, None]:
     """Pytest fixture for tests depending on the ObjectStorageS3 DAO."""
     with LocalStackContainer(image="localstack/localstack:0.14.2").with_services(
         "s3"
@@ -151,7 +151,7 @@ class BigObjectS3Fixture(S3Fixture):
 
 
 async def get_big_s3_object(
-    s3_fixture: S3Fixture, object_size: int = 20 * 1024 * 1024
+    s3: S3Fixture, object_size: int = 20 * 1024 * 1024
 ) -> FileObject:
     """
     Extends the s3_fixture to also include a big file with the specified `file_size` on
@@ -160,15 +160,15 @@ async def get_big_s3_object(
     with big_temp_file(object_size) as big_file:
         object_fixture = FileObject(
             file_path=big_file.name,
-            bucket_id=s3_fixture.existing_buckets[0],
+            bucket_id=s3.existing_buckets[0],
             object_id="big-downloadable",
         )
 
         # upload file to s3
-        assert not await s3_fixture.storage.does_object_exist(
+        assert not await s3.storage.does_object_exist(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id
         )
-        presigned_url = await s3_fixture.storage.get_object_upload_url(
+        presigned_url = await s3.storage.get_object_upload_url(
             bucket_id=object_fixture.bucket_id,
             object_id=object_fixture.object_id,
         )

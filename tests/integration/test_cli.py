@@ -60,9 +60,6 @@ async def test_multipart_download(
     monkeypatch,
 ):
     """Test the multipart download of a file"""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
     # The download function will ask the user for input.
@@ -153,9 +150,6 @@ async def test_download(
     monkeypatch,
 ):
     """Test the download of a file"""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
 
     file = state.FILES[file_name]
@@ -272,9 +266,6 @@ async def test_upload(
     s3_fixture: S3Fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     uploadable_file = state.FILES[file_name]
 
     if file_name == "encrypted_file":
@@ -348,9 +339,6 @@ async def test_multipart_upload(
     s3_fixture: S3Fixture,  # noqa F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     bucket_id = s3_fixture.existing_buckets[0]
     file_id = "uploadable-" + str(anticipated_part_size)
 

@@ -48,9 +48,6 @@ async def test_download_content_range(
     s3_fixture: S3Fixture,  # noqa: F811
 ):
     """Test the `download_content_range` function."""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     # prepare state and the expected result:
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
     download_url = await s3_fixture.storage.get_object_download_url(
@@ -79,9 +76,6 @@ async def test_download_file_parts(
     s3_fixture: S3Fixture,  # noqa: F811
 ):
     """Test the `download_file_parts` function."""
-    # workaround for now
-    s3_fixture = await s3_fixture.__anext__()
-
     # prepare state and the expected result:
     big_object = await get_big_s3_object(s3_fixture)
     total_file_size = len(big_object.content)

@@ -46,6 +46,7 @@ jobs:
 
       - name: Run pytest on freshly installed package
         run: |
+          export GHGA_CONNECTOR_CONFIG_YAML=./.devcontainer/.dev_config.yaml
           pytest .
 
       - name: Publish distribution package to PyPI (test)

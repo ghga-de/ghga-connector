@@ -29,4 +29,4 @@ from .constants import (  # noqa: F401
 )
 from .main import decrypt_file, download, upload  # noqa: F401
 from .message_display import AbstractMessageDisplay, MessageColors  # noqa: F401
-from .session import RequestsSession  # noqa: F401
+from .session import HttpxClient  # noqa: F401

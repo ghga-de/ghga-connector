@@ -14,50 +14,42 @@
 # limitations under the License.
 """Handling seesion initialization for requests"""
 
-import requests
-from requests.adapters import HTTPAdapter, Retry
+import httpx
 
 
-class RequestsSession:
+class HttpxClient:
     """Helper clas to make max_retries user configurable"""
 
-    session: requests.Session
+    client: httpx.Client
 
     @classmethod
     def configure(cls, max_retries: int):
         """Configure session with exponential backoff retry"""
-        with requests.session() as session:
-            # can't be negative - should we log this?
-            max_retries = max(0, max_retries)
 
-            retries = Retry(
-                total=max_retries,
-                backoff_factor=2,
-                status_forcelist=[500, 502, 503, 504],
-            )
-            adapter = HTTPAdapter(max_retries=retries)
+        # can't be negative - should we log this?
+        max_retries = max(0, max_retries)
 
-            session.mount("http://", adapter=adapter)
-            session.mount("https://", adapter=adapter)
+        transport = httpx.HTTPTransport(retries=max_retries)
 
-            cls.session = session
+        with httpx.Client(transport=transport) as client:
+            cls.client = client
 
     @classmethod
     def get(cls, *args, **kwargs):
         """Delegate to session method"""
-        return cls.session.get(*args, **kwargs)
+        return cls.client.get(*args, **kwargs)
 
     @classmethod
     def patch(cls, *args, **kwargs):
         """Delegate to session method"""
-        return cls.session.patch(*args, **kwargs)
+        return cls.client.patch(*args, **kwargs)
 
     @classmethod
     def post(cls, *args, **kwargs):
         """Delegate to session method"""
-        return cls.session.post(*args, **kwargs)
+        return cls.client.post(*args, **kwargs)
 
     @classmethod
     def put(cls, *args, **kwargs):
         """Delegate to session method"""
-        return cls.session.put(*args, **kwargs)
+        return cls.client.put(*args, **kwargs)

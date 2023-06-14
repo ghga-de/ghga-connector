@@ -30,7 +30,7 @@ from ghga_connector.core.api_calls.work_package import WorkPackageAccessor
 from ghga_connector.core.constants import TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.session import RequestsSession
+from ghga_connector.core.session import HttpxClient
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None
@@ -68,7 +68,7 @@ def get_download_url(  # noqa: C901
 
     # Make function call to get download url
     try:
-        response = RequestsSession.get(url=url, headers=headers, timeout=TIMEOUT)
+        response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
@@ -194,7 +194,7 @@ def get_file_header_envelope(
 
     # Make function call to get download url
     try:
-        response = RequestsSession.get(url=url, headers=headers, timeout=TIMEOUT)
+        response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
     except requests.exceptions.RequestException as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 

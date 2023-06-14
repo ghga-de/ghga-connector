@@ -22,7 +22,7 @@ import requests
 from ghga_service_commons.utils.crypt import decrypt
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.session import RequestsSession
+from ghga_connector.core.session import HttpxClient
 
 
 @dataclass
@@ -46,7 +46,7 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = RequestsSession.get(url=url, headers=headers)
+            response = HttpxClient.get(url=url, headers=headers)
         except requests.exceptions.RequestException as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -73,7 +73,7 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = RequestsSession.post(url=url, headers=headers)
+            response = HttpxClient.post(url=url, headers=headers)
         except requests.exceptions.RequestException as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 

@@ -9,35 +9,18 @@ jobs:
     name: Publish tagged release on PyPI
     runs-on: ubuntu-latest
     steps:
-      - name: install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install --fix-missing libcurl4-openssl-dev libssl-dev
-
       - uses: actions/checkout@v3
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v4
         with:
-          python-version: 3.9
-
-      - name: Verify Package Version vs Tag Version
-        run: |
-          PKG_VER="$(python setup.py -V)"
-          TAG_VER="${GITHUB_REF##*/}"
-          echo "Package version is $PKG_VER" >&2
-          echo "Tag version is $TAG_VER" >&2
-          if [ "$PKG_VER" != "$TAG_VER" ]; then
-            echo "Package version and tag name mismatch." >&2
-            exit 1
-          fi
+          python-version: "3.9"
 
       - name: Install pypa/build
         run: >-
           python -m
           pip install
           build
-          typing-extensions=="4.3.0"
           --user
 
       - name: Build a binary wheel and a source tarball
@@ -52,7 +35,7 @@ jobs:
       - name: Install the newly build package with all extras
         run: |
           TAR_PATH="$( realpath ./dist/*.tar.gz)"
-          python3 -m \
+          python -m \
             pip install \
             "${TAR_PATH}[all]"
 
@@ -60,10 +43,11 @@ jobs:
         run: >-
           python -m
           pip install
-          --upgrade -r requirements-dev.txt
+          -r requirements-dev.txt
 
-      - name: Run pytest on freshly install package
+      - name: Run pytest on freshly installed package
         run: |
+          export GHGA_CONNECTOR_CONFIG_YAML=./.devcontainer/.dev_config.yaml
           pytest .
 
       - name: Publish distribution package to PyPI (test)

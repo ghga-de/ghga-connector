@@ -18,7 +18,7 @@
 
 from pathlib import Path
 
-import requests
+import httpx
 import urllib3.exceptions
 
 from ghga_connector.core.constants import MAX_PART_NUMBER
@@ -252,11 +252,11 @@ class MaxPartNoExceededError(RuntimeError):
         super().__init__(message)
 
 
-def raise_if_max_retries(request_error: requests.exceptions.RequestException, url: str):
+def raise_if_max_retries(request_error: httpx.RequestError, url: str):
     """
     Check if request exception is caused by hitting max retries and raise accordingly
     """
-    if isinstance(request_error, requests.exceptions.ConnectionError):
+    if isinstance(request_error, httpx.ConnectError):
         if request_error.args and isinstance(
             request_error.args[0], urllib3.exceptions.MaxRetryError
         ):

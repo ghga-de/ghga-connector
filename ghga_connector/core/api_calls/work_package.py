@@ -18,7 +18,7 @@ This file contains all api calls related to obtaining work package and work orde
 
 from dataclasses import dataclass
 
-import requests
+import httpx
 from ghga_service_commons.utils.crypt import decrypt
 
 from ghga_connector.core import exceptions
@@ -47,7 +47,7 @@ class WorkPackageAccessor:
 
         try:
             response = HttpxClient.get(url=url, headers=headers)
-        except requests.exceptions.RequestException as request_error:
+        except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
         status_code = response.status_code
@@ -74,7 +74,7 @@ class WorkPackageAccessor:
 
         try:
             response = HttpxClient.post(url=url, headers=headers)
-        except requests.exceptions.RequestException as request_error:
+        except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
         status_code = response.status_code

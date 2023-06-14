@@ -21,7 +21,7 @@ import base64
 from time import sleep
 from typing import Iterator, Tuple, Union
 
-import requests
+import httpx
 from ghga_service_commons.utils.crypt import encode_key
 from requests.structures import CaseInsensitiveDict
 
@@ -69,7 +69,7 @@ def get_download_url(  # noqa: C901
     # Make function call to get download url
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -195,7 +195,7 @@ def get_file_header_envelope(
     # Make function call to get download url
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code

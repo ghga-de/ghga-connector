@@ -22,9 +22,8 @@ from contextlib import nullcontext
 from typing import Any, Mapping, Optional, Union
 from unittest.mock import Mock, patch
 
+import httpx
 import pytest
-import requests
-from requests.models import Response
 
 from ghga_connector.core.api_calls import (
     UploadStatus,
@@ -140,7 +139,7 @@ class MockResponse:
         return json.loads(self.content)
 
 
-class MockSession(requests.Session):
+class MockSession(httpx.Client):
     """Session object mocking specific calls with provided response"""
 
     def __init__(self, response: MockResponse):
@@ -157,7 +156,7 @@ class MockSession(requests.Session):
         timeout: Union[  # pylint: disable=unused-argument
             Union[float, tuple[float, float], tuple[float, None]], None
         ] = 5,
-    ) -> Response:
+    ) -> httpx.Response:
         if re.match(".+/work-packages/.+", url):
             return self.response
         raise ValueError("Unsupported")
@@ -171,7 +170,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content={"files": files}, status_code=200)
 
     with patch(
-        "ghga_connector.core.session.RequestsSession.session",
+        "ghga_connector.core.session.HttpxClient.client",
         MockSession(response=patched_response),
     ):
         wp_id, wp_token = mock_wps_token(1, None)
@@ -188,7 +187,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content={"files": files}, status_code=403)
 
     with patch(
-        "ghga_connector.core.session.RequestsSession.session",
+        "ghga_connector.core.session.HttpxClient.client",
         MockSession(response=patched_response),
     ):
         with pytest.raises(NoWorkPackageAccessError):
@@ -205,7 +204,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content=None, status_code=500)
 
     with patch(
-        "ghga_connector.core.session.RequestsSession.session",
+        "ghga_connector.core.session.HttpxClient.client",
         MockSession(response=patched_response),
     ):
         with pytest.raises(InvalidWPSResponseError):

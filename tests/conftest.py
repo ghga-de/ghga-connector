@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Configuration for the global RequestsSession"""
+"""Configuration for the global HttpxClient"""
 
 import pytest
 
@@ -21,5 +21,5 @@ from ghga_connector.core import MAX_RETRIES, HttpxClient
 
 @pytest.fixture(autouse=True)
 def default_session_configuration():
-    """Configure requests session with default number of max_retries"""
+    """Configure httpx Client with default number of max_retries"""
     HttpxClient.configure(max_retries=MAX_RETRIES)

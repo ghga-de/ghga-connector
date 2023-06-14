@@ -21,7 +21,7 @@ provided exception specs for all API endpoints
 
 from typing import Dict
 
-import requests
+import httpx
 from httpyexpect.client import ExceptionMapping, ResponseTranslator
 
 
@@ -31,7 +31,7 @@ class ResponseExceptionTranslator:
     def __init__(self, *, spec: Dict[int, object]) -> None:
         self._exception_map = ExceptionMapping(spec)
 
-    def handle(self, response: requests.Response):
+    def handle(self, response: httpx.Response):
         """Translate and raise error, if defined by spec"""
         translator = ResponseTranslator(response, exception_map=self._exception_map)
         translator.raise_for_error()

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Dict, Iterator, Tuple
 
 import crypt4gh.keys
-import requests
+import httpx
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.client import HttpxClient
@@ -74,7 +74,7 @@ def initiate_multipart_upload(
         response = HttpxClient.post(
             url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
         )
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -115,7 +115,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     # Make function call to get upload url
     try:
         response = HttpxClient.post(url=url, headers=headers, timeout=TIMEOUT)
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -188,7 +188,7 @@ def patch_multipart_upload(
         response = HttpxClient.patch(
             url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
         )
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -233,7 +233,7 @@ def get_upload_info(
 
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -268,7 +268,7 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
 
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
-    except requests.exceptions.RequestException as request_error:
+    except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 

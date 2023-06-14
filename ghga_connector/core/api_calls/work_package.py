@@ -22,7 +22,7 @@ import requests
 from ghga_service_commons.utils.crypt import decrypt
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.session import HttpxClient
+from ghga_connector.core.client import HttpxClient
 
 
 @dataclass

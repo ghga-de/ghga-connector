@@ -27,9 +27,9 @@ import crypt4gh.keys
 import requests
 
 from ghga_connector.core import exceptions
+from ghga_connector.core.client import HttpxClient
 from ghga_connector.core.constants import MAX_PART_NUMBER, TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
-from ghga_connector.core.session import HttpxClient
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None

@@ -27,10 +27,10 @@ from requests.structures import CaseInsensitiveDict
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls.work_package import WorkPackageAccessor
+from ghga_connector.core.client import HttpxClient
 from ghga_connector.core.constants import TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.session import HttpxClient
 
 # Constants for clarity of return values
 NO_DOWNLOAD_URL = None

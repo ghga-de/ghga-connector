@@ -135,7 +135,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
             part_size=part_size,
             file_path=Path(encrypted_file_path),
         )
-    except exceptions.MaxRetriesReachedError as error:
+    except exceptions.ConnectionFailedError as error:
         message_display.failure(
             "The upload has failed too many times. The upload was aborted."
         )
@@ -251,7 +251,7 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
             file_size=download_url_tuple[1],
             work_package_accessor=work_package_accessor,
         )
-    except exceptions.MaxRetriesReachedError as error:
+    except exceptions.ConnectionFailedError as error:
         # Remove file, if the download failed.
         output_file_ongoing.unlink()
         raise error

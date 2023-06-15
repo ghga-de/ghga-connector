@@ -75,7 +75,7 @@ def initiate_multipart_upload(
             url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
         )
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
@@ -116,7 +116,7 @@ def get_part_upload_url(*, api_url: str, upload_id: str, part_no: int):
     try:
         response = HttpxClient.post(url=url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
@@ -189,7 +189,7 @@ def patch_multipart_upload(
             url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
         )
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
@@ -234,7 +234,7 @@ def get_upload_info(
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code
@@ -269,7 +269,7 @@ def get_file_metadata(*, api_url: str, file_id: str) -> Dict:
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code

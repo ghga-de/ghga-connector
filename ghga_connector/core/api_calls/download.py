@@ -70,7 +70,7 @@ def get_download_url(  # noqa: C901
     try:
         response = HttpxClient.get(url=url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
-        exceptions.raise_if_max_retries(request_error=request_error, url=url)
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
     status_code = response.status_code

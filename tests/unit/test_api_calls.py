@@ -33,9 +33,9 @@ from ghga_connector.core.api_calls import (
 )
 from ghga_connector.core.exceptions import (
     CantChangeUploadStatusError,
+    ConnectionFailedError,
     InvalidWPSResponseError,
     MaxPartNoExceededError,
-    MaxRetriesReachedError,
     NoWorkPackageAccessError,
     UploadNotRegisteredError,
 )
@@ -51,7 +51,7 @@ from tests.fixtures.utils import mock_wps_token
         (False, "pending", UploadStatus.CANCELLED, CantChangeUploadStatusError),
         (False, "uploadable", UploadStatus.UPLOADED, CantChangeUploadStatusError),
         (False, "not_uploadable", UploadStatus.UPLOADED, UploadNotRegisteredError),
-        (True, "uploaded", UploadStatus.UPLOADED, MaxRetriesReachedError),
+        (True, "uploaded", UploadStatus.UPLOADED, ConnectionFailedError),
     ],
 )
 def test_patch_multipart_upload(

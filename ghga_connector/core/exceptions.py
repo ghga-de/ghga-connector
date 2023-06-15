@@ -19,7 +19,6 @@
 from pathlib import Path
 
 import httpx
-import urllib3.exceptions
 
 from ghga_connector.core.constants import MAX_PART_NUMBER
 
@@ -232,11 +231,11 @@ class MaxWaitTimeExceededError(RuntimeError):
         super().__init__(message)
 
 
-class MaxRetriesReachedError(RuntimeError):
-    """Thrown, when the specified number of retries has been exceeded."""
+class ConnectionFailedError(RuntimeError):
+    """Thrown, when a ConnectError or ConnectTimeout error is raised by httpx"""
 
     def __init__(self, *, url: str, reason: str):
-        message = f"Exceeded maximum retries for '{url}' due to: {reason}."
+        message = f"Request to '{url}' failed to connect. Reason: {reason}"
         super().__init__(message)
 
 
@@ -252,18 +251,13 @@ class MaxPartNoExceededError(RuntimeError):
         super().__init__(message)
 
 
-def raise_if_max_retries(request_error: httpx.RequestError, url: str):
+def raise_if_connection_failed(request_error: httpx.RequestError, url: str):
     """
     Check if request exception is caused by hitting max retries and raise accordingly
     """
-    if isinstance(request_error, httpx.ConnectError):
-        if request_error.args and isinstance(
-            request_error.args[0], urllib3.exceptions.MaxRetryError
-        ):
-            max_retry_error = request_error.args[0]
-            raise MaxRetriesReachedError(
-                url=url, reason=str(max_retry_error.reason)
-            ) from max_retry_error
+    if isinstance(request_error, (httpx.ConnectError, httpx.ConnectTimeout)):
+        connection_failure = str(request_error.args[0])
+        raise ConnectionFailedError(url=url, reason=connection_failure)
 
 
 class EnvelopeNotFoundError(RuntimeError):

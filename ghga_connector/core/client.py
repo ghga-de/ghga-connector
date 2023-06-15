@@ -12,27 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Handling seesion initialization for requests"""
-
+"""Handling session initialization for requests"""
 import httpx
 
 
 class HttpxClient:
-    """Helper clas to make max_retries user configurable"""
+    """Helper class to make max_retries user configurable"""
 
     client: httpx.Client
 
     @classmethod
     def configure(cls, max_retries: int):
-        """Configure session with exponential backoff retry"""
+        """Configure client with exponential backoff retry (using httpx's 0.5 default)"""
 
         # can't be negative - should we log this?
         max_retries = max(0, max_retries)
-
         transport = httpx.HTTPTransport(retries=max_retries)
-
-        with httpx.Client(transport=transport) as client:
-            cls.client = client
+        cls.client = httpx.Client(transport=transport)
 
     @classmethod
     def get(cls, *args, **kwargs):

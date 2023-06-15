@@ -146,7 +146,7 @@ class MockSession(httpx.Client):
         self.response = response
         super().__init__()
 
-    def get(  # pylint: disable=arguments-differ
+    def get(  # type: ignore # pylint: disable=arguments-differ
         self,
         url: str,
         *,
@@ -158,7 +158,7 @@ class MockSession(httpx.Client):
         ] = 5,
     ) -> httpx.Response:
         if re.match(".+/work-packages/.+", url):
-            return self.response
+            return self.response  # type: ignore
         raise ValueError("Unsupported")
 
 

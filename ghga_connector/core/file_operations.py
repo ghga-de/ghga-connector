@@ -105,9 +105,7 @@ def download_content_range(
 
     headers = {"Range": f"bytes={start}-{end}"}
     try:
-        response = HttpxClient.get(
-            download_url, headers=headers, timeout=TIMEOUT, allow_redirects=False
-        )
+        response = HttpxClient.get(download_url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
         exceptions.raise_if_max_retries(request_error=request_error, url=download_url)
         raise exceptions.RequestFailedError(url=download_url) from request_error

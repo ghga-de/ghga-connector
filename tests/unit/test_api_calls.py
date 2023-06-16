@@ -170,7 +170,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content={"files": files}, status_code=200)
 
     with patch(
-        "ghga_connector.core.client.HttpxClient.client",
+        "ghga_connector.core.client.httpx_client",
         MockSession(response=patched_response),
     ):
         wp_id, wp_token = mock_wps_token(1, None)
@@ -187,7 +187,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content={"files": files}, status_code=403)
 
     with patch(
-        "ghga_connector.core.client.HttpxClient.client",
+        "ghga_connector.core.client.httpx_client",
         MockSession(response=patched_response),
     ):
         with pytest.raises(NoWorkPackageAccessError):
@@ -204,7 +204,7 @@ def test_get_wps_file_info():
     patched_response = MockResponse(content=None, status_code=500)
 
     with patch(
-        "ghga_connector.core.client.HttpxClient.client",
+        "ghga_connector.core.client.httpx_client",
         MockSession(response=patched_response),
     ):
         with pytest.raises(InvalidWPSResponseError):

@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Handling session initialization for requests"""
+
+from contextlib import contextmanager
+
 import httpx
 
 
-class HttpxClient:
+class HttpxClientState:
     """Helper class to make max_retries user configurable"""
 
-    client: httpx.Client
+    transport: httpx.HTTPTransport
 
     @classmethod
     def configure(cls, max_retries: int):
@@ -27,25 +30,15 @@ class HttpxClient:
 
         # can't be negative - should we log this?
         max_retries = max(0, max_retries)
-        transport = httpx.HTTPTransport(retries=max_retries)
-        cls.client = httpx.Client(transport=transport)
+        cls.transport = httpx.HTTPTransport(retries=max_retries)
 
-    @classmethod
-    def get(cls, *args, **kwargs):
-        """Delegate to session method"""
-        return cls.client.get(*args, **kwargs)
 
-    @classmethod
-    def patch(cls, *args, **kwargs):
-        """Delegate to session method"""
-        return cls.client.patch(*args, **kwargs)
+@contextmanager
+def httpx_client():
+    """Yields a context manager httpx client and closes it afterward"""
+    if not HttpxClientState.transport:
+        HttpxClientState.configure(max_retries=2)
 
-    @classmethod
-    def post(cls, *args, **kwargs):
-        """Delegate to session method"""
-        return cls.client.post(*args, **kwargs)
-
-    @classmethod
-    def put(cls, *args, **kwargs):
-        """Delegate to session method"""
-        return cls.client.put(*args, **kwargs)
+    client = httpx.Client(transport=HttpxClientState.transport)
+    yield client
+    client.close()

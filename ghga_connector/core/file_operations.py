@@ -32,7 +32,7 @@ import crypt4gh.lib
 import httpx
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import HttpxClient
+from ghga_connector.core.client import httpx_client
 from ghga_connector.core.constants import TIMEOUT
 
 
@@ -105,7 +105,8 @@ def download_content_range(
 
     headers = {"Range": f"bytes={start}-{end}"}
     try:
-        response = HttpxClient.get(download_url, headers=headers, timeout=TIMEOUT)
+        with httpx_client() as client:
+            response = client.get(download_url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(
             request_error=request_error, url=download_url
@@ -201,7 +202,8 @@ def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     """Upload File"""
 
     try:
-        response = HttpxClient.put(presigned_url, content=part, timeout=TIMEOUT)
+        with httpx_client() as client:
+            response = client.put(presigned_url, content=part, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(
             request_error=request_error, url=presigned_url

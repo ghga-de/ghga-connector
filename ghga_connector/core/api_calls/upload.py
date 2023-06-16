@@ -72,7 +72,7 @@ def initiate_multipart_upload(
     # Make function call to get upload url
     try:
         response = HttpxClient.post(
-            url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
+            url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
         )
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(request_error=request_error, url=url)
@@ -186,7 +186,7 @@ def patch_multipart_upload(
 
     try:
         response = HttpxClient.patch(
-            url=url, headers=headers, data=serialized_data, timeout=TIMEOUT
+            url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
         )
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(request_error=request_error, url=url)

@@ -201,7 +201,7 @@ def upload_file_part(*, presigned_url: str, part: bytes) -> None:
     """Upload File"""
 
     try:
-        response = HttpxClient.put(presigned_url, data=part, timeout=TIMEOUT)
+        response = HttpxClient.put(presigned_url, content=part, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(
             request_error=request_error, url=presigned_url

@@ -18,7 +18,7 @@
 
 import os
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 from typing import List
 
 from ghga_connector.core import exceptions
@@ -317,7 +317,10 @@ def download_parts(
         downloaded_size = len(envelope)
         file.write(envelope)
         while downloaded_size < file_size:
-            start, part = queue.get()
+            try:
+                start, part = queue.get(block=False)
+            except Empty:
+                continue
             file.seek(start + len(envelope))
             file.write(part)
             downloaded_size += len(part)

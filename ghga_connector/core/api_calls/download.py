@@ -38,7 +38,7 @@ NO_FILE_SIZE = None
 NO_RETRY_TIME = None
 
 
-def get_download_url(  # noqa: C901
+def get_download_url(  # noqa: C901 pylint: disable=too-many-locals
     *, file_id: str, work_package_accessor: WorkPackageAccessor
 ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
     """

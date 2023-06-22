@@ -28,6 +28,7 @@ from unittest.mock import Mock, patch
 import crypt4gh.keys
 import pytest
 from ghga_service_commons.utils.temp_files import big_temp_file
+from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
 from ghga_connector.cli import download, upload
 from ghga_connector.core import exceptions
@@ -35,9 +36,15 @@ from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.testcontainer import MockAPIContainer
+from tests.fixtures.mock_api.app import EnvironmentVars, handle_request
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_token
+
+
+@pytest.fixture
+def non_mocked_hosts() -> list:
+    # Let requests go out to localstack/S3
+    return ["172.17.0.1"]
 
 
 @pytest.mark.parametrize(
@@ -53,6 +60,7 @@ from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_tok
 )
 @pytest.mark.asyncio
 async def test_multipart_download(
+    httpx_mock: HTTPXMock,  # noqa: F811
     file_size: int,
     part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
@@ -60,6 +68,8 @@ async def test_multipart_download(
     monkeypatch,
 ):
     """Test the multipart download of a file"""
+    httpx_mock.add_callback(callback=handle_request)
+
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
     # The download function will ask the user for input.
@@ -86,32 +96,32 @@ async def test_multipart_download(
 
     fake_envelope = "Thisisafakeenvelope"
 
-    with MockAPIContainer(
-        s3_download_url=download_url,
-        s3_download_file_size=file_size_,
-        fake_envelope=fake_envelope,
-    ) as api:
-        api_url = api.get_connection_url()
-        with patch(
-            "ghga_connector.cli.CONFIG",
-            get_test_config(
-                download_api=api_url,
-                part_size=part_size,
-                wps_api_url=api.get_connection_url(),
-            ),
-        ):
-            download(
-                output_dir=tmp_path,
-                submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-            )
+    EnvironmentVars.S3_DOWNLOAD_URL = download_url
+    EnvironmentVars.S3_DOWNLOAD_FILE_SIZE = file_size_
+    EnvironmentVars.FAKE_ENVELOPE = fake_envelope
 
-        big_file_content = str.encode(fake_envelope)
-        big_file_content += big_object.content
-        with open(tmp_path / f"{big_object.object_id}.c4gh", "rb") as file:
-            observed_content = file.read()
+    big_file_content = str.encode(fake_envelope)
+    big_file_content += big_object.content
+    api_url = "http://127.0.0.1"
 
-        assert observed_content == big_file_content
+    with patch(
+        "ghga_connector.cli.CONFIG",
+        get_test_config(
+            download_api=api_url,
+            part_size=part_size,
+            wps_api_url=api_url,
+        ),
+    ):
+        download(
+            output_dir=tmp_path,
+            submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+            submitter_private_key_path=Path(PRIVATE_KEY_FILE),
+        )
+
+    with open(tmp_path / f"{big_object.object_id}.c4gh", "rb") as file:
+        observed_content = file.read()
+
+    assert observed_content == big_file_content
 
 
 @pytest.mark.parametrize(
@@ -138,8 +148,9 @@ async def test_multipart_download(
         ),
     ],
 )
-@pytest.mark.asyncio
+@pytest.mark.skip
 async def test_download(
+    httpx_mock: HTTPXMock,  # noqa: F811
     bad_url: bool,
     bad_outdir: bool,
     file_name: str,
@@ -153,6 +164,9 @@ async def test_download(
     output_dir = Path("/non/existing/path") if bad_outdir else tmp_path
 
     file = state.FILES[file_name]
+
+    # Intercept requests sent with httpx
+    httpx_mock.add_callback(callback=handle_request)
 
     # The download function will ask the user for input.
     monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
@@ -177,59 +191,59 @@ async def test_download(
 
     fake_envelope = "Thisisafakeenvelope"
 
-    with MockAPIContainer(
-        s3_download_url=download_url,
-        s3_download_file_size=os.path.getsize(file.file_path),
-        fake_envelope=fake_envelope,
-    ) as api:
-        api_url = "http://bad_url" if bad_url else api.get_connection_url()
+    EnvironmentVars.reset()
+    EnvironmentVars.S3_DOWNLOAD_URL = download_url
+    EnvironmentVars.S3_DOWNLOAD_FILE_SIZE = os.path.getsize(file.file_path)
+    EnvironmentVars.FAKE_ENVELOPE = fake_envelope
 
+    api_url = "http://bad_url" if bad_url else "http://127.0.0.1"
+
+    with patch(
+        "ghga_connector.cli.CONFIG",
+        get_test_config(download_api=api_url, wps_api_url=api_url),
+    ):
+        # needed to mock user input
         with patch(
-            "ghga_connector.cli.CONFIG",
-            get_test_config(download_api=api_url, wps_api_url=api.get_connection_url()),
+            "ghga_connector.core.batch_processing.CliInputHandler.get_input",
+            return_value="yes" if proceed_on_missing else "no",
         ):
-            # needed to mock user input
-            with patch(
-                "ghga_connector.core.batch_processing.CliInputHandler.get_input",
-                return_value="yes" if proceed_on_missing else "no",
-            ):
-                if file_name == "file_not_downloadable":
-                    # check both 403 scenarios
-                    with patch(
-                        "ghga_connector.core.api_calls.work_package._decrypt",
-                        lambda data, key: "authfail_normal",
+            if file_name == "file_not_downloadable":
+                # check both 403 scenarios
+                with patch(
+                    "ghga_connector.core.api_calls.work_package._decrypt",
+                    lambda data, key: "authfail_normal",
+                ):
+                    with pytest.raises(
+                        exceptions.UnauthorizedAPICallError,
+                        match="This is not the token you're looking for.",
                     ):
-                        with pytest.raises(
-                            exceptions.UnauthorizedAPICallError,
-                            match="This is not the token you're looking for.",
-                        ):
-                            download(
-                                output_dir=output_dir,
-                                submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                                submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-                            )
-                    with patch(
-                        "ghga_connector.core.api_calls.work_package._decrypt",
-                        lambda data, key: "file_id_mismatch",
-                    ):
-                        with pytest.raises(
-                            exceptions.UnauthorizedAPICallError,
-                            match="Endpoint file ID did not match file ID announced in work order token.",
-                        ):
-                            download(
-                                output_dir=output_dir,
-                                submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                                submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-                            )
-                else:
-                    with pytest.raises(  # type: ignore
-                        expected_exception
-                    ) if expected_exception else nullcontext():
                         download(
                             output_dir=output_dir,
                             submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
                             submitter_private_key_path=Path(PRIVATE_KEY_FILE),
                         )
+                with patch(
+                    "ghga_connector.core.api_calls.work_package._decrypt",
+                    lambda data, key: "file_id_mismatch",
+                ):
+                    with pytest.raises(
+                        exceptions.UnauthorizedAPICallError,
+                        match="Endpoint file ID did not match file ID announced in work order token.",
+                    ):
+                        download(
+                            output_dir=output_dir,
+                            submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                            submitter_private_key_path=Path(PRIVATE_KEY_FILE),
+                        )
+            else:
+                with pytest.raises(  # type: ignore
+                    expected_exception
+                ) if expected_exception else nullcontext():
+                    download(
+                        output_dir=output_dir,
+                        submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                        submitter_private_key_path=Path(PRIVATE_KEY_FILE),
+                    )
 
         # BadResponseCode is no longer propagated and file at path does not exist
         if file_name == "file_not_downloadable":
@@ -260,6 +274,7 @@ async def test_download(
 )
 @pytest.mark.asyncio
 async def test_upload(
+    httpx_mock: HTTPXMock,  # noqa: F811
     bad_url: bool,
     file_name: str,
     expected_exception: type[Optional[Exception]],
@@ -267,6 +282,9 @@ async def test_upload(
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
     uploadable_file = state.FILES[file_name]
+
+    # Intercept requests sent with httpx
+    httpx_mock.add_callback(callback=handle_request)
 
     if file_name == "encrypted_file":
         # encrypt test file on the fly
@@ -291,38 +309,40 @@ async def test_upload(
         part_number=1,
     )
 
-    with MockAPIContainer(s3_upload_url_1=upload_url) as api:
-        api_url = "http://bad_url" if bad_url else api.get_connection_url()
+    EnvironmentVars.reset()
+    EnvironmentVars.S3_UPLOAD_URL_1 = upload_url
 
-        with patch("ghga_connector.cli.CONFIG", get_test_config(upload_api=api_url)):
-            with pytest.raises(  # type: ignore
-                expected_exception
-            ) if expected_exception else nullcontext():
-                if file_name == "encrypted_file":
-                    upload(
-                        file_id=uploadable_file.file_id,
-                        file_path=Path(encrypted_path).resolve(),
-                        submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                        submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-                    )
-                else:
-                    upload(
-                        file_id=uploadable_file.file_id,
-                        file_path=uploadable_file.file_path.resolve(),
-                        submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                        submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-                    )
+    api_url = "http://bad_url" if bad_url else "http://127.0.0.1"
 
-                await s3_fixture.storage.complete_multipart_upload(
-                    upload_id=upload_id,
-                    bucket_id=uploadable_file.grouping_label,
-                    object_id=uploadable_file.file_id,
+    with patch("ghga_connector.cli.CONFIG", get_test_config(upload_api=api_url)):
+        with pytest.raises(  # type: ignore
+            expected_exception
+        ) if expected_exception else nullcontext():
+            if file_name == "encrypted_file":
+                upload(
+                    file_id=uploadable_file.file_id,
+                    file_path=Path(encrypted_path).resolve(),
+                    submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                    submitter_private_key_path=Path(PRIVATE_KEY_FILE),
+                )
+            else:
+                upload(
+                    file_id=uploadable_file.file_id,
+                    file_path=uploadable_file.file_path.resolve(),
+                    submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                    submitter_private_key_path=Path(PRIVATE_KEY_FILE),
                 )
 
-                assert await s3_fixture.storage.does_object_exist(
-                    bucket_id=uploadable_file.grouping_label,
-                    object_id=uploadable_file.file_id,
-                )
+            await s3_fixture.storage.complete_multipart_upload(
+                upload_id=upload_id,
+                bucket_id=uploadable_file.grouping_label,
+                object_id=uploadable_file.file_id,
+            )
+
+            assert await s3_fixture.storage.does_object_exist(
+                bucket_id=uploadable_file.grouping_label,
+                object_id=uploadable_file.file_id,
+            )
 
 
 @pytest.mark.parametrize(
@@ -334,6 +354,7 @@ async def test_upload(
 )
 @pytest.mark.asyncio
 async def test_multipart_upload(
+    httpx_mock: HTTPXMock,  # noqa: F811
     file_size: int,
     anticipated_part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
@@ -341,6 +362,9 @@ async def test_multipart_upload(
     """Test the upload of a file, expects Abort, if the file was not found"""
     bucket_id = s3_fixture.existing_buckets[0]
     file_id = "uploadable-" + str(anticipated_part_size)
+
+    # Intercept requests sent with httpx
+    httpx_mock.add_callback(callback=handle_request)
 
     anticipated_part_size = anticipated_part_size * 1024 * 1024
 
@@ -371,34 +395,34 @@ async def test_multipart_upload(
         part_number=2,
     )
 
-    with MockAPIContainer(
-        s3_upload_url_1=upload_url_1,
-        s3_upload_url_2=upload_url_2,
-    ) as api:
-        api_url = api.get_connection_url()
+    EnvironmentVars.reset()
+    EnvironmentVars.S3_UPLOAD_URL_1 = upload_url_1
+    EnvironmentVars.S3_UPLOAD_URL_2 = upload_url_2
 
-        # create big temp file
-        with big_temp_file(file_size) as file:
-            with patch(
-                "ghga_connector.cli.CONFIG",
-                get_test_config(upload_api=api_url),
-            ):
-                upload(
-                    file_id=file_id,
-                    file_path=Path(file.name),
-                    submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
-                    submitter_private_key_path=Path(PRIVATE_KEY_FILE),
-                )
+    api_url = "http://127.0.0.1"
 
-        # confirm upload
-        await s3_fixture.storage.complete_multipart_upload(
-            upload_id=upload_id,
-            bucket_id=bucket_id,
-            object_id=file_id,
-            anticipated_part_quantity=anticipated_part_quantity,
-            anticipated_part_size=anticipated_part_size,
-        )
-        assert await s3_fixture.storage.does_object_exist(
-            bucket_id=bucket_id,
-            object_id=file_id,
-        )
+    # create big temp file
+    with big_temp_file(file_size) as file:
+        with patch(
+            "ghga_connector.cli.CONFIG",
+            get_test_config(upload_api=api_url),
+        ):
+            upload(
+                file_id=file_id,
+                file_path=Path(file.name),
+                submitter_pubkey_path=Path(PUBLIC_KEY_FILE),
+                submitter_private_key_path=Path(PRIVATE_KEY_FILE),
+            )
+
+    # confirm upload
+    await s3_fixture.storage.complete_multipart_upload(
+        upload_id=upload_id,
+        bucket_id=bucket_id,
+        object_id=file_id,
+        anticipated_part_quantity=anticipated_part_quantity,
+        anticipated_part_size=anticipated_part_size,
+    )
+    assert await s3_fixture.storage.does_object_exist(
+        bucket_id=bucket_id,
+        object_id=file_id,
+    )

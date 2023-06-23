@@ -47,6 +47,11 @@ def non_mocked_hosts() -> list:
     return ["172.17.0.1"]
 
 
+@pytest.fixture
+def assert_all_responses_were_requested() -> bool:
+    return False
+
+
 @pytest.mark.parametrize(
     "file_size,part_size",
     [
@@ -148,7 +153,7 @@ async def test_multipart_download(
         ),
     ],
 )
-@pytest.mark.skip
+@pytest.mark.asyncio
 async def test_download(
     httpx_mock: HTTPXMock,  # noqa: F811
     bad_url: bool,

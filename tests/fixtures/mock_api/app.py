@@ -222,7 +222,7 @@ def drs3_objects(file_id: str, request: httpx.Request):
             content=DrsObjectServe(
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",
-                size=os.environ["S3_DOWNLOAD_FIELD_SIZE"],
+                size=int(os.environ["S3_DOWNLOAD_FIELD_SIZE"]),
                 created_time=datetime.now(timezone.utc).isoformat(),
                 updated_time=datetime.now(timezone.utc).isoformat(),
                 checksums=[Checksum(checksum="1", type="md5")],
@@ -295,7 +295,7 @@ def ulc_get_uploads(upload_id: str):
             content=UploadProperties(
                 upload_id="pending",
                 file_id="pending",
-                part_size=os.environ["DEFAULT_PART_SIZE"],
+                part_size=int(os.environ["DEFAULT_PART_SIZE"]),
             ).json(),
         )
 
@@ -322,7 +322,7 @@ def ulc_post_files_uploads(request: httpx.Request):
             content=UploadProperties(
                 upload_id="pending",
                 file_id=file_id,
-                part_size=os.environ["DEFAULT_PART_SIZE"],
+                part_size=int(os.environ["DEFAULT_PART_SIZE"]),
             ).json(),
         )
     if file_id == "uploadable-16":

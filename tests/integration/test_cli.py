@@ -19,6 +19,7 @@
 import base64
 import os
 import pathlib
+import re
 from contextlib import nullcontext
 from filecmp import cmp
 from pathlib import Path
@@ -39,6 +40,8 @@ from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import EnvironmentVars, handle_request
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_token
+
+url_pattern = re.compile(r"^http:\/\/127\.0\.0\.1.*")
 
 
 @pytest.fixture
@@ -171,7 +174,7 @@ async def test_download(
     file = state.FILES[file_name]
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request)
+    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
 
     # The download function will ask the user for input.
     monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
@@ -289,7 +292,7 @@ async def test_upload(
     uploadable_file = state.FILES[file_name]
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request)
+    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
 
     if file_name == "encrypted_file":
         # encrypt test file on the fly
@@ -369,7 +372,7 @@ async def test_multipart_upload(
     file_id = "uploadable-" + str(anticipated_part_size)
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request)
+    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
 
     anticipated_part_size = anticipated_part_size * 1024 * 1024
 

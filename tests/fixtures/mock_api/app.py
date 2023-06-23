@@ -23,10 +23,11 @@ All other file_ids will fail
 
 import base64
 import json
+import os
 import re
 from datetime import datetime, timezone
 from enum import Enum
-from typing import List
+from typing import Callable, List
 
 try:  # workaround for https://github.com/pydantic/pydantic/issues/5821
     from typing_extensions import Literal
@@ -37,8 +38,7 @@ import logging
 from string import Template
 
 import httpx
-from fastapi import Header, HTTPException, Request, status
-from fastapi.responses import Response
+from fastapi import HTTPException, status
 from pydantic import BaseModel
 
 logger = logging.getLogger()
@@ -167,11 +167,7 @@ class HttpyException(Exception):
         super().__init__(description)
 
 
-# app = FastAPI()
-
-
-# @app.exception_handler(HttpyException)
-def httpy_exception_handler(request: Request, exc: HttpyException):
+def httpy_exception_handler(exc: HttpyException):
     """Transform HttpException data into a proper response object"""
 
     return httpx.Response(
@@ -186,7 +182,6 @@ def httpy_exception_handler(request: Request, exc: HttpyException):
     )
 
 
-# @app.get("/ready", summary="readiness_probe")
 def ready():
     """
     Readyness probe.
@@ -194,11 +189,13 @@ def ready():
     return httpx.Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-# @app.get("/objects/{file_id}", summary="drs3_mock")
-def drs3_objects(file_id: str, authorization=Header()):
+def drs3_objects(file_id: str, request: httpx.Request):
     """
     Mock for the drs3 /objects/{file_id} call
     """
+
+    # get authorization header
+    authorization = request.headers["authorization"]
 
     # simulate token authorization error
     if authorization == "Bearer authfail_normal":
@@ -216,7 +213,7 @@ def drs3_objects(file_id: str, authorization=Header()):
         )
 
     if file_id == "retry":
-        return Response(
+        return httpx.Response(
             status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
         )
 
@@ -226,13 +223,13 @@ def drs3_objects(file_id: str, authorization=Header()):
             content=DrsObjectServe(
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",
-                size=EnvironmentVars.S3_DOWNLOAD_FILE_SIZE,
+                size=os.environ["S3_DOWNLOAD_FIELD_SIZE"],
                 created_time=datetime.now(timezone.utc).isoformat(),
                 updated_time=datetime.now(timezone.utc).isoformat(),
                 checksums=[Checksum(checksum="1", type="md5")],
                 access_methods=[
                     AccessMethod(
-                        access_url=AccessURL(url=EnvironmentVars.S3_DOWNLOAD_URL),
+                        access_url=AccessURL(url=os.environ["S3_DOWNLOAD_URL"]),
                         type="s3",
                     )
                 ],
@@ -245,14 +242,13 @@ def drs3_objects(file_id: str, authorization=Header()):
     )
 
 
-# @app.get("/objects/{file_id}/envelopes/{public_key}", summary="drs3_envelope_mock")
-def drs3_objects_envelopes(file_id: str, public_key: str, authorization=Header()):
+def drs3_objects_envelopes(file_id: str, public_key: str):
     """
     Mock for the dcs /objects/{file_id}/envelopes/{public_key} call
     """
 
     if file_id in ("downloadable", "big-downloadable"):
-        response_str = str.encode(EnvironmentVars.FAKE_ENVELOPE)
+        response_str = str.encode(os.environ["FAKE_ENVELOPE"])
         envelope = base64.b64encode(response_str).decode("utf-8")
         return HttpEnvelopeResponse(envelope=envelope)
 
@@ -264,7 +260,6 @@ def drs3_objects_envelopes(file_id: str, public_key: str, authorization=Header()
     )
 
 
-# @app.get("/files/{file_id}", summary="ulc_get_files_mock", status_code=200)
 def ulc_get_files(file_id: str):
     """
     Mock for the ulc GET /files/{file_id} call.
@@ -291,7 +286,6 @@ def ulc_get_files(file_id: str):
     )
 
 
-# @app.get("/uploads/{upload_id}", summary="ulc_get_uploads_mock", status_code=200)
 def ulc_get_uploads(upload_id: str):
     """
     Mock for the ulc GET /uploads/{upload_id} call.
@@ -302,7 +296,7 @@ def ulc_get_uploads(upload_id: str):
             content=UploadProperties(
                 upload_id="pending",
                 file_id="pending",
-                part_size=EnvironmentVars.DEFAULT_PART_SIZE,
+                part_size=os.environ["DEFAULT_PART_SIZE"],
             ).json(),
         )
 
@@ -314,7 +308,6 @@ def ulc_get_uploads(upload_id: str):
     )
 
 
-# @app.post("/uploads", summary="ulc_post_uploads_mock", status_code=200)
 def ulc_post_files_uploads(request: httpx.Request):
     """
     Mock for the ulc POST /uploads call.
@@ -330,7 +323,7 @@ def ulc_post_files_uploads(request: httpx.Request):
             content=UploadProperties(
                 upload_id="pending",
                 file_id=file_id,
-                part_size=EnvironmentVars.DEFAULT_PART_SIZE,
+                part_size=os.environ["DEFAULT_PART_SIZE"],
             ).json(),
         )
     if file_id == "uploadable-16":
@@ -368,25 +361,17 @@ def ulc_post_files_uploads(request: httpx.Request):
     )
 
 
-# @app.post(
-#     "/uploads/{upload_id}/parts/{part_no}/signed_urls",
-#     summary="ulc_post_uploads_parts_files_signed_urls_mock",
-#     status_code=200,
-# )
-def ulc_post_uploads_parts_files_signed_posts(
-    upload_id: str, part_no: int, request: httpx.Request
-):
+def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int):
     """
     Mock for the ulc POST /uploads/{upload_id}/parts/{part_no}/signed_urls call.
     """
-
+    part_no = int(part_no)
     if upload_id == "pending":
-        if part_no == 1:
-            url = EnvironmentVars.S3_UPLOAD_URL_1
-            return {"url": url}
-        if part_no == 2:
-            url = EnvironmentVars.S3_UPLOAD_URL_2
-            return {"url": url}
+        if part_no in (1, 2):
+            urls = (os.environ["S3_UPLOAD_URL_1"], os.environ["S3_UPLOAD_URL_2"])
+            return httpx.Response(
+                status_code=200, text=json.dumps({"url": urls[part_no - 1]})
+            )
 
     raise HttpyException(
         status_code=404,
@@ -396,7 +381,6 @@ def ulc_post_uploads_parts_files_signed_posts(
     )
 
 
-# @app.patch("/uploads/{upload_id}", summary="ulc_patch_uploads_mock", status_code=204)
 def ulc_patch_uploads(upload_id: str, request: httpx.Request):
     """
     Mock for the ulc PATCH /uploads/{upload_id} call
@@ -443,9 +427,7 @@ def ulc_patch_uploads(upload_id: str, request: httpx.Request):
     )
 
 
-def create_work_order_token(
-    package_id: str, file_id: str, request: httpx.Request, authorization=Header()
-):
+def create_work_order_token(package_id: str, file_id: str):
     """Mock Work Order Token endpoint"""
 
     # has to be at least 48 chars long
@@ -465,7 +447,7 @@ def compile_regex_url(url_pattern: str, group_names: list[str]):
     return url
 
 
-get_map = {
+get_map: dict[str, Callable] = {
     compile_regex_url("/uploads/$upload_id", ["upload_id"]): ulc_get_uploads,
     compile_regex_url("/files/$file_id", ["file_id"]): ulc_get_files,
     compile_regex_url(
@@ -476,7 +458,7 @@ get_map = {
     r"\/": ready,
 }
 
-post_map = {
+post_map: dict[str, Callable] = {
     compile_regex_url(
         "/work-packages/$package_id/files/$file_id/work-order-tokens",
         ["package_id", "file_id"],
@@ -487,51 +469,57 @@ post_map = {
     r"\/uploads": ulc_post_files_uploads,
 }
 
-patch_map = {
+patch_map: dict[str, Callable] = {
     compile_regex_url("/uploads/$upload_id", ["upload_id"]): ulc_patch_uploads,
 }
 
 methods: dict[str, dict] = {"GET": get_map, "POST": post_map, "PATCH": patch_map}
 
-
-class EnvironmentVars:
-    """Mimic environment variables"""
-
-    DEFAULT_PART_SIZE: int = 16 * 1024 * 1024
-    S3_DOWNLOAD_URL: str = "test://download.url"
-    S3_UPLOAD_URL_1: str = "test://upload.url"
-    S3_UPLOAD_URL_2: str = "test://upload.url"
-    S3_DOWNLOAD_FILE_SIZE: int = 146
-    FAKE_ENVELOPE: str = "Fake_envelope"
-
-    @classmethod
-    def reset(cls):
-        cls.DEFAULT_PART_SIZE = 16 * 1024 * 1024
-        cls.S3_DOWNLOAD_URL = "test://download.url"
-        cls.S3_UPLOAD_URL_1 = "test://upload.url"
-        cls.S3_UPLOAD_URL_2 = "test://upload.url"
-        cls.S3_DOWNLOAD_FILE_SIZE = 146
-        cls.FAKE_ENVELOPE = "Fake_envelope"
+# the mocked endpoints can't automatically parse the objects from the
+# request header/body, so we need to pass the request in as a parameter to some funcs
+needs_request_param = {
+    ulc_patch_uploads,  # needs StatePatch
+    ulc_post_files_uploads,  # needs StatePost
+    drs3_objects,  # needs header auth info
+}
 
 
 def handle_request(request: httpx.Request):
-    """Parse and pass request to appropriate function"""
+    """
+    This is used as the callback function for the httpx_mock fixture in test_cli.py.
+    Steps:
+     1. Get regex URL patterns associated with the request method
+     2. Try to match URL
+     3. Run function associated with the matched pattern
+    """
     url = str(request.url)
     logger.info("Received request for url: %s", url)
     try:
+        # Iterate through each URL pattern for the given method (see dicts above)
         for regex, func in methods[request.method].items():
-            trial = re.search(regex, url)
-            if trial:
+            matched_url = re.search(regex, url)
+            if matched_url:
                 logger.info("Going to call function: %s", func.__name__)
-                params = trial.groupdict()
-                if request.method in ["POST", "PATCH"]:
+
+                # pull the matched parameters from the URL
+                params = matched_url.groupdict()
+
+                # some of the mocked endpoints need header or body info from request
+                if func in needs_request_param:
                     params["request"] = request
+
                 logger.info("\tParameters are: ")
                 for key, value in params.items():
                     logger.info("\t\t%s: %s", key, value)
+
+                # call function with parameters from URL and request (if applicable)
                 response = func(**params)
                 logger.info("\tResponse received")
                 return response
-        return httpx.Response(status_code=500)
+        logger.error("For %s, failed to match URL: `%s`", request.method, url)
+        assert False
     except HttpyException as exc:
-        return httpy_exception_handler(request=request, exc=exc)
+        return httpy_exception_handler(exc=exc)
+    except HTTPException as exc:
+        text = json.dumps({"detail": exc.detail})
+        return httpx.Response(status_code=exc.status_code, text=text)

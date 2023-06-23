@@ -37,11 +37,20 @@ from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import EnvironmentVars, handle_request
+from tests.fixtures.mock_api.app import handle_request
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_token
 
-url_pattern = re.compile(r"^http:\/\/127\.0\.0\.1.*")
+URL_PATTERN = re.compile(r"^http:\/\/127\.0\.0\.1.*")
+
+ENVIRON_DEFAULTS = {
+    "DEFAULT_PART_SIZE": str(16 * 1024 * 1024),
+    "S3_DOWNLOAD_URL": "test://download.url",
+    "S3_UPLOAD_URL_1": "test://upload.url",
+    "S3_UPLOAD_URL_2": "test://upload.url",
+    "S3_DOWNLOAD_FIELD_SIZE": str(146),
+    "FAKE_ENVELOPE": "Fake_envelope",
+}
 
 
 @pytest.fixture
@@ -77,6 +86,8 @@ async def test_multipart_download(
 ):
     """Test the multipart download of a file"""
     httpx_mock.add_callback(callback=handle_request)
+    for name, value in ENVIRON_DEFAULTS.items():
+        monkeypatch.setenv(name, value)
 
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
@@ -104,9 +115,9 @@ async def test_multipart_download(
 
     fake_envelope = "Thisisafakeenvelope"
 
-    EnvironmentVars.S3_DOWNLOAD_URL = download_url
-    EnvironmentVars.S3_DOWNLOAD_FILE_SIZE = file_size_
-    EnvironmentVars.FAKE_ENVELOPE = fake_envelope
+    monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
+    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(file_size_))
+    monkeypatch.setenv("FAKE_ENVELOPE", fake_envelope)
 
     big_file_content = str.encode(fake_envelope)
     big_file_content += big_object.content
@@ -174,7 +185,9 @@ async def test_download(
     file = state.FILES[file_name]
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
+    httpx_mock.add_callback(callback=handle_request, url=URL_PATTERN)
+    for name, value in ENVIRON_DEFAULTS.items():
+        monkeypatch.setenv(name, value)
 
     # The download function will ask the user for input.
     monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
@@ -199,10 +212,9 @@ async def test_download(
 
     fake_envelope = "Thisisafakeenvelope"
 
-    EnvironmentVars.reset()
-    EnvironmentVars.S3_DOWNLOAD_URL = download_url
-    EnvironmentVars.S3_DOWNLOAD_FILE_SIZE = os.path.getsize(file.file_path)
-    EnvironmentVars.FAKE_ENVELOPE = fake_envelope
+    monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
+    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(os.path.getsize(file.file_path)))
+    monkeypatch.setenv("FAKE_ENVELOPE", fake_envelope)
 
     api_url = "http://bad_url" if bad_url else "http://127.0.0.1"
 
@@ -287,12 +299,15 @@ async def test_upload(
     file_name: str,
     expected_exception: type[Optional[Exception]],
     s3_fixture: S3Fixture,  # noqa F811
+    monkeypatch,
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
     uploadable_file = state.FILES[file_name]
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
+    httpx_mock.add_callback(callback=handle_request, url=URL_PATTERN)
+    for name, value in ENVIRON_DEFAULTS.items():
+        monkeypatch.setenv(name, value)
 
     if file_name == "encrypted_file":
         # encrypt test file on the fly
@@ -317,8 +332,7 @@ async def test_upload(
         part_number=1,
     )
 
-    EnvironmentVars.reset()
-    EnvironmentVars.S3_UPLOAD_URL_1 = upload_url
+    monkeypatch.setenv("S3_UPLOAD_URL_1", upload_url)
 
     api_url = "http://bad_url" if bad_url else "http://127.0.0.1"
 
@@ -366,13 +380,16 @@ async def test_multipart_upload(
     file_size: int,
     anticipated_part_size: int,
     s3_fixture: S3Fixture,  # noqa F811
+    monkeypatch,
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
     bucket_id = s3_fixture.existing_buckets[0]
     file_id = "uploadable-" + str(anticipated_part_size)
 
     # Intercept requests sent with httpx
-    httpx_mock.add_callback(callback=handle_request, url=url_pattern)
+    httpx_mock.add_callback(callback=handle_request, url=URL_PATTERN)
+    for name, value in ENVIRON_DEFAULTS.items():
+        monkeypatch.setenv(name, value)
 
     anticipated_part_size = anticipated_part_size * 1024 * 1024
 
@@ -403,9 +420,8 @@ async def test_multipart_upload(
         part_number=2,
     )
 
-    EnvironmentVars.reset()
-    EnvironmentVars.S3_UPLOAD_URL_1 = upload_url_1
-    EnvironmentVars.S3_UPLOAD_URL_2 = upload_url_2
+    monkeypatch.setenv("S3_UPLOAD_URL_1", upload_url_1)
+    monkeypatch.setenv("S3_UPLOAD_URL_2", upload_url_2)
 
     api_url = "http://127.0.0.1"
 

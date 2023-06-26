@@ -23,6 +23,7 @@ All other file_ids will fail
 
 import base64
 import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -34,11 +35,11 @@ try:  # workaround for https://github.com/pydantic/pydantic/issues/5821
 except ImportError:
     from typing import Literal  # type: ignore
 
-import logging
-
 import httpx
 from fastapi import HTTPException, status
 from pydantic import BaseModel
+
+from tests.fixtures.utils import compile_regex_url
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -435,52 +436,45 @@ def create_work_order_token(package_id: str, file_id: str):
     )
 
 
-def compile_regex_url(url_pattern: str):
-    """Given a url pattern, compile a regex that matches named groups where specified"""
-    # e.g. "/work-packages/{package_id}"
-    strip = "{}"
-    url_pattern = url_pattern.replace("/", "\\/")
-    parameter_pattern = re.compile(r"{[^\\\/]*?}")
+get_endpoints: list[tuple[str, Callable]] = [
+    (compile_regex_url("/uploads/{upload_id}"), ulc_get_uploads),
+    (compile_regex_url("/files/{file_id}"), ulc_get_files),
+    (
+        compile_regex_url("/objects/{file_id}/envelopes/{public_key}"),
+        drs3_objects_envelopes,
+    ),
+    (compile_regex_url("/objects/{file_id}"), drs3_objects),
+    (r"\/ready", ready),
+    (r"\/", ready),
+]
 
-    url = re.sub(
-        parameter_pattern,
-        repl=lambda name: f"(?P<{name.group().strip(strip)}>[^\/]+)",
-        string=url_pattern,
-    )
+post_endpoints: list[tuple[str, Callable]] = [
+    (
+        compile_regex_url(
+            "/work-packages/{package_id}/files/{file_id}/work-order-tokens",
+        ),
+        create_work_order_token,
+    ),
+    (
+        compile_regex_url("/uploads/{upload_id}/parts/{part_no}/signed_urls"),
+        ulc_post_uploads_parts_files_signed_posts,
+    ),
+    (r"\/uploads", ulc_post_files_uploads),
+]
 
-    return url
+patch_endpoints: list[tuple[str, Callable]] = [
+    (compile_regex_url("/uploads/{upload_id}"), ulc_patch_uploads),
+]
 
-
-get_map: dict[str, Callable] = {
-    compile_regex_url("/uploads/{upload_id}"): ulc_get_uploads,
-    compile_regex_url("/files/{file_id}"): ulc_get_files,
-    compile_regex_url(
-        "/objects/{file_id}/envelopes/{public_key}"
-    ): drs3_objects_envelopes,
-    compile_regex_url("/objects/{file_id}"): drs3_objects,
-    r"\/ready": ready,
-    r"\/": ready,
+methods: dict[str, list] = {
+    "GET": get_endpoints,
+    "POST": post_endpoints,
+    "PATCH": patch_endpoints,
 }
-
-post_map: dict[str, Callable] = {
-    compile_regex_url(
-        "/work-packages/{package_id}/files/{file_id}/work-order-tokens",
-    ): create_work_order_token,
-    compile_regex_url(
-        "/uploads/{upload_id}/parts/{part_no}/signed_urls"
-    ): ulc_post_uploads_parts_files_signed_posts,
-    r"\/uploads": ulc_post_files_uploads,
-}
-
-patch_map: dict[str, Callable] = {
-    compile_regex_url("/uploads/{upload_id}"): ulc_patch_uploads,
-}
-
-methods: dict[str, dict] = {"GET": get_map, "POST": post_map, "PATCH": patch_map}
 
 # the mocked endpoints can't automatically parse the objects from the
 # request header/body, so we need to pass the request in as a parameter to some funcs
-needs_request_param = {
+needs_request_param: set = {
     ulc_patch_uploads,  # needs StatePatch
     ulc_post_files_uploads,  # needs StatePost
     drs3_objects,  # needs header auth info
@@ -495,7 +489,7 @@ def handle_request(request: httpx.Request):
     logger.info("Received request for url: %s", url)
     try:
         # Iterate through each URL pattern for the given method (see dicts above)
-        for regex, func in methods[request.method].items():
+        for regex, func in methods[request.method]:
             matched_url = re.search(regex, url)
             if matched_url:
                 logger.info("Going to call function: %s", func.__name__)

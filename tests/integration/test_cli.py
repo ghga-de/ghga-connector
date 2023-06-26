@@ -53,13 +53,13 @@ ENVIRON_DEFAULTS = {
     "FAKE_ENVELOPE": "Fake_envelope",
 }
 
-S3HOST: list[str] = []
+unintercepted_hosts: list[str] = []
 
 
 @pytest.fixture
 def non_mocked_hosts() -> list:
     # Let requests go out to localstack/S3
-    return S3HOST
+    return unintercepted_hosts
 
 
 @pytest.fixture
@@ -115,7 +115,7 @@ async def test_multipart_download(
         object_id=big_object.object_id,
         expires_after=180,
     )
-    S3HOST.append(httpx.URL(download_url).host)
+    unintercepted_hosts.append(httpx.URL(download_url).host)
 
     fake_envelope = "Thisisafakeenvelope"
 
@@ -213,7 +213,7 @@ async def test_download(
 
     else:
         download_url = ""
-    S3HOST.append(httpx.URL(download_url).host)
+    unintercepted_hosts.append(httpx.URL(download_url).host)
 
     fake_envelope = "Thisisafakeenvelope"
 
@@ -336,7 +336,7 @@ async def test_upload(
         upload_id=upload_id,
         part_number=1,
     )
-    S3HOST.append(httpx.URL(upload_url).host)
+    unintercepted_hosts.append(httpx.URL(upload_url).host)
 
     monkeypatch.setenv("S3_UPLOAD_URL_1", upload_url)
 
@@ -417,7 +417,7 @@ async def test_multipart_upload(
         object_id=file_id,
         part_number=1,
     )
-    S3HOST.append(httpx.URL(upload_url_1).host)
+    unintercepted_hosts.append(httpx.URL(upload_url_1).host)
 
     # create presigned url for upload part 2
     upload_url_2 = await s3_fixture.storage.get_part_upload_url(
@@ -426,7 +426,7 @@ async def test_multipart_upload(
         object_id=file_id,
         part_number=2,
     )
-    S3HOST.append(httpx.URL(upload_url_2).host)
+    unintercepted_hosts.append(httpx.URL(upload_url_2).host)
 
     monkeypatch.setenv("S3_UPLOAD_URL_1", upload_url_1)
     monkeypatch.setenv("S3_UPLOAD_URL_2", upload_url_2)

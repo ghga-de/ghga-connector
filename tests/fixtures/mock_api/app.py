@@ -25,10 +25,9 @@ import base64
 import json
 import logging
 import os
-import re
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Callable, List
+from typing import List
 
 try:  # workaround for https://github.com/pydantic/pydantic/issues/5821
     from typing_extensions import Literal
@@ -39,7 +38,7 @@ import httpx
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
-from tests.fixtures.utils import compile_regex_url
+from tests.fixtures.endpoints_handler import EndpointsHandler
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -182,6 +181,7 @@ def httpy_exception_handler(exc: HttpyException):
     )
 
 
+@EndpointsHandler.get("/")
 def ready():
     """
     Readyness probe.
@@ -189,6 +189,7 @@ def ready():
     return httpx.Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@EndpointsHandler.get("/objects/{file_id}")
 def drs3_objects(file_id: str, request: httpx.Request):
     """
     Mock for the drs3 /objects/{file_id} call
@@ -242,6 +243,7 @@ def drs3_objects(file_id: str, request: httpx.Request):
     )
 
 
+@EndpointsHandler.get("/objects/{file_id}/envelopes/{public_key}")
 def drs3_objects_envelopes(file_id: str, public_key: str):
     """
     Mock for the dcs /objects/{file_id}/envelopes/{public_key} call
@@ -260,6 +262,7 @@ def drs3_objects_envelopes(file_id: str, public_key: str):
     )
 
 
+@EndpointsHandler.get("/files/{file_id}")
 def ulc_get_files(file_id: str):
     """
     Mock for the ulc GET /files/{file_id} call.
@@ -286,6 +289,7 @@ def ulc_get_files(file_id: str):
     )
 
 
+@EndpointsHandler.get("/uploads/{upload_id}")
 def ulc_get_uploads(upload_id: str):
     """
     Mock for the ulc GET /uploads/{upload_id} call.
@@ -308,6 +312,7 @@ def ulc_get_uploads(upload_id: str):
     )
 
 
+@EndpointsHandler.post("/uploads")
 def ulc_post_files_uploads(request: httpx.Request):
     """
     Mock for the ulc POST /uploads call.
@@ -361,11 +366,12 @@ def ulc_post_files_uploads(request: httpx.Request):
     )
 
 
+@EndpointsHandler.post("/uploads/{upload_id}/parts/{part_no}/signed_urls")
 def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int):
     """
     Mock for the ulc POST /uploads/{upload_id}/parts/{part_no}/signed_urls call.
     """
-    part_no = int(part_no)
+
     if upload_id == "pending":
         if part_no in (1, 2):
             urls = (os.environ["S3_UPLOAD_URL_1"], os.environ["S3_UPLOAD_URL_2"])
@@ -381,6 +387,7 @@ def ulc_post_uploads_parts_files_signed_posts(upload_id: str, part_no: int):
     )
 
 
+@EndpointsHandler.patch("/uploads/{upload_id}")
 def ulc_patch_uploads(upload_id: str, request: httpx.Request):
     """
     Mock for the ulc PATCH /uploads/{upload_id} call
@@ -427,6 +434,7 @@ def ulc_patch_uploads(upload_id: str, request: httpx.Request):
     )
 
 
+@EndpointsHandler.post("/work-packages/{package_id}/files/{file_id}/work-order-tokens")
 def create_work_order_token(package_id: str, file_id: str):
     """Mock Work Order Token endpoint"""
 
@@ -436,51 +444,6 @@ def create_work_order_token(package_id: str, file_id: str):
     )
 
 
-get_endpoints: list[tuple[str, Callable]] = [
-    (compile_regex_url("/uploads/{upload_id}"), ulc_get_uploads),
-    (compile_regex_url("/files/{file_id}"), ulc_get_files),
-    (
-        compile_regex_url("/objects/{file_id}/envelopes/{public_key}"),
-        drs3_objects_envelopes,
-    ),
-    (compile_regex_url("/objects/{file_id}"), drs3_objects),
-    (r"\/ready", ready),
-    (r"\/", ready),
-]
-
-post_endpoints: list[tuple[str, Callable]] = [
-    (
-        compile_regex_url(
-            "/work-packages/{package_id}/files/{file_id}/work-order-tokens",
-        ),
-        create_work_order_token,
-    ),
-    (
-        compile_regex_url("/uploads/{upload_id}/parts/{part_no}/signed_urls"),
-        ulc_post_uploads_parts_files_signed_posts,
-    ),
-    (r"\/uploads", ulc_post_files_uploads),
-]
-
-patch_endpoints: list[tuple[str, Callable]] = [
-    (compile_regex_url("/uploads/{upload_id}"), ulc_patch_uploads),
-]
-
-methods: dict[str, list] = {
-    "GET": get_endpoints,
-    "POST": post_endpoints,
-    "PATCH": patch_endpoints,
-}
-
-# the mocked endpoints can't automatically parse the objects from the
-# request header/body, so we need to pass the request in as a parameter to some funcs
-needs_request_param: set = {
-    ulc_patch_uploads,  # needs StatePatch
-    ulc_post_files_uploads,  # needs StatePost
-    drs3_objects,  # needs header auth info
-}
-
-
 def handle_request(request: httpx.Request):
     """
     This is used as the callback function for the httpx_mock fixture in test_cli.py.
@@ -488,29 +451,8 @@ def handle_request(request: httpx.Request):
     url = str(request.url)
     logger.info("Received request for url: %s", url)
     try:
-        # Iterate through each URL pattern for the given method (see dicts above)
-        for regex, func in methods[request.method]:
-            matched_url = re.search(regex, url)
-            if matched_url:
-                logger.info("Going to call function: %s", func.__name__)
-
-                # pull the matched parameters from the URL
-                params = matched_url.groupdict()
-
-                # some of the mocked endpoints need header or body info from request
-                if func in needs_request_param:
-                    params["request"] = request
-
-                logger.info("\tParameters are: ")
-                for key, value in params.items():
-                    logger.info("\t\t%s: %s", key, value)
-
-                # call function with parameters from URL and request (if applicable)
-                response = func(**params)
-                logger.info("\tResponse received")
-                return response
-        logger.error("For %s, failed to match URL: `%s`", request.method, url)
-        assert False
+        endpoint_function = EndpointsHandler.build_loaded_endpoint_function(request)
+        return endpoint_function()
     except HttpyException as exc:
         return httpy_exception_handler(exc=exc)
     except HTTPException as exc:

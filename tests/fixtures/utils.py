@@ -15,7 +15,6 @@
 
 """Utils for Fixture handling"""
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -40,19 +39,3 @@ def mock_wps_token(max_tries: int, message_display: Any) -> list[str]:
 
     wps_token = [work_package_id, crypt.encrypt(token, public_key)]
     return wps_token
-
-
-def compile_regex_url(url_pattern: str):
-    """Given a url pattern, compile a regex that matches named groups where specified"""
-    # e.g. "/work-packages/{package_id}"
-    strip = "{}"
-    url_pattern = url_pattern.replace("/", "\\/")
-    parameter_pattern = re.compile(r"{[^\\\/]*?}")
-
-    url = re.sub(
-        parameter_pattern,
-        repl=lambda name: f"(?P<{name.group().strip(strip)}>[^\/]+)",
-        string=url_pattern,
-    )
-
-    return url

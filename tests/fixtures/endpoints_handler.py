@@ -63,12 +63,11 @@ class EndpointsHandler:
         """
 
         strip = "{}"
-        url_pattern = url_pattern.replace("/", "\\/")
-        parameter_pattern = re.compile(r"{[^\\\/]*?}")
+        parameter_pattern = re.compile(r"{.*?}")
 
         url = re.sub(
             parameter_pattern,
-            repl=lambda name: f"(?P<{name.group().strip(strip)}>[^\/]+)",
+            repl=lambda name: f"(?P<{name.group().strip(strip)}>[^/]+)",
             string=url_pattern,
         )
         return url

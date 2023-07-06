@@ -226,8 +226,8 @@ def drs3_objects(file_id: str, request: httpx.Request):
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",
                 size=int(os.environ["S3_DOWNLOAD_FIELD_SIZE"]),
-                created_time=now_as_utc(),
-                updated_time=now_as_utc(),
+                created_time=now_as_utc().isoformat(),
+                updated_time=now_as_utc().isoformat(),
                 checksums=[Checksum(checksum="1", type="md5")],
                 access_methods=[
                     AccessMethod(
@@ -276,8 +276,8 @@ def ulc_get_files(file_id: str):
             md5_checksum="",
             size=0,
             grouping_label="inbox",
-            creation_date=now_as_utc(),
-            update_date=now_as_utc(),
+            creation_date=now_as_utc().isoformat(),
+            update_date=now_as_utc().isoformat(),
             format="",
             current_upload_id="pending",
         )

@@ -25,7 +25,7 @@ import base64
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import List
 
@@ -36,6 +36,7 @@ except ImportError:
 
 import httpx
 from fastapi import HTTPException, status
+from ghga_service_commons.utils.utc_dates import now_as_utc
 from pydantic import BaseModel
 
 from tests.fixtures.endpoints_handler import EndpointsHandler
@@ -225,8 +226,8 @@ def drs3_objects(file_id: str, request: httpx.Request):
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",
                 size=int(os.environ["S3_DOWNLOAD_FIELD_SIZE"]),
-                created_time=datetime.now(timezone.utc).isoformat(),
-                updated_time=datetime.now(timezone.utc).isoformat(),
+                created_time=now_as_utc(),
+                updated_time=now_as_utc(),
                 checksums=[Checksum(checksum="1", type="md5")],
                 access_methods=[
                     AccessMethod(
@@ -275,8 +276,8 @@ def ulc_get_files(file_id: str):
             md5_checksum="",
             size=0,
             grouping_label="inbox",
-            creation_date=datetime.utcnow(),
-            update_date=datetime.utcnow(),
+            creation_date=now_as_utc(),
+            update_date=now_as_utc(),
             format="",
             current_upload_id="pending",
         )

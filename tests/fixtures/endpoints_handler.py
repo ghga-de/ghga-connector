@@ -141,11 +141,11 @@ class EndpointsHandler:
                 parameter_type = signature_parameters[parameter_name]
 
             # all parameters should be typed, raise exception otherwise
-            except KeyError:
+            except KeyError as err:
                 raise TypeError(
                     f"Parameter '{parameter_name}' in function "
                     + f"'{endpoint_function.__name__}' is missing type information!"
-                )  # pylint: disable=broad-exception-raised
+                ) from err
 
             if parameter_type is not str:
                 value = parameter_type(value)

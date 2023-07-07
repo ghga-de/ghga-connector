@@ -12,9 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-"""
-CLI - Client to perform up- and download operations to and from a local ghga instance
-"""
-
-__version__ = "0.3.6"
+"""Scripts and utils used during development or in CI pipelines."""

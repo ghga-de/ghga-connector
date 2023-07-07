@@ -74,7 +74,7 @@ class EndpointsHandler:
     @classmethod
     def _add_endpoint(cls, method: str, url: str, endpoint_function: Callable):
         """Process url and store endpoint according to method type"""
-        url_pattern = EndpointsHandler._compile_regex_url(url)
+        url_pattern = cls._compile_regex_url(url)
         matchable_endpoint = MatchableEndpoint(
             url_pattern=url_pattern,
             method=method,
@@ -142,7 +142,7 @@ class EndpointsHandler:
 
             # all parameters should be typed, raise exception otherwise
             except KeyError:
-                raise Exception(
+                raise TypeError(
                     f"Parameter '{parameter_name}' in function "
                     + f"'{endpoint_function.__name__}' is missing type information!"
                 )  # pylint: disable=broad-exception-raised
@@ -195,7 +195,7 @@ class EndpointsHandler:
         )
 
         # convert string parameters into the types specified in function signature
-        typed_parameters = EndpointsHandler._convert_parameter_types(
+        typed_parameters = cls._convert_parameter_types(
             endpoint_function=endpoint_function,
             string_parameters=string_parameters,
             request=request,

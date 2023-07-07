@@ -17,11 +17,10 @@
 """A class to register mock endpoint functions in a similar fashion to FastAPI with
 class methods that can process an incoming request with a dynamic url pattern"""
 
-import inspect
 import logging
 import re
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, get_type_hints
 
 import httpx
 from pydantic import BaseModel
@@ -48,14 +47,14 @@ class EndpointsHandler:
     variables in the endpoint function itself.
     """
 
-    methods: dict[str, list[MatchableEndpoint]] = {
+    _methods: dict[str, list[MatchableEndpoint]] = {
         "GET": [],
         "POST": [],
         "PATCH": [],
     }
 
     @staticmethod
-    def compile_regex_url(url_pattern: str):
+    def _compile_regex_url(url_pattern: str):
         """Given a url pattern, compile a regex that matches named groups where specified
         e.g. "/work-packages/{package_id}" would become "/work-packages/(?P<package_id>[^\/]+)"
         And when a request URL like /work-packages/12 is matched against the regex-url above,
@@ -63,7 +62,7 @@ class EndpointsHandler:
         """
 
         strip = "{}"
-        parameter_pattern = re.compile(r"{.*?}")
+        parameter_pattern = re.compile(r"{.*?}")  # match fewest possible chars inside
 
         url = re.sub(
             parameter_pattern,
@@ -75,14 +74,14 @@ class EndpointsHandler:
     @classmethod
     def _add_endpoint(cls, method: str, url: str, endpoint_function: Callable):
         """Process url and store endpoint according to method type"""
-        url_pattern = EndpointsHandler.compile_regex_url(url)
+        url_pattern = EndpointsHandler._compile_regex_url(url)
         matchable_endpoint = MatchableEndpoint(
             url_pattern=url_pattern,
             method=method,
             endpoint_function=endpoint_function,
         )
-        cls.methods[method].append(matchable_endpoint)
-        cls.methods[method].sort(
+        cls._methods[method].append(matchable_endpoint)
+        cls._methods[method].sort(
             key=lambda endpoint: len(endpoint.url_pattern), reverse=True
         )
 
@@ -123,26 +122,26 @@ class EndpointsHandler:
         return inner
 
     @staticmethod
-    def convert_parameter_types(
+    def _convert_parameter_types(
         endpoint_function: Callable,
         string_parameters: dict[str, str],
         request: httpx.Request,
     ) -> dict[str, Any]:
-        """Inspect the signature of the endpoint function and determine the parameter
-        types. Since the values parsed from the URL are still in string format, cast
-        them to the types specified in the signature. If the request is needed, include
-        that in the returned parameters"""
+        """Get type info for function parameters. Since the values parsed from the URL
+        are still in string format, cast them to the types specified in the signature.
+        If the request is needed, include that in the returned parameters"""
 
         # Get the parameter information from the endpoint function signature
-        signature_parameters = inspect.signature(endpoint_function).parameters
+        signature_parameters = get_type_hints(endpoint_function)
 
         # type-cast based on type-hinting info
         typed_parameters: dict[str, Any] = {}
         for parameter_name, value in string_parameters.items():
-            parameter_type = signature_parameters[parameter_name].annotation
+            try:
+                parameter_type = signature_parameters[parameter_name]
 
             # all parameters should be typed, raise exception otherwise
-            if parameter_type is inspect.Parameter.empty:
+            except KeyError:
                 raise Exception(
                     f"Parameter '{parameter_name}' in function "
                     + f"'{endpoint_function.__name__}' is missing type information!"
@@ -163,14 +162,14 @@ class EndpointsHandler:
         return typed_parameters
 
     @classmethod
-    def get_function_and_parameters(
+    def _get_function_and_parameters(
         cls, url: str, method: str
     ) -> tuple[Callable, dict[str, str]]:
         """Iterate through the registered endpoints for the given method.
         For each registered endpoint, try to match the request's url to the endpoint pattern.
         Upon matching, return the function and parsed variables from the url (if applicable).
         """
-        for endpoint in cls.methods[method]:
+        for endpoint in cls._methods[method]:
             matched_url = re.search(endpoint.url_pattern, url)
             if matched_url:
                 endpoint_function = endpoint.endpoint_function
@@ -191,12 +190,12 @@ class EndpointsHandler:
         and return loaded partial func"""
 
         # get endpoint function and the parsed string parameters from the url
-        endpoint_function, string_parameters = cls.get_function_and_parameters(
+        endpoint_function, string_parameters = cls._get_function_and_parameters(
             url=str(request.url), method=request.method
         )
 
         # convert string parameters into the types specified in function signature
-        typed_parameters = EndpointsHandler.convert_parameter_types(
+        typed_parameters = EndpointsHandler._convert_parameter_types(
             endpoint_function=endpoint_function,
             string_parameters=string_parameters,
             request=request,

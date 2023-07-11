@@ -71,7 +71,7 @@ def upload(  # noqa C901
     submitter_private_key_path: Path = typer.Argument(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to encrypt the "
-        + "crypt4gh envelope. Defaults to key in the current folder.",
+        + "crypt4gh envelope. Defaults to key.sec in the current folder.",
     ),
 ):
     """
@@ -109,8 +109,9 @@ def download(  # pylint: disable=too-many-arguments
     ),
     submitter_private_key_path: Path = typer.Argument(
         "./key.sec",
-        help="The path to a private key from the key pair that will be used to decrypt the"
-        + "work package access and work order tokens. Defaults to key in the current folder.",
+        help="The path to a private key from the key pair that will be used to decrypt "
+        + "the work package access token and work order token. Defaults to key.sec in "
+        + "the current folder.",
     ),
 ):
     """
@@ -190,7 +191,7 @@ def decrypt(  # noqa: C901
     ),
     output_dir: Path = typer.Option(
         None,
-        help="Optional path to a directory the decrypted file should be written to. "
+        help="Optional path to a directory that the decrypted file should be written to. "
         + "Defaults to current working directory.",
     ),
     decryption_private_key_path: Path = typer.Option(
@@ -252,7 +253,7 @@ def decrypt(  # noqa: C901
 
     if skipped_files:
         message_display.display(
-            "The following files were skipped as they are not .c4gh files"
+            "The following files were skipped as they are not .c4gh files:"
         )
         for file in skipped_files:
             message_display.display(f"- {file}")

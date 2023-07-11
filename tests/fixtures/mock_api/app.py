@@ -456,7 +456,7 @@ def fake_public_key(value_name: str):
     else:
         raise HttpyException(
             status_code=404,
-            exception_id="valueNotConfigured",  # TODO: define
+            exception_id="valueNotConfigured",
             description=f"The value {value_name} is not configured.",
             data={"value_name": value_name},
         )

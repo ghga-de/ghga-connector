@@ -44,5 +44,7 @@ class Config(BaseSettings):
     part_size: int = Field(
         DEFAULT_PART_SIZE, description="The part size to use for download."
     )
-    wkvs_api_url: str = Field(..., description="URL to the root of the WKVS API.")
+    wkvs_api_url: str = Field(
+        ..., description="URL to the root of the WKVS API. Should start with https://"
+    )
     wps_api_url: str = Field(..., description="URL to the root of the WPS API.")

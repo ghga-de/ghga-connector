@@ -26,6 +26,7 @@ from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
 from ghga_connector.config import Config
+from ghga_connector.core.api_calls.well_knowns import get_server_pubkey
 
 CONFIG = Config()  # will be patched for testing
 
@@ -78,7 +79,7 @@ def upload(  # noqa C901
     """
     core.HttpxClientState.configure(CONFIG.max_retries)
 
-    server_pubkey = "123abc"
+    server_pubkey = get_server_pubkey(CONFIG.wkvs_api_url)
 
     core.upload(
         api_url=CONFIG.upload_api,

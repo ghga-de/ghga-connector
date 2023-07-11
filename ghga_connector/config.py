@@ -44,8 +44,4 @@ class Config(BaseSettings):
     part_size: int = Field(
         DEFAULT_PART_SIZE, description="The part size to use for download."
     )
-    server_pubkey: str = Field(
-        ...,
-        description="Base64 encoded current GHGA public key for Crypt4GH encryption.",
-    )
     wps_api_url: str = Field(..., description="URL to the root of the WPS API.")

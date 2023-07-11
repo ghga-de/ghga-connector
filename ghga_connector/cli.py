@@ -60,7 +60,7 @@ cli = typer.Typer()
 
 def upload(  # noqa C901
     *,
-    file_id: str = typer.Option(..., help="The id if the file to upload"),
+    file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
     submitter_pubkey_path: Path = typer.Argument(
         "./key.pub",
@@ -78,12 +78,14 @@ def upload(  # noqa C901
     """
     core.HttpxClientState.configure(CONFIG.max_retries)
 
+    server_pubkey = "123abc"
+
     core.upload(
         api_url=CONFIG.upload_api,
         file_id=file_id,
         file_path=file_path,
         message_display=CLIMessageDisplay(),
-        server_pubkey=CONFIG.server_pubkey,
+        server_pubkey=server_pubkey,
         submitter_pubkey_path=submitter_pubkey_path,
         submitter_private_key_path=submitter_private_key_path,
     )

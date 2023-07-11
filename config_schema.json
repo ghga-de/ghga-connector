@@ -48,14 +48,6 @@
       ],
       "type": "integer"
     },
-    "server_pubkey": {
-      "title": "Server Pubkey",
-      "description": "Base64 encoded current GHGA public key for Crypt4GH encryption.",
-      "env_names": [
-        "ghga_connector_server_pubkey"
-      ],
-      "type": "string"
-    },
     "wps_api_url": {
       "title": "Wps Api Url",
       "description": "URL to the root of the WPS API.",
@@ -66,7 +58,6 @@
     }
   },
   "required": [
-    "server_pubkey",
     "wps_api_url"
   ],
   "additionalProperties": false

@@ -68,8 +68,6 @@ The service requires the following configuration parameters:
 
 - **`part_size`** *(integer)*: The part size to use for download. Default: `16777216`.
 
-- **`server_pubkey`** *(string)*: Base64 encoded current GHGA public key for Crypt4GH encryption.
-
 - **`wps_api_url`** *(string)*: URL to the root of the WPS API.
 
 

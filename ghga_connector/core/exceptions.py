@@ -321,3 +321,14 @@ class UnauthorizedAPICallError(RuntimeError):
     def __init__(self, *, url: str, cause: str):
         message = f"Could not authorize call to {url}: {cause}"
         super().__init__(message)
+
+
+class WellKnownValueNotFound(RuntimeError):
+    """
+    Thrown when a 404 is returned from a call to the well-known-value-service for a
+    specific value name.
+    """
+
+    def __init__(self, *, value_name):
+        message = f"Unable to retrieve {value_name} from well-known-value-service"
+        super().__init__(message)

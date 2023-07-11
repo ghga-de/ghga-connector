@@ -48,6 +48,14 @@
       ],
       "type": "integer"
     },
+    "wkvs_api_url": {
+      "title": "Wkvs Api Url",
+      "description": "URL to the root of the WKVS API.",
+      "env_names": [
+        "ghga_connector_wkvs_api_url"
+      ],
+      "type": "string"
+    },
     "wps_api_url": {
       "title": "Wps Api Url",
       "description": "URL to the root of the WPS API.",
@@ -58,6 +66,7 @@
     }
   },
   "required": [
+    "wkvs_api_url",
     "wps_api_url"
   ],
   "additionalProperties": false

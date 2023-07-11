@@ -46,7 +46,7 @@ def get_server_pubkey(wkvs_url) -> str:
         raise exceptions.WellKnownValueNotFound(value_name=value_name)
 
     try:
-        value = response.content[value_name]
+        value = response.json()[value_name]
     except KeyError as err:
         raise KeyError(
             "Response from well-known-value-service did not include expected field"

@@ -28,13 +28,13 @@ We recommend using the provided Docker container.
 
 A pre-build version is available at [docker hub](https://hub.docker.com/repository/docker/ghga/ghga-connector):
 ```bash
-docker pull ghga/ghga-connector:0.3.6
+docker pull ghga/ghga-connector:0.3.7
 ```
 
 Or you can build the container yourself from the [`./Dockerfile`](./Dockerfile):
 ```bash
 # Execute in the repo's root dir:
-docker build -t ghga/ghga-connector:0.3.6 .
+docker build -t ghga/ghga-connector:0.3.7 .
 ```
 
 For production-ready deployment, we recommend using Kubernetes, however,
@@ -42,7 +42,7 @@ for simple use cases, you could execute the service using docker
 on a single server:
 ```bash
 # The entrypoint is preconfigured:
-docker run -p 8080:8080 ghga/ghga-connector:0.3.6 --help
+docker run -p 8080:8080 ghga/ghga-connector:0.3.7 --help
 ```
 
 If you prefer not to use containers, you may install the service from source:
@@ -68,7 +68,7 @@ The service requires the following configuration parameters:
 
 - **`part_size`** *(integer)*: The part size to use for download. Default: `16777216`.
 
-- **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API.
+- **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API. Should start with https://.
 
 - **`wps_api_url`** *(string)*: URL to the root of the WPS API.
 

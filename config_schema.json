@@ -50,7 +50,7 @@
     },
     "wkvs_api_url": {
       "title": "Wkvs Api Url",
-      "description": "URL to the root of the WKVS API.",
+      "description": "URL to the root of the WKVS API. Should start with https://",
       "env_names": [
         "ghga_connector_wkvs_api_url"
       ],

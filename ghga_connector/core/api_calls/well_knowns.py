@@ -17,7 +17,7 @@
 import httpx
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import HttpxClientState, httpx_client
+from ghga_connector.core.client import httpx_client
 
 
 def get_server_pubkey(wkvs_url) -> str:
@@ -34,7 +34,7 @@ def get_server_pubkey(wkvs_url) -> str:
 
     value_name = "crypt4gh_public_key"
     url = f"{wkvs_url}/values/{value_name}"
-    HttpxClientState.configure(3)
+
     try:
         with httpx_client() as client:
             response = client.get(url)  # verify is True by default

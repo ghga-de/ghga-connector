@@ -29,6 +29,7 @@ from ghga_connector.core.api_calls import (
     get_part_upload_urls,
     patch_multipart_upload,
 )
+from ghga_connector.core.api_calls.well_knowns import get_server_pubkey
 from ghga_connector.core.exceptions import (
     CantChangeUploadStatusError,
     ConnectionFailedError,
@@ -36,6 +37,7 @@ from ghga_connector.core.exceptions import (
     MaxPartNoExceededError,
     NoWorkPackageAccessError,
     UploadNotRegisteredError,
+    WellKnownValueNotFound,
 )
 from tests.fixtures.utils import mock_wps_token
 
@@ -189,3 +191,22 @@ def test_get_wps_file_info(httpx_mock: HTTPXMock):
             submitter_private_key="",
         )
         response = work_package_accessor.get_package_files()
+
+
+@pytest.mark.asyncio
+async def test_wkvs_calls(httpx_mock: HTTPXMock):
+    """Test handling of responses for WKVS api calls"""
+
+    base_url = "https://127.0.0.1"
+
+    with pytest.raises(WellKnownValueNotFound):
+        httpx_mock.add_response(status_code=404)
+        get_server_pubkey(base_url)
+
+    with pytest.raises(KeyError):
+        httpx_mock.add_response(status_code=200, json={})
+        get_server_pubkey(base_url)
+
+    httpx_mock.add_response(json={"crypt4gh_public_key": "dummy-key"})
+    server_pubkey = get_server_pubkey(base_url)
+    assert server_pubkey == "dummy-key"

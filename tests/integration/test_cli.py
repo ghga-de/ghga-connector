@@ -42,7 +42,7 @@ from tests.fixtures.mock_api.app import handle_request
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_token
 
-URL_PATTERN = re.compile(r"^http://127\.0\.0\.1.*")
+URL_PATTERN = re.compile(r"^https?://127\.0\.0\.1.*")
 
 ENVIRON_DEFAULTS = {
     "DEFAULT_PART_SIZE": str(16 * 1024 * 1024),

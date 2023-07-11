@@ -445,6 +445,23 @@ def create_work_order_token(package_id: str, file_id: str):
     )
 
 
+@EndpointsHandler.get("/values/{value_name}")
+def fake_public_key(value_name: str):
+    """Mock the WKVS /values/value_name endpoint"""
+    if value_name == "crypt4gh_public_key":
+        return httpx.Response(
+            status_code=200,
+            json={value_name: "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY="},
+        )
+    else:
+        raise HttpyException(
+            status_code=404,
+            exception_id="valueNotConfigured",  # TODO: define
+            description=f"The value {value_name} is not configured.",
+            data={"value_name": value_name},
+        )
+
+
 def handle_request(request: httpx.Request):
     """
     This is used as the callback function for the httpx_mock fixture in test_cli.py.

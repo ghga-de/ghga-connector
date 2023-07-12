@@ -27,7 +27,6 @@ from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
 from ghga_connector.config import Config
-from ghga_connector.core.api_calls.well_knowns import get_server_pubkey
 
 CONFIG = Config()  # will be patched for testing
 
@@ -90,10 +89,12 @@ def upload(  # noqa C901
         CLIMessageDisplay().failure(f"The directory '{file_path}' does not exist.")
         raise core.exceptions.DirectoryDoesNotExistError(output_dir=file_path)
 
-    server_pubkey = get_server_pubkey(CONFIG.wkvs_api_url)
+    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
+    server_pubkey = wkvs_caller.get_server_pubkey()
+    ucs_api_url = wkvs_caller.get_upload_api_url()
 
     core.upload(
-        api_url=CONFIG.upload_api,
+        api_url=ucs_api_url,
         file_id=file_id,
         file_path=file_path,
         message_display=CLIMessageDisplay(),
@@ -158,10 +159,14 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     )
     decrypted_token = crypt.decrypt(data=work_package_token, key=submitter_private_key)
 
+    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
+    wps_api_url = wkvs_caller.get_wps_api_url()
+    dcs_api_url = wkvs_caller.get_download_api_url()
+
     work_package_accessor = core.WorkPackageAccessor(
         access_token=decrypted_token,
-        api_url=CONFIG.wps_api_url,
-        dcs_api_url=CONFIG.download_api,
+        api_url=wps_api_url,
+        dcs_api_url=dcs_api_url,
         package_id=work_package_id,
         submitter_private_key=submitter_private_key,
     )
@@ -169,7 +174,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
 
     io_handler = core.CliIoHandler()
     staging_parameters = core.StagingParameters(
-        api_url=CONFIG.download_api,
+        api_url=dcs_api_url,
         file_ids_with_extension=file_ids_with_extension,
         max_wait_time=CONFIG.max_wait_time,
     )
@@ -185,7 +190,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     while file_stager.file_ids_remain():
         for file_id in file_stager.get_staged():
             core.download(
-                api_url=CONFIG.download_api,
+                api_url=dcs_api_url,
                 file_id=file_id,
                 file_extension=file_ids_with_extension[file_id],
                 output_dir=output_dir,

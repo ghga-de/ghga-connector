@@ -58,10 +58,6 @@ ghga_connector --help
 ### Parameters
 
 The service requires the following configuration parameters:
-- **`upload_api`** *(string)*: URL to the root of the upload controller API. Default: `https://hd-dev.ghga-dev.de/ucs`.
-
-- **`download_api`** *(string)*: URL to the root of the DRS-compatible API used for download. Default: `https://hd-dev.ghga-dev.de/drs3/ga4gh/drs/v1`.
-
 - **`max_retries`** *(integer)*: Number of times to retry failed API calls. Default: `5`.
 
 - **`max_wait_time`** *(integer)*: Maximal time in seconds to wait before quitting without a download. Default: `3600`.
@@ -69,8 +65,6 @@ The service requires the following configuration parameters:
 - **`part_size`** *(integer)*: The part size to use for download. Default: `16777216`.
 
 - **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API. Should start with https://.
-
-- **`wps_api_url`** *(string)*: URL to the root of the WPS API.
 
 
 ### Usage:

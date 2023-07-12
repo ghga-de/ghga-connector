@@ -17,6 +17,7 @@
 """ CLI-specific wrappers around core functions."""
 
 import os
+import sys
 from distutils.util import strtobool
 from pathlib import Path
 
@@ -56,7 +57,7 @@ class CLIMessageDisplay(core.AbstractMessageDisplay):
         typer.secho(message, fg=core.MessageColors.FAILURE, err=True)
 
 
-cli = typer.Typer()
+cli = typer.Typer(no_args_is_help=True)
 
 
 def upload(  # noqa C901
@@ -73,11 +74,21 @@ def upload(  # noqa C901
         help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to key.sec in the current folder.",
     ),
+    debug: bool = typer.Option(
+        False, help="Set to 1 in order to view traceback for errors."
+    ),
 ):
     """
     Command to upload a file
     """
+    if not debug:
+        sys.excepthook = lambda x, y, z: None
+
     core.HttpxClientState.configure(CONFIG.max_retries)
+
+    if not file_path.is_dir():
+        CLIMessageDisplay().failure(f"The directory '{file_path}' does not exist.")
+        raise core.exceptions.DirectoryDoesNotExistError(output_dir=file_path)
 
     server_pubkey = get_server_pubkey(CONFIG.wkvs_api_url)
 
@@ -97,7 +108,7 @@ if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
 
 
 @cli.command()
-def download(  # pylint: disable=too-many-arguments
+def download(  # pylint: disable=too-many-arguments,too-many-locals
     *,
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
@@ -113,21 +124,27 @@ def download(  # pylint: disable=too-many-arguments
         + "the work package access token and work order token. Defaults to key.sec in "
         + "the current folder.",
     ),
+    debug: bool = typer.Option(
+        False, help="Use in order to view traceback for errors."
+    ),
 ):
     """
     Command to download files
     """
+    if not debug:
+        sys.excepthook = lambda x, y, z: None
+
     core.HttpxClientState.configure(CONFIG.max_retries)
     message_display = CLIMessageDisplay()
 
     if not submitter_pubkey_path.is_file():
-        message_display.failure(f"The file {submitter_pubkey_path} does not exist.")
+        message_display.failure(f"The file '{submitter_pubkey_path}' does not exist.")
         raise core.exceptions.PubKeyFileDoesNotExistError(
             pubkey_path=submitter_pubkey_path
         )
 
     if not output_dir.is_dir():
-        message_display.failure(f"The directory {output_dir} does not exist.")
+        message_display.failure(f"The directory '{output_dir}' does not exist.")
         raise core.exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
 
     submitter_public_key = crypt4gh.keys.get_public_key(filepath=submitter_pubkey_path)
@@ -182,7 +199,7 @@ def download(  # pylint: disable=too-many-arguments
 
 
 @cli.command()
-def decrypt(  # noqa: C901
+def decrypt(  # noqa: C901 # pylint: disable=too-many-branches
     *,
     input_dir: Path = typer.Option(
         ...,
@@ -198,14 +215,20 @@ def decrypt(  # noqa: C901
         ...,
         help="Path to the private key that should be used to decrypt the file.",
     ),
+    debug: bool = typer.Option(
+        False, help="Use in order to view traceback for errors."
+    ),
 ):
     """Command to decrypt a downloaded file"""
+
+    if not debug:
+        sys.excepthook = lambda x, y, z: None
 
     message_display = CLIMessageDisplay()
 
     if not input_dir.is_dir():
         message_display.failure(
-            f"Input directory {input_dir} does not exist or is not a directory."
+            f"Input directory '{input_dir}' does not exist or is not a directory."
         )
 
     if not output_dir:
@@ -213,7 +236,7 @@ def decrypt(  # noqa: C901
 
     if output_dir.exists() and not output_dir.is_dir():
         message_display.failure(
-            f"Output directory location {input_dir} exists, but is not a directory."
+            f"Output directory location '{input_dir}' exists, but is not a directory."
         )
 
     if not output_dir.exists():
@@ -232,7 +255,7 @@ def decrypt(  # noqa: C901
         if output_file.exists():
             errors[
                 str(input_file)
-            ] = f"File already exists at {output_file}, will not overwrite."
+            ] = f"File already exists at '{output_file}', will not overwrite."
             continue
 
         try:
@@ -248,7 +271,7 @@ def decrypt(  # noqa: C901
             continue
 
         message_display.success(
-            f"Successfully decrypted file {input_file} to location {output_dir}."
+            f"Successfully decrypted file '{input_file}' to location '{output_dir}'."
         )
 
     if skipped_files:

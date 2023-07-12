@@ -14,42 +14,66 @@
 # limitations under the License.
 
 """Make calls to the WKVS"""
+from dataclasses import dataclass
+from typing import Any
+
 import httpx
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.client import httpx_client
 
 
-def get_server_pubkey(wkvs_url) -> str:
-    """Retrieve the GHGA crypt4gh public key
+@dataclass
+class WKVSCaller:
+    """Class to facilitate calls to WKVS (mainly just avoid providing url repeatedly)"""
 
-    Args:
-        wkvs_url (str): The base url for the well-known-value-service
+    wkvs_url: str
 
-    Raises:
-        WellKnownValueNotFound: when a 404 response is received from the WKVS
-        KeyError: when a successful response is received but doesn't contain the expected value
+    def get_server_pubkey(self) -> str:
+        """Retrieve the GHGA crypt4gh public key"""
+        return self._get_value("crypt4gh_public_key")
 
-    """
+    def get_wps_api_url(self) -> str:
+        """Retrieve the API url for the WPS"""
+        return self._get_value("wps_api_url")
 
-    value_name = "crypt4gh_public_key"
-    url = f"{wkvs_url}/values/{value_name}"
+    def get_download_api_url(self) -> str:
+        """Retrieve the API url for the DCS"""
+        return self._get_value("download_api_url")
 
-    try:
-        with httpx_client() as client:
-            response = client.get(url)  # verify is True by default
-    except httpx.RequestError as request_error:
-        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-        raise exceptions.RequestFailedError(url=url) from request_error
+    def get_upload_api_url(self) -> str:
+        """Retrieve the API url for the UCS"""
+        return self._get_value("upload_api_url")
 
-    if response.status_code == 404:
-        raise exceptions.WellKnownValueNotFound(value_name=value_name)
+    def _get_value(self, value_name: str) -> Any:
+        """Retrieve the GHGA crypt4gh public key
 
-    try:
-        value = response.json()[value_name]
-    except KeyError as err:
-        raise KeyError(
-            "Response from well-known-value-service did not include expected field"
-            + f" '{value_name}'"
-        ) from err
-    return value
+        Args:
+            wkvs_url (str): The base url for the well-known-value-service
+
+        Raises:
+            WellKnownValueNotFound: when a 404 response is received from the WKVS
+            KeyError: when a successful response is received but doesn't contain the expected value
+
+        """
+
+        url = f"{self.wkvs_url}/values/{value_name}"
+
+        try:
+            with httpx_client() as client:
+                response = client.get(url)  # verify is True by default
+        except httpx.RequestError as request_error:
+            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
+            raise exceptions.RequestFailedError(url=url) from request_error
+
+        if response.status_code == 404:
+            raise exceptions.WellKnownValueNotFound(value_name=value_name)
+
+        try:
+            value = response.json()[value_name]
+        except KeyError as err:
+            raise KeyError(
+                "Response from well-known-value-service did not include expected field"
+                + f" '{value_name}'"
+            ) from err
+        return value

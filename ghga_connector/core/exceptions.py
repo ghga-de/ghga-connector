@@ -335,6 +335,6 @@ class WellKnownValueNotFound(RuntimeError):
 
     def __init__(self, *, value_name):
         message = (
-            f"Unable to retrieve value of {value_name} from well-known-value-service"
+            f"Unable to retrieve value of '{value_name}' from well-known-value-service"
         )
         super().__init__(message)

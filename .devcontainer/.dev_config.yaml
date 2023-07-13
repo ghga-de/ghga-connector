@@ -1,4 +1,3 @@
 # Please only mention the non-default settings here:
 max_retries: 2
-server_pubkey: dummy-pubkey
-wps_api_url: http://127.0.0.1
+wkvs_api_url: https://127.0.0.1

@@ -74,7 +74,7 @@ def upload(  # noqa C901
         + "crypt4gh envelope. Defaults to key.sec in the current folder.",
     ),
     debug: bool = typer.Option(
-        False, help="Set to 1 in order to view traceback for errors."
+        False, help="Set this option in order to view traceback for errors."
     ),
 ):
     """
@@ -122,7 +122,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
         + "the current folder.",
     ),
     debug: bool = typer.Option(
-        False, help="Use in order to view traceback for errors."
+        False, help="Set this option in order to view traceback for errors."
     ),
 ):
     """
@@ -217,7 +217,7 @@ def decrypt(  # noqa: C901 # pylint: disable=too-many-branches
         help="Path to the private key that should be used to decrypt the file.",
     ),
     debug: bool = typer.Option(
-        False, help="Use in order to view traceback for errors."
+        False, help="Set this option in order to view traceback for errors."
     ),
 ):
     """Command to decrypt a downloaded file"""

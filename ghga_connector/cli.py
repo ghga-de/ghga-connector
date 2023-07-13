@@ -85,10 +85,6 @@ def upload(  # noqa C901
 
     core.HttpxClientState.configure(CONFIG.max_retries)
 
-    if not file_path.is_dir():
-        CLIMessageDisplay().failure(f"The directory '{file_path}' does not exist.")
-        raise core.exceptions.DirectoryDoesNotExistError(output_dir=file_path)
-
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     server_pubkey = wkvs_caller.get_server_pubkey()
     ucs_api_url = wkvs_caller.get_ucs_api_url()

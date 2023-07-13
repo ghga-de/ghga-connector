@@ -21,6 +21,7 @@ import httpx
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.client import httpx_client
+from ghga_connector.core.constants import TIMEOUT
 
 
 @dataclass
@@ -37,13 +38,13 @@ class WKVSCaller:
         """Retrieve the API url for the WPS"""
         return self._get_value("wps_api_url")
 
-    def get_download_api_url(self) -> str:
+    def get_dcs_api_url(self) -> str:
         """Retrieve the API url for the DCS"""
-        return self._get_value("download_api_url")
+        return self._get_value("dcs_api_url")
 
-    def get_upload_api_url(self) -> str:
+    def get_ucs_api_url(self) -> str:
         """Retrieve the API url for the UCS"""
-        return self._get_value("upload_api_url")
+        return self._get_value("ucs_api_url")
 
     def _get_value(self, value_name: str) -> Any:
         """Retrieve the GHGA crypt4gh public key
@@ -61,7 +62,7 @@ class WKVSCaller:
 
         try:
             with httpx_client() as client:
-                response = client.get(url)  # verify is True by default
+                response = client.get(url, timeout=TIMEOUT)  # verify is True by default
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error

@@ -91,7 +91,7 @@ def upload(  # noqa C901
 
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     server_pubkey = wkvs_caller.get_server_pubkey()
-    ucs_api_url = wkvs_caller.get_upload_api_url()
+    ucs_api_url = wkvs_caller.get_ucs_api_url()
 
     core.upload(
         api_url=ucs_api_url,
@@ -161,7 +161,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
 
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     wps_api_url = wkvs_caller.get_wps_api_url()
-    dcs_api_url = wkvs_caller.get_download_api_url()
+    dcs_api_url = wkvs_caller.get_dcs_api_url()
 
     work_package_accessor = core.WorkPackageAccessor(
         access_token=decrypted_token,

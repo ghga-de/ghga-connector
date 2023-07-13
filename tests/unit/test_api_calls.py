@@ -23,13 +23,13 @@ from unittest.mock import Mock
 import pytest
 from pytest_httpx import HTTPXMock
 
+from ghga_connector.core import WKVSCaller
 from ghga_connector.core.api_calls import (
     UploadStatus,
     WorkPackageAccessor,
     get_part_upload_urls,
     patch_multipart_upload,
 )
-from ghga_connector.core.api_calls.well_knowns import get_server_pubkey
 from ghga_connector.core.exceptions import (
     CantChangeUploadStatusError,
     ConnectionFailedError,
@@ -197,16 +197,24 @@ def test_get_wps_file_info(httpx_mock: HTTPXMock):
 async def test_wkvs_calls(httpx_mock: HTTPXMock):
     """Test handling of responses for WKVS api calls"""
 
-    base_url = "https://127.0.0.1"
+    wkvs_url = "https://127.0.0.1"
+    wkvs_caller = WKVSCaller(wkvs_url)
 
     with pytest.raises(WellKnownValueNotFound):
         httpx_mock.add_response(status_code=404)
-        get_server_pubkey(base_url)
+        wkvs_caller.get_server_pubkey()
 
     with pytest.raises(KeyError):
         httpx_mock.add_response(status_code=200, json={})
-        get_server_pubkey(base_url)
+        wkvs_caller.get_server_pubkey()
 
-    httpx_mock.add_response(json={"crypt4gh_public_key": "dummy-key"})
-    server_pubkey = get_server_pubkey(base_url)
-    assert server_pubkey == "dummy-key"
+    # test each call to CYA
+    for func, value_name in [
+        (wkvs_caller.get_dcs_api_url, "dcs_api_url"),
+        (wkvs_caller.get_server_pubkey, "crypt4gh_public_key"),
+        (wkvs_caller.get_ucs_api_url, "ucs_api_url"),
+        (wkvs_caller.get_wps_api_url, "wps_api_url"),
+    ]:
+        httpx_mock.add_response(json={value_name: "dummy-value"})
+        value = func()
+        assert value == "dummy-value"

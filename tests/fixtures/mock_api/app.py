@@ -446,12 +446,19 @@ def create_work_order_token(package_id: str, file_id: str):
 
 
 @EndpointsHandler.get("/values/{value_name}")
-def fake_public_key(value_name: str):
+def mock_wkvs(value_name: str):
     """Mock the WKVS /values/value_name endpoint"""
-    if value_name == "crypt4gh_public_key":
+    values: dict[str, str] = {
+        "crypt4gh_public_key": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+        "wps_api_url": "http://127.0.0.1/wps",
+        "dcs_api_url": "http://127.0.0.1/download",
+        "ucs_api_url": "http://127.0.0.1/upload",
+    }
+
+    if value_name in values:
         return httpx.Response(
             status_code=200,
-            json={value_name: "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY="},
+            json={value_name: values[value_name]},
         )
     else:
         raise HttpyException(

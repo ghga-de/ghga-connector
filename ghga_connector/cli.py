@@ -63,12 +63,12 @@ def upload(  # noqa C901
     *,
     file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
-    submitter_pubkey_path: Path = typer.Argument(
+    user_public_key_path: Path = typer.Argument(
         "./key.pub",
         help="The path to a public key from the key pair that was announced in the "
         + "metadata. Defaults to key.pub in the current folder.",
     ),
-    submitter_private_key_path: Path = typer.Argument(
+    user_private_key_path: Path = typer.Argument(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to key.sec in the current folder.",
@@ -95,8 +95,8 @@ def upload(  # noqa C901
         file_path=file_path,
         message_display=CLIMessageDisplay(),
         server_pubkey=server_pubkey,
-        submitter_pubkey_path=submitter_pubkey_path,
-        submitter_private_key_path=submitter_private_key_path,
+        user_public_key_path=user_public_key_path,
+        user_private_key_path=user_private_key_path,
     )
 
 
@@ -110,12 +110,12 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
     ),
-    submitter_pubkey_path: Path = typer.Argument(
+    user_public_key_path: Path = typer.Argument(
         "./key.pub",
         help="The path to a public key from the key pair that was announced in the "
         + "metadata. Defaults to key.pub in the current folder.",
     ),
-    submitter_private_key_path: Path = typer.Argument(
+    user_private_key_path: Path = typer.Argument(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to decrypt "
         + "the work package access token and work order token. Defaults to key.sec in "
@@ -134,26 +134,26 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     core.HttpxClientState.configure(CONFIG.max_retries)
     message_display = CLIMessageDisplay()
 
-    if not submitter_pubkey_path.is_file():
-        message_display.failure(f"The file '{submitter_pubkey_path}' does not exist.")
+    if not user_public_key_path.is_file():
+        message_display.failure(f"The file '{user_public_key_path}' does not exist.")
         raise core.exceptions.PubKeyFileDoesNotExistError(
-            pubkey_path=submitter_pubkey_path
+            pubkey_path=user_public_key_path
         )
 
     if not output_dir.is_dir():
         message_display.failure(f"The directory '{output_dir}' does not exist.")
         raise core.exceptions.DirectoryDoesNotExistError(output_dir=output_dir)
 
-    submitter_public_key = crypt4gh.keys.get_public_key(filepath=submitter_pubkey_path)
-    submitter_private_key = crypt4gh.keys.get_private_key(
-        filepath=submitter_private_key_path, callback=None
+    user_public_key = crypt4gh.keys.get_public_key(filepath=user_public_key_path)
+    user_private_key = crypt4gh.keys.get_private_key(
+        filepath=user_private_key_path, callback=None
     )
 
     # get work package access token and id from user input, will be used in later PR
     work_package_id, work_package_token = core.main.get_wps_token(
         max_tries=3, message_display=message_display
     )
-    decrypted_token = crypt.decrypt(data=work_package_token, key=submitter_private_key)
+    decrypted_token = crypt.decrypt(data=work_package_token, key=user_private_key)
 
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     wps_api_url = wkvs_caller.get_wps_api_url()
@@ -164,7 +164,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
         api_url=wps_api_url,
         dcs_api_url=dcs_api_url,
         package_id=work_package_id,
-        submitter_private_key=submitter_private_key,
+        user_private_key=user_private_key,
     )
     file_ids_with_extension = work_package_accessor.get_package_files()
 
@@ -193,7 +193,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
                 max_wait_time=CONFIG.max_wait_time,
                 part_size=CONFIG.part_size,
                 message_display=message_display,
-                submitter_public_key=submitter_public_key,
+                user_public_key=user_public_key,
                 work_package_accessor=work_package_accessor,
             )
         file_stager.update_staged_files()

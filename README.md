@@ -64,7 +64,7 @@ The service requires the following configuration parameters:
 
 - **`part_size`** *(integer)*: The part size to use for download. Default: `16777216`.
 
-- **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API. Should start with https://.
+- **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API. Should start with https://. Default: `https://data.ghga.de/.well-known`.
 
 
 ### Usage:

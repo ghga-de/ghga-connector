@@ -101,10 +101,10 @@ def upload(  # noqa C901
 
 
 if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
-    cli.command()(upload)
+    cli.command(no_args_is_help=True)(upload)
 
 
-@cli.command()
+@cli.command(no_args_is_help=True)
 def download(  # pylint: disable=too-many-arguments,too-many-locals
     *,
     output_dir: Path = typer.Option(
@@ -199,7 +199,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
         file_stager.update_staged_files()
 
 
-@cli.command()
+@cli.command(no_args_is_help=True)
 def decrypt(  # noqa: C901 # pylint: disable=too-many-branches
     *,
     input_dir: Path = typer.Option(

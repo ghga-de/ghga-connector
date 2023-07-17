@@ -305,7 +305,7 @@ class NoWorkPackageAccessError(RuntimeError):
 class InvalidWPSResponseError(RuntimeError):
     """
     Thrown when communication with the Work Package Service returns an unexpected response.
-    This should be used instead of BadResponseError when handling WPS results to differntiate
+    This should be used instead of BadResponseError when handling WPS results to differentiate.
     """
 
     def __init__(self, *, url: str, response_code: int):

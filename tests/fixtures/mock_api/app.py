@@ -457,10 +457,7 @@ def mock_wkvs(value_name: str):
     }
 
     if value_name in values:
-        return httpx.Response(
-            status_code=200,
-            json={value_name: values[value_name]},
-        )
+        return httpx.Response(status_code=200, json={value_name: values[value_name]})
     else:
         raise HttpyException(
             status_code=404,

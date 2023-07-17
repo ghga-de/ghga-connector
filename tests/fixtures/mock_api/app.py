@@ -441,7 +441,8 @@ def create_work_order_token(package_id: str, file_id: str):
 
     # has to be at least 48 chars long
     return httpx.Response(
-        status_code=201, content=base64.b64encode(b"1234567890" * 5).decode()
+        status_code=201,
+        json=base64.b64encode(b"1234567890" * 5).decode(),
     )
 
 

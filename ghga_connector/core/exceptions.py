@@ -61,7 +61,10 @@ class FileAlreadyEncryptedError(RuntimeError):
     """Thrown, when the specified file is already encrypted."""
 
     def __init__(self, *, file_path: Path):
-        message = f"The file '{file_path}' is already Crypt4GH encrypted."
+        message = (
+            f"The file '{file_path}' is already Crypt4GH encrypted. Provide data "
+            + "without Crypt4GH encryption."
+        )
         super().__init__(message)
 
 
@@ -88,9 +91,7 @@ class PubKeyMismatchError(RuntimeError):
     """
 
     def __init__(self):
-        message = (
-            "Provided user public key does not match the announced user public key."
-        )
+        message = "Provided public key does not match the public key from the metadata."
         super().__init__(message)
 
 
@@ -172,7 +173,7 @@ class NoUploadPossibleError(RuntimeError):
     def __init__(self, *, file_id: str):
         message = (
             "It is not possible to start a multipart upload for file with id "
-            + f"'{file_id}', because this download is already pending or has been "
+            + f"'{file_id}' because this download is already pending or has been "
             + "accepted."
         )
         super().__init__(message)
@@ -201,7 +202,7 @@ class UserHasNoUploadAccessError(RuntimeError):
 
     def __init__(self, *, upload_id: str):
         message = (
-            "This user is not registered as the data submitter "
+            "User is not registered as a Data Submitter "
             f"for the file corresponding to the upload_id '{upload_id}'."
         )
         super().__init__(message)
@@ -215,7 +216,7 @@ class UserHasNoFileAccessError(RuntimeError):
 
     def __init__(self, *, file_id: str):
         message = (
-            "This user is not registered as the data submitter "
+            "User is not registered as the data submitter "
             f"for the file with the id '{file_id}'."
         )
         super().__init__(message)

@@ -456,15 +456,14 @@ def mock_wkvs(value_name: str):
         "ucs_api_url": "http://127.0.0.1/upload",
     }
 
-    if value_name in values:
-        return httpx.Response(status_code=200, json={value_name: values[value_name]})
-    else:
+    if value_name not in values:
         raise HttpyException(
             status_code=404,
             exception_id="valueNotConfigured",
             description=f"The value {value_name} is not configured.",
             data={"value_name": value_name},
         )
+    return httpx.Response(status_code=200, json={value_name: values[value_name]})
 
 
 def handle_request(request: httpx.Request):

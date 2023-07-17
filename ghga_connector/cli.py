@@ -63,12 +63,12 @@ def upload(  # noqa C901
     *,
     file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
-    my_public_key_path: Path = typer.Argument(
+    my_public_key_path: Path = typer.Option(
         "./key.pub",
         help="The path to a public key from the key pair that was announced in the "
         + "metadata. Defaults to key.pub in the current folder.",
     ),
-    my_private_key_path: Path = typer.Argument(
+    my_private_key_path: Path = typer.Option(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to key.sec in the current folder.",
@@ -110,12 +110,12 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
     ),
-    my_public_key_path: Path = typer.Argument(
+    my_public_key_path: Path = typer.Option(
         "./key.pub",
-        help="The path to a public key from the key pair that was announced in the "
-        + "metadata. Defaults to key.pub in the current folder.",
+        help="The path to a public key from the key pair that was announced when the "
+        + "download token was created. Defaults to key.pub in the current folder.",
     ),
-    my_private_key_path: Path = typer.Argument(
+    my_private_key_path: Path = typer.Option(
         "./key.sec",
         help="The path to a private key from the key pair that will be used to decrypt "
         + "the work package access token and work order token. Defaults to key.sec in "

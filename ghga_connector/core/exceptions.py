@@ -34,8 +34,18 @@ class AbortBatchProcessError(RuntimeError):
 class DirectoryDoesNotExistError(RuntimeError):
     """Thrown, when the specified directory does not exist."""
 
-    def __init__(self, *, output_dir: Path):
-        message = f"The directory {output_dir} does not exist."
+    def __init__(self, *, directory: Path):
+        message = f"The directory '{directory}' does not exist."
+        super().__init__(message)
+
+
+class DirectoryIsNotDirectory(RuntimeError):
+    """Thrown when specified directory is not a directory"""
+
+    def __init__(self, *, directory: Path):
+        message = (
+            f"Output directory location '{directory}' exists, but is not a directory."
+        )
         super().__init__(message)
 
 
@@ -43,7 +53,7 @@ class FileAlreadyExistsError(RuntimeError):
     """Thrown, when the specified file already exists."""
 
     def __init__(self, *, output_file: str):
-        message = f"The file {output_file} already exists."
+        message = f"The file '{output_file}' already exists."
         super().__init__(message)
 
 
@@ -51,7 +61,7 @@ class FileAlreadyEncryptedError(RuntimeError):
     """Thrown, when the specified file is already encrypted."""
 
     def __init__(self, *, file_path: Path):
-        message = f"The file {file_path} is already Crypt4GH encrypted."
+        message = f"The file '{file_path}' is already Crypt4GH encrypted."
         super().__init__(message)
 
 
@@ -59,7 +69,7 @@ class FileDoesNotExistError(RuntimeError):
     """Thrown, when the specified file does not exist."""
 
     def __init__(self, *, file_path: Path):
-        message = f"The file {file_path} does not exist."
+        message = f"The file '{file_path}' does not exist."
         super().__init__(message)
 
 
@@ -67,7 +77,7 @@ class PubKeyFileDoesNotExistError(RuntimeError):
     """Thrown, when the specified public key file does not exist."""
 
     def __init__(self, *, pubkey_path: Path):
-        message = f"The public key file {pubkey_path} does not exist."
+        message = f"The public key file '{pubkey_path}' does not exist."
         super().__init__(message)
 
 
@@ -88,7 +98,7 @@ class PrivateKeyFileDoesNotExistError(RuntimeError):
     """Thrown, when the specified private key file does exist."""
 
     def __init__(self, *, private_key_path: Path):
-        message = f"The private key file {private_key_path} does not exist."
+        message = f"The private key file '{private_key_path}' does not exist."
         super().__init__(message)
 
 
@@ -96,7 +106,7 @@ class ApiNotReachableError(RuntimeError):
     """Thrown, when the api is not reachable."""
 
     def __init__(self, *, api_url: str):
-        message = f"The url {api_url} is currently not reachable."
+        message = f"The url '{api_url}' is currently not reachable."
         super().__init__(message)
 
 
@@ -104,9 +114,7 @@ class RetryTimeExpectedError(RuntimeError):
     """Thrown, when a request didn't contain a retry time even though it was expected."""
 
     def __init__(self, *, url: str):
-        message = (
-            f"No `Retry-After` header in response from server following the url: {url}"
-        )
+        message = f"No `Retry-After` header in response from server following the url: '{url}'"
         super().__init__(message)
 
 
@@ -114,7 +122,7 @@ class RequestFailedError(RuntimeError):
     """Thrown, when a request fails without returning a response code"""
 
     def __init__(self, *, url: str):
-        message = f"The request to {url} failed."
+        message = f"The request to '{url}' failed."
         super().__init__(message)
 
 
@@ -123,7 +131,7 @@ class NoS3AccessMethodError(RuntimeError):
     Method"""
 
     def __init__(self, *, url: str):
-        message = f"The request to {url} did not return an S3 Access Method."
+        message = f"The request to '{url}' did not return an S3 Access Method."
         super().__init__(message)
 
 
@@ -154,7 +162,7 @@ class BadResponseCodeError(RuntimeError):
 
     def __init__(self, *, url: str, response_code: int):
         self.response_code = response_code
-        message = f"The request to {url} failed with response code {response_code}."
+        message = f"The request to '{url}' failed with response code {response_code}."
         super().__init__(message)
 
 
@@ -179,7 +187,7 @@ class DownloadFinalizationError(RuntimeError):
     def __init__(self, *, file_path: Path):
         message = (
             "Cannot move downloaded file to its final location as another file "
-            + f"unexpectedly exists at {file_path}"
+            + f"unexpectedly exists at '{file_path}'"
         )
         super().__init__(message)
 
@@ -229,7 +237,7 @@ class MaxWaitTimeExceededError(RuntimeError):
     exceeded."""
 
     def __init__(self, *, max_wait_time: int):
-        message = f"Exceeded maximum wait time of {max_wait_time} seconds."
+        message = f"Exceeded maximum wait time of ({max_wait_time}) seconds."
         super().__init__(message)
 
 
@@ -237,7 +245,7 @@ class ConnectionFailedError(RuntimeError):
     """Thrown, when a ConnectError or ConnectTimeout error is raised by httpx"""
 
     def __init__(self, *, url: str, reason: str):
-        message = f"Request to {url} failed to connect. Reason: {reason}"
+        message = f"Request to '{url}' failed to connect. Reason: {reason}"
         super().__init__(message)
 
 
@@ -284,7 +292,7 @@ class InvalidWorkPackageToken(RuntimeError):
     """Thrown, when the work package string pasted by the user could not be parsed"""
 
     def __init__(self, *, tries: int):
-        message = f"Parsing of the work package string failed {tries} times."
+        message = f"Parsing of the work package string failed ({tries}) times."
         super().__init__(message)
 
 
@@ -311,7 +319,7 @@ class InvalidWPSResponseError(RuntimeError):
     def __init__(self, *, url: str, response_code: int):
         self.response_code = response_code
         message = (
-            f"The request to the WPS at {url} failed with an unexpected response code "
+            f"The request to the WPS at '{url}' failed with an unexpected response code "
             + f"of {response_code}."
         )
         super().__init__(message)
@@ -323,7 +331,7 @@ class UnauthorizedAPICallError(RuntimeError):
     """
 
     def __init__(self, *, url: str, cause: str):
-        message = f"Could not authorize call to {url}: {cause}"
+        message = f"Could not authorize call to '{url}': {cause}"
         super().__init__(message)
 
 

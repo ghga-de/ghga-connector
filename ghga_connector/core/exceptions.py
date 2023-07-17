@@ -71,7 +71,7 @@ class PubKeyFileDoesNotExistError(RuntimeError):
         super().__init__(message)
 
 
-class PubkeyMismatchError(RuntimeError):
+class PubKeyMismatchError(RuntimeError):
     """
     Thrown when the user public key announced in the submission metadata retrieved from
     the work package service does not match the user public key provided to the connector

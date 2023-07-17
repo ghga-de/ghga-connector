@@ -52,21 +52,21 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
     file_path: Path,
     message_display: AbstractMessageDisplay,
     server_pubkey: str,
-    user_public_key_path: Path,
-    user_private_key_path: Path,
+    my_public_key_path: Path,
+    my_private_key_path: Path,
 ) -> None:
     """
     Core command to upload a file. Can be called by CLI, GUI, etc.
     """
 
-    if not user_public_key_path.is_file():
-        message_display.failure(f"The file {user_public_key_path} does not exist.")
-        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=user_public_key_path)
+    if not my_public_key_path.is_file():
+        message_display.failure(f"The file {my_public_key_path} does not exist.")
+        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=my_public_key_path)
 
-    if not user_private_key_path.is_file():
-        message_display.failure(f"The file {user_private_key_path} does not exist.")
+    if not my_private_key_path.is_file():
+        message_display.failure(f"The file {my_private_key_path} does not exist.")
         raise exceptions.PrivateKeyFileDoesNotExistError(
-            private_key_path=user_private_key_path
+            private_key_path=my_private_key_path
         )
 
     if not file_path.is_file():
@@ -87,7 +87,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
 
     try:
         upload_id, part_size = start_multipart_upload(
-            api_url=api_url, file_id=file_id, pubkey_path=user_public_key_path
+            api_url=api_url, file_id=file_id, pubkey_path=my_public_key_path
         )
     except exceptions.NoUploadPossibleError as error:
         message_display.failure(
@@ -121,7 +121,7 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
 
     encryptor = Crypt4GHEncryptor(
         server_pubkey=server_pubkey,
-        user_private_key_path=user_private_key_path,
+        my_private_key_path=my_private_key_path,
     )
 
     encrypted_file_path = encryptor.encrypt_file(file_path=file_path)
@@ -183,7 +183,7 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     part_size: int,
     message_display: AbstractMessageDisplay,
     max_wait_time: int,
-    user_public_key: bytes,
+    my_public_key: bytes,
     work_package_accessor: WorkPackageAccessor,
     file_id: str,
     file_extension: str = "",
@@ -224,7 +224,7 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     try:
         envelope = get_file_header_envelope(
             file_id=file_id,
-            public_key=user_public_key,
+            public_key=my_public_key,
             work_package_accessor=work_package_accessor,
         )
     except (

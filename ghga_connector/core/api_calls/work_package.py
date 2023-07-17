@@ -33,7 +33,7 @@ class WorkPackageAccessor:
     api_url: str
     dcs_api_url: str
     package_id: str
-    user_private_key: str
+    my_private_key: str
 
     def get_package_files(self) -> dict[str, str]:
         """
@@ -88,7 +88,7 @@ class WorkPackageAccessor:
             raise exceptions.InvalidWPSResponseError(url=url, response_code=status_code)
 
         encrypted_token = response.content
-        return _decrypt(data=encrypted_token, key=self.user_private_key)
+        return _decrypt(data=encrypted_token, key=self.my_private_key)
 
 
 def _decrypt(*, data: str, key: str):

@@ -259,7 +259,7 @@ def decrypt(  # noqa: C901 # pylint: disable=too-many-branches
         output_dir = Path(os.getcwd())
 
     if output_dir.exists() and not output_dir.is_dir():
-        raise core.exceptions.DirectoryIsNotDirectory(directory=output_dir)
+        raise core.exceptions.PathIsNotDirectory(directory=output_dir)
 
     if not output_dir.exists():
         message_display.display(f"Creating output directory '{output_dir}'")

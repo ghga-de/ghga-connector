@@ -39,12 +39,12 @@ class DirectoryDoesNotExistError(RuntimeError):
         super().__init__(message)
 
 
-class DirectoryIsNotDirectory(RuntimeError):
+class PathIsNotDirectory(RuntimeError):
     """Thrown when specified directory is not a directory"""
 
     def __init__(self, *, directory: Path):
         message = (
-            f"Output directory location '{directory}' exists, but is not a directory."
+            f"Path of output directory '{directory}' exists, but is not a directory."
         )
         super().__init__(message)
 

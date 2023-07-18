@@ -69,7 +69,7 @@ def exception_hook(
     before program exits"""
     message = (
         "An error occurred. Run same command"
-        + "with --debug at the end to see more information."
+        + " with --debug at the end to see more information."
     )
 
     if value.args:

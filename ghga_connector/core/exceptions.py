@@ -202,7 +202,7 @@ class UserHasNoUploadAccessError(RuntimeError):
 
     def __init__(self, *, upload_id: str):
         message = (
-            "User is not registered as a Data Submitter "
+            "You are not registered as a Data Submitter "
             f"for the file corresponding to the upload_id '{upload_id}'."
         )
         super().__init__(message)
@@ -216,7 +216,7 @@ class UserHasNoFileAccessError(RuntimeError):
 
     def __init__(self, *, file_id: str):
         message = (
-            "User is not registered as the data submitter "
+            "You are not registered as the data submitter "
             f"for the file with the id '{file_id}'."
         )
         super().__init__(message)

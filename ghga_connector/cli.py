@@ -68,7 +68,7 @@ def exception_hook(
     """When debug mode is NOT enabled, gets called to perform final error handling
     before program exits"""
     message = (
-        "An error occurred. Run same command"
+        "An error occurred. Rerun command"
         + " with --debug at the end to see more information."
     )
 

@@ -58,12 +58,15 @@ unintercepted_hosts: list[str] = []
 
 @pytest.fixture
 def non_mocked_hosts() -> list:
-    # Let requests go out to localstack/S3
+    """Hosts that shall not be mocked by"""
+    # Let requests go out to localstack/S3.
     return unintercepted_hosts
 
 
 @pytest.fixture
 def assert_all_responses_were_requested() -> bool:
+    """Whether httpx checks that all registered responses are sent back."""
+    # Not all responses must be request here.
     return False
 
 
@@ -268,7 +271,8 @@ async def test_download(
                 ):
                     with pytest.raises(
                         exceptions.UnauthorizedAPICallError,
-                        match="Endpoint file ID did not match file ID announced in work order token.",
+                        match="Endpoint file ID did not match file ID"
+                        " announced in work order token",
                     ):
                         download(
                             output_dir=output_dir,
@@ -337,7 +341,11 @@ async def test_upload(
         encryptor = Crypt4GHEncryptor(
             server_pubkey=server_pubkey, my_private_key_path=PRIVATE_KEY_FILE
         )
-        encrypted_path = encryptor.encrypt_file(file_path=uploadable_file.file_path)
+        file_path = Path(encryptor.encrypt_file(file_path=uploadable_file.file_path))
+    else:
+        file_path = uploadable_file.file_path
+
+    file_path = file_path.resolve()
 
     # initiate upload
     upload_id = await s3_fixture.storage.init_multipart_upload(
@@ -365,20 +373,12 @@ async def test_upload(
         with pytest.raises(  # type: ignore
             expected_exception
         ) if expected_exception else nullcontext():
-            if file_name == "encrypted_file":
-                upload(
-                    file_id=uploadable_file.file_id,
-                    file_path=Path(encrypted_path).resolve(),
-                    my_public_key_path=Path(PUBLIC_KEY_FILE),
-                    my_private_key_path=Path(PRIVATE_KEY_FILE),
-                )
-            else:
-                upload(
-                    file_id=uploadable_file.file_id,
-                    file_path=uploadable_file.file_path.resolve(),
-                    my_public_key_path=Path(PUBLIC_KEY_FILE),
-                    my_private_key_path=Path(PRIVATE_KEY_FILE),
-                )
+            upload(
+                file_id=uploadable_file.file_id,
+                file_path=file_path,
+                my_public_key_path=Path(PUBLIC_KEY_FILE),
+                my_private_key_path=Path(PRIVATE_KEY_FILE),
+            )
 
             await s3_fixture.storage.complete_multipart_upload(
                 upload_id=upload_id,

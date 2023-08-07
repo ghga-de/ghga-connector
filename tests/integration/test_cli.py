@@ -68,8 +68,17 @@ def assert_all_responses_were_requested() -> bool:
 
 
 @pytest.mark.parametrize(
-    "file_size,part_size",
+    "file_size, part_size",
     [
+        # first test with some very small files size
+        (8, 1024),
+        (32, 1024),
+        (128, 1024),
+        (512, 1024),
+        (1024, 1024),
+        (2048, 1024),
+        (20 * 1024, 1024),
+        # then test with larger files sizes
         (6 * 1024 * 1024, 5 * 1024 * 1024),
         (12 * 1024 * 1024, 5 * 1024 * 1024),
         (20 * 1024 * 1024, 1 * 1024 * 1024),
@@ -107,7 +116,7 @@ async def test_multipart_download(
 
     # right now the desired file size is only
     # approximately met by the provided big file:
-    file_size_ = len(big_object.content)
+    actual_file_size = len(big_object.content)
 
     # get s3 download url
     download_url = await s3_fixture.storage.get_object_download_url(
@@ -120,7 +129,7 @@ async def test_multipart_download(
     fake_envelope = "Thisisafakeenvelope"
 
     monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
-    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(file_size_))
+    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(actual_file_size))
     monkeypatch.setenv("FAKE_ENVELOPE", fake_envelope)
 
     big_file_content = str.encode(fake_envelope)
@@ -144,6 +153,7 @@ async def test_multipart_download(
     with open(tmp_path / f"{big_object.object_id}.c4gh", "rb") as file:
         observed_content = file.read()
 
+    assert len(observed_content) == len(big_file_content)
     assert observed_content == big_file_content
 
 

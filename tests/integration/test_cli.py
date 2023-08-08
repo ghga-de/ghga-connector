@@ -58,7 +58,7 @@ unintercepted_hosts: list[str] = []
 
 @pytest.fixture
 def non_mocked_hosts() -> list:
-    """Hosts that shall not be mocked by"""
+    """Hosts that shall not be mocked by httpx."""
     # Let requests go out to localstack/S3.
     return unintercepted_hosts
 

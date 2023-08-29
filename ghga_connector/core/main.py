@@ -22,7 +22,6 @@ from typing import List
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import (
-    UploadStatus,
     WorkPackageAccessor,
     await_download_url,
     check_url,
@@ -39,7 +38,7 @@ from ghga_connector.core.upload import run_upload
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
 
-def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
+async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
     *,
     api_url: str,
     file_id: str,
@@ -71,11 +70,12 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
     try:
-        run_upload(
+        await run_upload(
             api_url=api_url,
             file_id=file_id,
             file_path=file_path,
             pubkey_path=my_public_key_path,
+            server_pubkey=server_pubkey,
         )
     except exceptions.NoUploadPossibleError as error:
         raise error
@@ -94,31 +94,6 @@ def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
         message_display.failure("The request to start a multipart upload has failed.")
         raise error
 
-    try:
-        upload_file_parts(
-            api_url=api_url,
-            upload_id=upload_id,
-            part_size=part_size,
-            file_path=file_path,
-        )
-    except exceptions.ConnectionFailedError as error:
-        message_display.failure("The upload failed too many times and was aborted.")
-        raise error
-
-    try:
-        patch_multipart_upload(
-            api_url=api_url,
-            upload_id=upload_id,
-            upload_status=UploadStatus.UPLOADED,
-        )
-    except exceptions.BadResponseCodeError as error:
-        message_display.failure(
-            f"The request to confirm the upload with id '{upload_id}' was invalid."
-        )
-        raise error
-    except exceptions.RequestFailedError as error:
-        message_display.failure(f"Confirming the upload with id '{upload_id}' failed.")
-        raise error
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
 

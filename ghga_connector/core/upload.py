@@ -25,7 +25,7 @@ from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import Uploader
-from ghga_connector.core.client import httpx_client
+from ghga_connector.core.client import async_client
 from ghga_connector.core.file_operations import get_segments, read_file_parts
 
 
@@ -150,7 +150,7 @@ class ChunkedUploader:
         self.unencrypted_file_size = file_path.stat().st_size
         self.uploader = uploader
 
-    def encrypt_and_upload(self):
+    async def encrypt_and_upload(self):
         """Delegate encryption and perform multipart upload"""
 
         # compute encrypted_file_size
@@ -161,8 +161,12 @@ class ChunkedUploader:
             for part_number, part in enumerate(
                 self.encryptor.process_file(file=file), start=1
             ):
-                upload_url = self.uploader.get_part_upload_url(part_no=part_number)
-                self.uploader.upload_file_part(presigned_url=upload_url, part=part)
+                upload_url = await self.uploader.get_part_upload_url(
+                    part_no=part_number
+                )
+                await self.uploader.upload_file_part(
+                    presigned_url=upload_url, part=part
+                )
             if expected_encrypted_size != self.encryptor.encrypted_file_size:
                 raise exceptions.EncryptedSizeMismatch(
                     actual_encrypted_size=self.encryptor.encrypted_file_size,
@@ -170,20 +174,22 @@ class ChunkedUploader:
                 )
 
 
-def run_upload(api_url: str, file_id: str, file_path: Path, pubkey_path: Path):
+async def run_upload(
+    api_url: str, file_id: str, file_path: Path, pubkey_path: Path, server_pubkey: str
+):
     """TODO"""
 
-    with httpx_client() as client:
-        with Uploader(
+    async with async_client() as client:
+        async with Uploader(
             api_url=api_url, client=client, file_id=file_id, pubkey_path=pubkey_path
         ) as upload:
-            process_upload(uploader=upload, file_path=file_path)
+            await process_upload(uploader=upload, file_path=file_path)
 
 
-def process_upload(uploader: Uploader, file_path: Path):
+async def process_upload(uploader: Uploader, file_path: Path):
     """TODO"""
     encryptor = Encryptor(part_size=uploader.part_size)
     chunked_uploader = ChunkedUploader(
         encryptor=encryptor, file_path=file_path, uploader=uploader
     )
-    chunked_uploader.encrypt_and_upload()
+    await chunked_uploader.encrypt_and_upload()

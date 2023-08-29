@@ -16,6 +16,7 @@
 
 """ CLI-specific wrappers around core functions."""
 
+import asyncio
 import os
 import sys
 from distutils.util import strtobool
@@ -113,14 +114,16 @@ def upload(  # noqa C901
     server_pubkey = wkvs_caller.get_server_pubkey()
     ucs_api_url = wkvs_caller.get_ucs_api_url()
 
-    core.upload(
-        api_url=ucs_api_url,
-        file_id=file_id,
-        file_path=file_path,
-        message_display=CLIMessageDisplay(),
-        server_pubkey=server_pubkey,
-        my_public_key_path=my_public_key_path,
-        my_private_key_path=my_private_key_path,
+    asyncio.run(
+        core.upload(
+            api_url=ucs_api_url,
+            file_id=file_id,
+            file_path=file_path,
+            message_display=CLIMessageDisplay(),
+            server_pubkey=server_pubkey,
+            my_public_key_path=my_public_key_path,
+            my_private_key_path=my_private_key_path,
+        )
     )
 
 

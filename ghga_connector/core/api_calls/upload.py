@@ -53,7 +53,12 @@ class Uploader:
     """TODO"""
 
     def __init__(
-        self, *, api_url: str, client: httpx.Client, file_id: str, pubkey_path: Path
+        self,
+        *,
+        api_url: str,
+        client: httpx.AsyncClient,
+        file_id: str,
+        pubkey_path: Path,
     ) -> None:
         self.api_url = api_url
         self.client = client
@@ -62,34 +67,33 @@ class Uploader:
         self.upload_id = ""
         self.part_size = 0
 
-    def __enter__(self):
+    async def __aenter__(self):
         """Start multipart upload"""
         try:
-            self._initiate_multipart_upload()
+            await self._initiate_multipart_upload()
 
         except exceptions.NoUploadPossibleError as error:
-            file_metadata = self.get_file_metadata()
+            file_metadata = await self.get_file_metadata()
             upload_id = file_metadata["current_upload_id"]
             if upload_id is None:
                 raise error
 
-            self.patch_multipart_upload(
+            await self.patch_multipart_upload(
                 upload_status=UploadStatus.CANCELLED,
             )
 
-            self._initiate_multipart_upload()
+            await self._initiate_multipart_upload()
 
         except Exception as error:
             raise error
 
         return self
 
-    def __exit__(self, exc_t, exc_v, exc_tb):
+    async def __aexit__(self, exc_t, exc_v, exc_tb):
         """Complete or clean up multipart upload"""
-        self.patch_multipart_upload(upload_status=UploadStatus.UPLOADED)
+        await self.patch_multipart_upload(upload_status=UploadStatus.UPLOADED)
 
-
-    def _initiate_multipart_upload(self) -> None:
+    async def _initiate_multipart_upload(self) -> None:
         """
         Perform a RESTful API call to initiate a multipart upload
         Returns an upload id and a part size
@@ -107,7 +111,7 @@ class Uploader:
 
         # Make function call to get upload url
         try:
-            response = self.client.post(
+            response = await self.client.post(
                 url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
             )
         except httpx.RequestError as request_error:
@@ -139,8 +143,7 @@ class Uploader:
         self.upload_id = response_body["upload_id"]
         self.part_size = int(response_body["part_size"])
 
-
-    def get_file_metadata(self) -> Dict:
+    async def get_file_metadata(self) -> Dict:
         """
         Get all file metadata
         """
@@ -150,7 +153,7 @@ class Uploader:
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
         try:
-            response = self.client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self.client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -176,7 +179,7 @@ class Uploader:
 
         return file_metadata
 
-    def get_part_upload_url(self, *, part_no: int):
+    async def get_part_upload_url(self, *, part_no: int):
         """
         Get a presigned url to upload a specific part
         """
@@ -190,7 +193,7 @@ class Uploader:
 
         # Make function call to get upload url
         try:
-            response = self.client.post(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self.client.post(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -236,7 +239,7 @@ class Uploader:
 
         `get_url_func` only for testing purposes.
         """
-        
+
         if not self.upload_id:
             raise exceptions.UploadIdUnset()
 
@@ -247,7 +250,7 @@ class Uploader:
 
         raise exceptions.MaxPartNoExceededError()
 
-    def get_upload_info(self) -> Dict:
+    async def get_upload_info(self) -> Dict:
         """
         Get details on a specific upload
         """
@@ -260,7 +263,7 @@ class Uploader:
         headers = {"Accept": "*/*", "Content-Type": "application/json"}
 
         try:
-            response = self.client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self.client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -284,8 +287,7 @@ class Uploader:
 
         return response.json()
 
-
-    def patch_multipart_upload(self, *, upload_status: UploadStatus) -> None:
+    async def patch_multipart_upload(self, *, upload_status: UploadStatus) -> None:
         """
         Set the status of a specific upload attempt.
         The API accepts "uploaded" or "accepted",
@@ -302,7 +304,7 @@ class Uploader:
         serialized_data = json.dumps(post_data)
 
         try:
-            response = self.client.patch(
+            response = await self.client.patch(
                 url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
             )
         except httpx.RequestError as request_error:
@@ -334,11 +336,13 @@ class Uploader:
             ResponseExceptionTranslator(spec=spec).handle(response=response)
             raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
-    def upload_file_part(self, *, presigned_url: str, part: bytes) -> None:
+    async def upload_file_part(self, *, presigned_url: str, part: bytes) -> None:
         """Upload File"""
 
         try:
-            response = self.client.put(presigned_url, content=part, timeout=TIMEOUT)
+            response = await self.client.put(
+                presigned_url, content=part, timeout=TIMEOUT
+            )
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(
                 request_error=request_error, url=presigned_url
@@ -349,4 +353,6 @@ class Uploader:
         if status_code == 200:
             return
 
-        raise exceptions.BadResponseCodeError(url=presigned_url, response_code=status_code)
+        raise exceptions.BadResponseCodeError(
+            url=presigned_url, response_code=status_code
+        )

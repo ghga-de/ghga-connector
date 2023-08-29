@@ -44,7 +44,7 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
     file_id: str,
     file_path: Path,
     message_display: AbstractMessageDisplay,
-    server_pubkey: str,
+    server_public_key: str,
     my_public_key_path: Path,
     my_private_key_path: Path,
 ) -> None:
@@ -74,8 +74,9 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
             api_url=api_url,
             file_id=file_id,
             file_path=file_path,
-            pubkey_path=my_public_key_path,
-            server_pubkey=server_pubkey,
+            private_key_path=my_private_key_path,
+            public_key_path=my_public_key_path,
+            server_public_key=server_public_key,
         )
     except exceptions.NoUploadPossibleError as error:
         raise error

@@ -20,6 +20,8 @@ import os
 from io import BufferedReader
 from pathlib import Path
 
+import crypt4gh.header
+import crypt4gh.keys
 import crypt4gh.lib
 from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
 
@@ -43,6 +45,10 @@ class Checksums:
             + f"Encrypted MD5: {self.encrypted_md5}\n"
             + f"Encrypted SHA256: {self.encrypted_sha256}"
         )
+
+    def encrypted_is_empty(self):
+        """TODO"""
+        return len(self.encrypted_md5) > 0
 
     def get(self):
         """Return all checksums at the end of processing"""
@@ -68,13 +74,17 @@ class Encryptor:
     def __init__(
         self,
         part_size: int,
+        private_key_path: Path,
+        server_public_key: str,
         checksums: Checksums = Checksums(),
         file_secret: bytes = os.urandom(32),
     ):
-        self.part_size = part_size
         self.checksums = checksums
-        self.file_secret = file_secret
         self.encrypted_file_size = 0
+        self.file_secret = file_secret
+        self.part_size = part_size
+        self.private_key_path = private_key_path
+        self.server_public_key = server_public_key
 
     def _encrypt(self, part: bytes):
         """Encrypt file part using secret"""
@@ -96,11 +106,28 @@ class Encryptor:
         )  # no aad
         return nonce + encrypted_data
 
+    def create_envelope(self) -> bytes:
+        """
+        Gather file encryption/decryption secret and assemble a crypt4gh envelope using the
+        servers private and the clients public key
+        """
+        private_key = crypt4gh.keys.get_private_key(
+            self.private_key_path, callback=None
+        )
+        keys = [(0, private_key, self.server_public_key)]
+        header_content = crypt4gh.header.make_packet_data_enc(0, self.file_secret)
+        header_packets = crypt4gh.header.encrypt(header_content, keys)
+        header_bytes = crypt4gh.header.serialize(header_packets)
+
+        return header_bytes
+
     # type annotation for file parts, should be generator
     def process_file(self, file: BufferedReader):
         """Encrypt and upload file parts."""
         unprocessed_bytes = b""
-        upload_buffer = b""
+        upload_buffer = self.create_envelope()
+
+        envelope_size = len(upload_buffer)
 
         for file_part in read_file_parts(file=file, part_size=self.part_size):
             # process unencrypted
@@ -114,7 +141,10 @@ class Encryptor:
             # update checksums and yield if part size
             if len(upload_buffer) >= self.part_size:
                 current_part = upload_buffer[: self.part_size]
-                self.checksums.update_encrypted(current_part)
+                if self.checksums.encrypted_is_empty:
+                    self.checksums.update_encrypted(current_part[envelope_size:])
+                else:
+                    self.checksums.update_encrypted(current_part)
                 self.encrypted_file_size += self.part_size
                 yield current_part
                 upload_buffer = upload_buffer[self.part_size :]
@@ -175,20 +205,36 @@ class ChunkedUploader:
 
 
 async def run_upload(
-    api_url: str, file_id: str, file_path: Path, pubkey_path: Path, server_pubkey: str
+    api_url: str,
+    file_id: str,
+    file_path: Path,
+    private_key_path: Path,
+    public_key_path: Path,
+    server_public_key: str,
 ):
     """TODO"""
 
     async with async_client() as client:
         async with Uploader(
-            api_url=api_url, client=client, file_id=file_id, pubkey_path=pubkey_path
+            api_url=api_url, client=client, file_id=file_id, pubkey_path=public_key_path
         ) as upload:
-            await process_upload(uploader=upload, file_path=file_path)
+            await process_upload(
+                uploader=upload,
+                file_path=file_path,
+                private_key_path=private_key_path,
+                server_public_key=server_public_key,
+            )
 
 
-async def process_upload(uploader: Uploader, file_path: Path):
+async def process_upload(
+    uploader: Uploader, file_path: Path, private_key_path: Path, server_public_key: str
+):
     """TODO"""
-    encryptor = Encryptor(part_size=uploader.part_size)
+    encryptor = Encryptor(
+        part_size=uploader.part_size,
+        private_key_path=private_key_path,
+        server_public_key=server_public_key,
+    )
     chunked_uploader = ChunkedUploader(
         encryptor=encryptor, file_path=file_path, uploader=uploader
     )

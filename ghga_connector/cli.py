@@ -120,7 +120,7 @@ def upload(  # noqa C901
             file_id=file_id,
             file_path=file_path,
             message_display=CLIMessageDisplay(),
-            server_pubkey=server_pubkey,
+            server_public_key=server_pubkey,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
         )

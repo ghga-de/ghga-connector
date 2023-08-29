@@ -18,13 +18,11 @@
 Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
-import base64
 import concurrent.futures
 import math
 from io import BufferedReader
 from pathlib import Path
 from queue import Queue
-from tempfile import mkstemp
 from typing import Any, Iterator, Sequence, Tuple, Union
 
 import crypt4gh.keys
@@ -34,31 +32,6 @@ import httpx
 from ghga_connector.core import exceptions
 from ghga_connector.core.client import httpx_client
 from ghga_connector.core.constants import TIMEOUT
-
-
-class Crypt4GHEncryptor:
-    """Convenience class to deal with Crypt4GH encryption"""
-
-    def __init__(
-        self,
-        server_pubkey: str,
-        my_private_key_path: Path,
-    ) -> None:
-        self.server_public = base64.b64decode(server_pubkey)
-        self.my_private_key = crypt4gh.keys.get_private_key(
-            my_private_key_path, callback=None
-        )
-
-    def encrypt_file(self, *, file_path: Path) -> Path:
-        """Encrypt provided file using Crypt4GH lib"""
-        keys = [(0, self.my_private_key, self.server_public)]
-        with file_path.open("rb") as infile:
-            # NamedTemporaryFile cannot be opened a second time on Windows, manually
-            # deal with setup + teardown instead
-            raw_fd, outfile_path = mkstemp()
-            with open(raw_fd, "wb") as outfile:
-                crypt4gh.lib.encrypt(keys=keys, infile=infile, outfile=outfile)
-            return Path(outfile_path)
 
 
 class Crypt4GHDecryptor:
@@ -173,6 +146,18 @@ def calc_part_ranges(
     return part_ranges
 
 
+def get_segments(part: bytes, segment_size: int):
+    """Chunk file part into cipher segments"""
+    full_segments = len(part) // segment_size
+    segments = [
+        part[i * segment_size : (i + 1) * segment_size] for i in range(full_segments)
+    ]
+    # get potential remainder of bytes that we need to handle
+    # for non-matching boundaries between part and cipher segment size
+    incomplete_segment = part[full_segments * segment_size :]
+    return segments, incomplete_segment
+
+
 def read_file_parts(
     file: BufferedReader, *, part_size: int, from_part: int = 1
 ) -> Iterator[bytes]:
@@ -196,22 +181,3 @@ def read_file_parts(
             return
 
         yield file_part
-
-
-def upload_file_part(*, presigned_url: str, part: bytes) -> None:
-    """Upload File"""
-
-    try:
-        with httpx_client() as client:
-            response = client.put(presigned_url, content=part, timeout=TIMEOUT)
-    except httpx.RequestError as request_error:
-        exceptions.raise_if_connection_failed(
-            request_error=request_error, url=presigned_url
-        )
-        raise exceptions.RequestFailedError(url=presigned_url) from request_error
-
-    status_code = response.status_code
-    if status_code == 200:
-        return
-
-    raise exceptions.BadResponseCodeError(url=presigned_url, response_code=status_code)

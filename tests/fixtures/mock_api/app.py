@@ -27,7 +27,7 @@ import logging
 import os
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import List, Union
 
 try:  # workaround for https://github.com/pydantic/pydantic/issues/5821
     from typing_extensions import Literal
@@ -35,7 +35,7 @@ except ImportError:
     from typing import Literal  # type: ignore
 
 import httpx
-from fastapi import status
+from fastapi import HTTPException, status
 from ghga_service_commons.api.mock_router import MockRouter
 from ghga_service_commons.httpyexpect.server.exceptions import HttpException
 from ghga_service_commons.utils.utc_dates import now_as_utc
@@ -154,11 +154,16 @@ class HttpEnvelopeResponse(httpx.Response):
         super().__init__(content=envelope, status_code=status_code)
 
 
-def httpy_exception_handler(request: httpx.Request, exc: HttpException):
+def exception_handler(request: httpx.Request, exc: Union[HttpException, HTTPException]):
     """Transform HttpException data into a proper response object"""
+    status_code = exc.status_code
 
+    if isinstance(exc, HTTPException):
+        return httpx.Response(status_code=status_code, json={"detail": exc.detail})
+
+    # if exception is HttpException
     return httpx.Response(
-        status_code=exc.status_code,
+        status_code=status_code,
         content=json.dumps(
             {
                 "exception_id": exc.body.exception_id,
@@ -169,7 +174,10 @@ def httpy_exception_handler(request: httpx.Request, exc: HttpException):
     )
 
 
-router = MockRouter(http_exception_handler=httpy_exception_handler)
+router = MockRouter(
+    exception_handler=exception_handler,
+    exceptions_to_handle=(HTTPException, HttpException),
+)
 
 
 @router.get("/")
@@ -191,11 +199,9 @@ def drs3_objects(file_id: str, request: httpx.Request):
 
     # simulate token authorization error
     if authorization == "Bearer authfail_normal":
-        raise HttpException(
+        raise HTTPException(
             status_code=403,
-            description="This is not the token you're looking for.",
-            exception_id="badToken",
-            data={},
+            detail="This is not the token you're looking for.",
         )
 
     # simulate token file_id/object_id mismatch
@@ -231,11 +237,9 @@ def drs3_objects(file_id: str, request: httpx.Request):
             ).json(),
         )
 
-    raise HttpException(
+    raise HTTPException(
         status_code=404,
-        exception_id="drsObjectDoesNotExist",
-        description=f'The DRSObject with the id "{file_id}" does not exist.',
-        data={},
+        detail=f'The DRSObject with the id "{file_id}" does not exist.',
     )
 
 

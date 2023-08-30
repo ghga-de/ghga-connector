@@ -35,8 +35,8 @@ from ghga_service_commons.api.mock_router import (  # noqa: F401
 from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
-from ghga_connector.cli import download, upload
-from ghga_connector.core import exceptions
+from ghga_connector.cli import CLIMessageDisplay, configure_upload, download
+from ghga_connector.core import exceptions, upload
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
@@ -369,9 +369,13 @@ async def test_upload(
         with pytest.raises(  # type: ignore
             expected_exception
         ) if expected_exception else nullcontext():
-            upload(
+            ucs_api_url, server_pubkey = configure_upload(debug=True)
+            await upload(
+                api_url=ucs_api_url,
                 file_id=uploadable_file.file_id,
                 file_path=file_path,
+                message_display=CLIMessageDisplay(),
+                server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
             )
@@ -458,9 +462,13 @@ async def test_multipart_upload(
             "ghga_connector.cli.CONFIG",
             get_test_config(),
         ):
-            upload(
+            ucs_api_url, server_pubkey = configure_upload(debug=True)
+            await upload(
+                api_url=ucs_api_url,
                 file_id=file_id,
                 file_path=Path(file.name),
+                message_display=CLIMessageDisplay(),
+                server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
             )

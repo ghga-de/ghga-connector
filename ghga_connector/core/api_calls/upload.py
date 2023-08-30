@@ -58,12 +58,12 @@ class Uploader:
         api_url: str,
         client: httpx.AsyncClient,
         file_id: str,
-        pubkey_path: Path,
+        public_key_path: Path,
     ) -> None:
         self.api_url = api_url
         self.client = client
         self.file_id = file_id
-        self.pubkey_path = pubkey_path
+        self.public_key_path = public_key_path
         self.upload_id = ""
         self.part_size = 0
 
@@ -103,7 +103,7 @@ class Uploader:
         url = f"{self.api_url}/uploads"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         public_key = base64.b64encode(
-            crypt4gh.keys.get_public_key(self.pubkey_path)
+            crypt4gh.keys.get_public_key(self.public_key_path)
         ).decode()
 
         post_data = {"file_id": self.file_id, "my_public_key": public_key}

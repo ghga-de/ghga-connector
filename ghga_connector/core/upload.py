@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import base64
 import hashlib
 import math
 import os
@@ -84,7 +84,7 @@ class Encryptor:
         self.file_secret = file_secret
         self.part_size = part_size
         self.private_key_path = private_key_path
-        self.server_public_key = server_public_key
+        self.server_public_key = base64.b64decode(server_public_key)
 
     def _encrypt(self, part: bytes):
         """Encrypt file part using secret"""
@@ -141,7 +141,7 @@ class Encryptor:
             # update checksums and yield if part size
             if len(upload_buffer) >= self.part_size:
                 current_part = upload_buffer[: self.part_size]
-                if self.checksums.encrypted_is_empty:
+                if self.checksums.encrypted_is_empty():
                     self.checksums.update_encrypted(current_part[envelope_size:])
                 else:
                     self.checksums.update_encrypted(current_part)
@@ -164,6 +164,8 @@ class Encryptor:
             self.checksums.update_encrypted(upload_buffer)
             self.encrypted_file_size += len(upload_buffer)
             yield upload_buffer
+
+        self.encrypted_file_size -= envelope_size
 
 
 class ChunkedUploader:
@@ -216,7 +218,10 @@ async def run_upload(
 
     async with async_client() as client:
         async with Uploader(
-            api_url=api_url, client=client, file_id=file_id, pubkey_path=public_key_path
+            api_url=api_url,
+            client=client,
+            file_id=file_id,
+            public_key_path=public_key_path,
         ) as upload:
             await process_upload(
                 uploader=upload,

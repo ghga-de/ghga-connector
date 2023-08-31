@@ -50,7 +50,10 @@ class UploadStatus(str, Enum):
 
 
 class Uploader:
-    """TODO"""
+    """
+    Class bundling functionality calling Upload Controller Service to initiate and
+    manage an ongoing upload
+    """
 
     def __init__(
         self,
@@ -60,14 +63,14 @@ class Uploader:
         file_id: str,
         public_key_path: Path,
     ) -> None:
-        self.api_url = api_url
-        self.client = client
-        self.file_id = file_id
-        self.public_key_path = public_key_path
-        self.upload_id = ""
         self.part_size = 0
+        self.upload_id = ""
+        self._api_url = api_url
+        self._client = client
+        self._file_id = file_id
+        self._public_key_path = public_key_path
 
-    async def __aenter__(self):
+    async def start_multipart_upload(self):
         """Start multipart upload"""
         try:
             await self._initiate_multipart_upload()
@@ -87,9 +90,7 @@ class Uploader:
         except Exception as error:
             raise error
 
-        return self
-
-    async def __aexit__(self, exc_t, exc_v, exc_tb):
+    async def finish_multipart_upload(self):
         """Complete or clean up multipart upload"""
         await self.patch_multipart_upload(upload_status=UploadStatus.UPLOADED)
 
@@ -100,18 +101,18 @@ class Uploader:
         """
 
         # build url and headers
-        url = f"{self.api_url}/uploads"
+        url = f"{self._api_url}/uploads"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
         public_key = base64.b64encode(
-            crypt4gh.keys.get_public_key(self.public_key_path)
+            crypt4gh.keys.get_public_key(self._public_key_path)
         ).decode()
 
-        post_data = {"file_id": self.file_id, "my_public_key": public_key}
+        post_data = {"file_id": self._file_id, "public_key": public_key}
         serialized_data = json.dumps(post_data)
 
         # Make function call to get upload url
         try:
-            response = await self.client.post(
+            response = await self._client.post(
                 url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
             )
         except httpx.RequestError as request_error:
@@ -123,15 +124,15 @@ class Uploader:
             spec = {
                 400: {
                     "existingActiveUpload": lambda: exceptions.NoUploadPossibleError(
-                        file_id=self.file_id
+                        file_id=self._file_id
                     ),
                     "fileNotRegistered": lambda: exceptions.FileNotRegisteredError(
-                        file_id=self.file_id
+                        file_id=self._file_id
                     ),
                 },
                 403: {
                     "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
-                        file_id=self.file_id
+                        file_id=self._file_id
                     )
                 },
             }
@@ -140,8 +141,8 @@ class Uploader:
 
         response_body = response.json()
 
-        self.upload_id = response_body["upload_id"]
         self.part_size = int(response_body["part_size"])
+        self.upload_id = response_body["upload_id"]
 
     async def get_file_metadata(self) -> Dict:
         """
@@ -149,11 +150,11 @@ class Uploader:
         """
 
         # build url and headers
-        url = f"{self.api_url}/files/{self.file_id}"
+        url = f"{self._api_url}/files/{self._file_id}"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
         try:
-            response = await self.client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self._client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -163,12 +164,12 @@ class Uploader:
             spec = {
                 403: {
                     "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
-                        file_id=self.file_id
+                        file_id=self._file_id
                     )
                 },
                 404: {
                     "fileNotRegistered": lambda: exceptions.FileNotRegisteredError(
-                        file_id=self.file_id
+                        file_id=self._file_id
                     )
                 },
             }
@@ -188,12 +189,14 @@ class Uploader:
             raise exceptions.UploadIdUnset()
 
         # build url and headers
-        url = f"{self.api_url}/uploads/{self.upload_id}/parts/{part_no}/signed_urls"
+        url = f"{self._api_url}/uploads/{self.upload_id}/parts/{part_no}/signed_urls"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
         # Make function call to get upload url
         try:
-            response = await self.client.post(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self._client.post(
+                url=url, headers=headers, timeout=TIMEOUT
+            )
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -245,7 +248,7 @@ class Uploader:
 
         for part_no in range(from_part, MAX_PART_NUMBER + 1):
             yield get_url_func(
-                api_url=self.api_url, upload_id=self.upload_id, part_no=part_no
+                api_url=self._api_url, upload_id=self.upload_id, part_no=part_no
             )
 
         raise exceptions.MaxPartNoExceededError()
@@ -259,11 +262,11 @@ class Uploader:
             raise exceptions.UploadIdUnset()
 
         # build url and headers
-        url = f"{self.api_url}/uploads/{self.upload_id}"
+        url = f"{self._api_url}/uploads/{self.upload_id}"
         headers = {"Accept": "*/*", "Content-Type": "application/json"}
 
         try:
-            response = await self.client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = await self._client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -298,13 +301,13 @@ class Uploader:
             raise exceptions.UploadIdUnset()
 
         # build url and headers
-        url = f"{self.api_url}/uploads/{self.upload_id}"
+        url = f"{self._api_url}/uploads/{self.upload_id}"
         headers = {"Accept": "*/*", "Content-Type": "application/json"}
         post_data = {"status": upload_status}
         serialized_data = json.dumps(post_data)
 
         try:
-            response = await self.client.patch(
+            response = await self._client.patch(
                 url=url, headers=headers, content=serialized_data, timeout=TIMEOUT
             )
         except httpx.RequestError as request_error:
@@ -340,7 +343,7 @@ class Uploader:
         """Upload File"""
 
         try:
-            response = await self.client.put(
+            response = await self._client.put(
                 presigned_url, content=part, timeout=TIMEOUT
             )
         except httpx.RequestError as request_error:

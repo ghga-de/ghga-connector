@@ -104,13 +104,13 @@ def upload(  # noqa C901
     Command to upload a file
     """
 
-    ucs_api_url, server_pubkey = configure_upload(debug=debug)
+    ucs_api_url, server_pubkey, message_display = configure_upload(debug=debug)
     asyncio.run(
         core.upload(
             api_url=ucs_api_url,
             file_id=file_id,
             file_path=file_path,
-            message_display=CLIMessageDisplay(),
+            message_display=message_display,
             server_public_key=server_pubkey,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
@@ -128,10 +128,10 @@ def configure_upload(debug: bool = False):
     core.HttpxClientState.configure(CONFIG.max_retries)
 
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
-    server_pubkey = wkvs_caller.get_server_pubkey()
     ucs_api_url = wkvs_caller.get_ucs_api_url()
+    server_pubkey = wkvs_caller.get_server_pubkey()
 
-    return ucs_api_url, server_pubkey
+    return ucs_api_url, server_pubkey, message_display
 
 
 if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):

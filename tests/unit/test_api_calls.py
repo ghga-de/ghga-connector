@@ -132,7 +132,9 @@ async def test_get_part_upload_urls(
         )
         uploader.upload_id = upload_id
 
-        part_upload_urls = uploader.get_part_upload_urls(get_url_func=get_url_func, from_part=from_part)  # type: ignore
+        part_upload_urls = uploader.get_part_upload_urls(
+            get_url_func=get_url_func, from_part=from_part
+        )
 
     with (
         pytest.raises(expected_exception)  # type: ignore

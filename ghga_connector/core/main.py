@@ -34,8 +34,8 @@ from ghga_connector.core.file_operations import (
     download_file_parts,
     is_file_encrypted,
 )
-from ghga_connector.core.upload import run_upload
 from ghga_connector.core.message_display import AbstractMessageDisplay
+from ghga_connector.core.upload import run_upload
 
 
 async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
@@ -69,31 +69,15 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
     if not check_url(api_url):
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
-    try:
-        await run_upload(
-            api_url=api_url,
-            file_id=file_id,
-            file_path=file_path,
-            private_key_path=my_private_key_path,
-            public_key_path=my_public_key_path,
-            server_public_key=server_public_key,
-        )
-    except exceptions.NoUploadPossibleError as error:
-        raise error
-    except exceptions.UploadNotRegisteredError as error:
-        raise error
-    except exceptions.UserHasNoUploadAccessError as error:
-        raise error
-    except exceptions.FileNotRegisteredError as error:
-        raise error
-    except exceptions.BadResponseCodeError as error:
-        raise error
-    except exceptions.CantChangeUploadStatusError as error:
-        message_display.failure(f"The file with id '{file_id}' was already uploaded.")
-        raise error
-    except exceptions.RequestFailedError as error:
-        message_display.failure("The request to start a multipart upload has failed.")
-        raise error
+    await run_upload(
+        api_url=api_url,
+        file_id=file_id,
+        file_path=file_path,
+        message_display=message_display,
+        private_key_path=my_private_key_path,
+        public_key_path=my_public_key_path,
+        server_public_key=server_public_key,
+    )
 
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 

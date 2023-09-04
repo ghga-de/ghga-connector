@@ -45,7 +45,9 @@ class ChunkedUploader:
 
         # compute encrypted_file_size
         num_segments = math.ceil(self.unencrypted_file_size / crypt4gh.lib.SEGMENT_SIZE)
-        expected_encrypted_size = self.unencrypted_file_size + num_segments * 28
+        expected_encrypted_size = (
+            self.unencrypted_file_size + num_segments * crypt4gh.lib.CIPHER_DIFF
+        )
 
         with self.input_path.open("rb") as file:
             for part_number, part in enumerate(

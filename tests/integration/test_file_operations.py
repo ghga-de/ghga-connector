@@ -21,6 +21,7 @@ from typing import Any, Iterator, Tuple, Union
 
 import pytest
 
+from ghga_connector.core.client import httpx_client
 from ghga_connector.core.file_operations import (
     calc_part_ranges,
     download_content_range,
@@ -57,8 +58,11 @@ async def test_download_content_range(
 
     queue: Queue = Queue(maxsize=10)
 
-    # download content range with dedicated function:
-    download_content_range(download_url=download_url, start=start, end=end, queue=queue)
+    with httpx_client() as client:
+        # download content range with dedicated function:
+        download_content_range(
+            client=client, download_url=download_url, start=start, end=end, queue=queue
+        )
 
     obtained_start, obtained_bytes = queue.get()
 
@@ -97,25 +101,27 @@ async def test_download_file_parts(
 
     part_ranges = calc_part_ranges(part_size=part_size, total_file_size=total_file_size)
 
-    # prepare kwargs:
-    kwargs: dict[str, Any] = {
-        "download_urls": download_urls,
-        "queue": queue,
-        "part_ranges": part_ranges,
-        "max_concurrent_downloads": 5,
-    }
+    with httpx_client() as client:
+        # prepare kwargs:
+        kwargs: dict[str, Any] = {
+            "client": client,
+            "download_urls": download_urls,
+            "queue": queue,
+            "part_ranges": part_ranges,
+            "max_concurrent_downloads": 5,
+        }
 
-    # download file parts with dedicated function:
-    download_file_parts(**kwargs)
+        # download file parts with dedicated function:
+        download_file_parts(**kwargs)
 
-    obtained = 0
-    while obtained < len(expected_bytes):
-        try:
-            start, obtained_bytes = queue.get(block=False)
-        except Empty:
-            continue
-        obtained += len(obtained_bytes)
-        queue.task_done()
-        assert expected_bytes[start : start + part_size] == obtained_bytes
+        obtained = 0
+        while obtained < len(expected_bytes):
+            try:
+                start, obtained_bytes = queue.get(block=False)
+            except Empty:
+                continue
+            obtained += len(obtained_bytes)
+            queue.task_done()
+            assert expected_bytes[start : start + part_size] == obtained_bytes
 
-    assert obtained == len(expected_bytes)
+        assert obtained == len(expected_bytes)

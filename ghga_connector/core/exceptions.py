@@ -24,7 +24,7 @@ from ghga_connector.core.constants import MAX_PART_NUMBER
 
 
 class AbortBatchProcessError(RuntimeError):
-    """Thrown when user selected to not proceed with batch proccesing"""
+    """Thrown when user selected to not proceed with batch processing"""
 
     def __init__(self):
         message = "Aborting batch process"

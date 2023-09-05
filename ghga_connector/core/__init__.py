@@ -28,5 +28,5 @@ from .constants import (  # noqa: F401
     MAX_RETRIES,
     MAX_WAIT_TIME,
 )
-from .main import decrypt_file, download, upload  # noqa: F401
+from .main import decrypt_file, download, get_wps_token, upload  # noqa: F401
 from .message_display import AbstractMessageDisplay, MessageColors  # noqa: F401

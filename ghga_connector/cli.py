@@ -79,6 +79,81 @@ def exception_hook(
     message_display.failure(message)
 
 
+def init_message_display(debug: bool = False) -> CLIMessageDisplay:
+    """Initialize message display and configure exception printing"""
+    message_display = CLIMessageDisplay()
+
+    if not debug:
+        sys.excepthook = partial(exception_hook, message_display=message_display)
+    return message_display
+
+
+def configure_upload(debug: bool = False):
+    """Run necessary API calls to configure file upload"""
+    core.HttpxClientState.configure(CONFIG.max_retries)
+    message_display = init_message_display(debug=debug)
+    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
+    ucs_api_url = wkvs_caller.get_ucs_api_url()
+    server_pubkey = wkvs_caller.get_server_pubkey()
+
+    return ucs_api_url, server_pubkey, message_display
+
+
+def configure_download(
+    *, my_private_key: bytes, my_public_key: bytes, debug: bool = False
+):
+    """Run necessary API calls to configure file download"""
+    core.HttpxClientState.configure(CONFIG.max_retries)
+    message_display = init_message_display(debug=debug)
+    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
+    dcs_api_url = wkvs_caller.get_dcs_api_url()
+    wps_api_url = wkvs_caller.get_wps_api_url()
+
+    # get work package access token and id from user input. Will be used in later PR
+    work_package_id, work_package_token = core.get_wps_token(
+        max_tries=3, message_display=message_display
+    )
+    decrypted_token = crypt.decrypt(data=work_package_token, key=my_private_key)
+
+    message_display.display("Retrieving API configuration information...")
+    work_package_accessor = core.WorkPackageAccessor(
+        access_token=decrypted_token,
+        api_url=wps_api_url,
+        dcs_api_url=dcs_api_url,
+        package_id=work_package_id,
+        my_private_key=my_private_key,
+        my_public_key=my_public_key,
+    )
+    file_ids_with_extension = work_package_accessor.get_package_files()
+    return dcs_api_url, file_ids_with_extension, work_package_accessor, message_display
+
+
+def init_file_stager(
+    *,
+    dcs_api_url: str,
+    file_ids_with_extension: dict[str, str],
+    message_display: CLIMessageDisplay,
+    output_dir: Path,
+    work_package_accessor: core.WorkPackageAccessor,
+) -> core.FileStager:
+    """Initialize file stager for download"""
+    io_handler = core.CliIoHandler()
+    staging_parameters = core.StagingParameters(
+        api_url=dcs_api_url,
+        file_ids_with_extension=file_ids_with_extension,
+        max_wait_time=CONFIG.max_wait_time,
+    )
+
+    file_stager = core.FileStager(
+        message_display=message_display,
+        io_handler=io_handler,
+        staging_parameters=staging_parameters,
+        work_package_accessor=work_package_accessor,
+    )
+    file_stager.check_and_stage(output_dir=output_dir)
+    return file_stager
+
+
 cli = typer.Typer(no_args_is_help=True)
 
 
@@ -118,22 +193,6 @@ def upload(  # noqa C901
     )
 
 
-def configure_upload(debug: bool = False):
-    """Run necessary configuration for file upload"""
-    message_display = CLIMessageDisplay()
-
-    if not debug:
-        sys.excepthook = partial(exception_hook, message_display=message_display)
-
-    core.HttpxClientState.configure(CONFIG.max_retries)
-
-    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
-    ucs_api_url = wkvs_caller.get_ucs_api_url()
-    server_pubkey = wkvs_caller.get_server_pubkey()
-
-    return ucs_api_url, server_pubkey, message_display
-
-
 if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
     cli.command(no_args_is_help=True)(upload)
 
@@ -164,12 +223,6 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
     Command to download files
     """
 
-    core.HttpxClientState.configure(CONFIG.max_retries)
-    message_display = CLIMessageDisplay()
-
-    if not debug:
-        sys.excepthook = partial(exception_hook, message_display=message_display)
-
     if not my_public_key_path.is_file():
         raise core.exceptions.PubKeyFileDoesNotExistError(
             pubkey_path=my_public_key_path
@@ -183,42 +236,22 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
         filepath=my_private_key_path, callback=None
     )
 
-    # get work package access token and id from user input, will be used in later PR
-    work_package_id, work_package_token = core.main.get_wps_token(
-        max_tries=3, message_display=message_display
+    (
+        dcs_api_url,
+        file_ids_with_extension,
+        work_package_accessor,
+        message_display,
+    ) = configure_download(
+        my_private_key=my_private_key, my_public_key=my_public_key, debug=debug
     )
-    decrypted_token = crypt.decrypt(data=work_package_token, key=my_private_key)
 
-    message_display.display("Retrieving API configuration information...")
-    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
-    wps_api_url = wkvs_caller.get_wps_api_url()
-    dcs_api_url = wkvs_caller.get_dcs_api_url()
-
-    work_package_accessor = core.WorkPackageAccessor(
-        access_token=decrypted_token,
-        api_url=wps_api_url,
+    file_stager = init_file_stager(
         dcs_api_url=dcs_api_url,
-        package_id=work_package_id,
-        my_private_key=my_private_key,
-        my_public_key=my_public_key,
-    )
-    file_ids_with_extension = work_package_accessor.get_package_files()
-
-    io_handler = core.CliIoHandler()
-    staging_parameters = core.StagingParameters(
-        api_url=dcs_api_url,
         file_ids_with_extension=file_ids_with_extension,
-        max_wait_time=CONFIG.max_wait_time,
-    )
-
-    file_stager = core.FileStager(
         message_display=message_display,
-        io_handler=io_handler,
-        staging_parameters=staging_parameters,
+        output_dir=output_dir,
         work_package_accessor=work_package_accessor,
     )
-    file_stager.check_and_stage(output_dir=output_dir)
-
     while file_stager.file_ids_remain():
         for file_id in file_stager.get_staged():
             message_display.display(f"Downloading file with id '{file_id}'...")
@@ -260,10 +293,7 @@ def decrypt(  # noqa: C901 # pylint: disable=too-many-branches
 ):
     """Command to decrypt a downloaded file"""
 
-    message_display = CLIMessageDisplay()
-
-    if not debug:
-        sys.excepthook = partial(exception_hook, message_display=message_display)
+    message_display = init_message_display(debug=debug)
 
     if not input_dir.is_dir():
         raise core.exceptions.DirectoryDoesNotExistError(directory=input_dir)

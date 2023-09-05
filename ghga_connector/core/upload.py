@@ -76,7 +76,7 @@ async def run_upload(  # pylint: disable=too-many-arguments
     server_public_key: str,
 ):
     """
-    Initialize httpx.client and Uploader and delegate to function peforming the actual
+    Initialize httpx.client and Uploader and delegate to function performing the actual
     upload
     """
 

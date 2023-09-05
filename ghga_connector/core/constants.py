@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-"""Constants used throught the core."""
+"""Constants used throughout the core."""
 
 DEFAULT_PART_SIZE = 16 * 1024 * 1024
 TIMEOUT = 60

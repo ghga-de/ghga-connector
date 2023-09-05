@@ -103,7 +103,7 @@ async def test_multipart_download(
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
+    monkeypatch.setattr("ghga_connector.core.get_wps_token", mock_wps_token)
     monkeypatch.setattr(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([big_object.object_id], [""]))),
@@ -203,7 +203,7 @@ async def test_download(
         monkeypatch.setenv(name, value)
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
+    monkeypatch.setattr("ghga_connector.core.get_wps_token", mock_wps_token)
     monkeypatch.setattr(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([file.file_id], [""]))),

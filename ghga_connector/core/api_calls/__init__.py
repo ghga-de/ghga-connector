@@ -17,12 +17,7 @@
 This sub-package contains the api calls, this service makes for various purposes
 """
 
-from .download import (  # noqa: F401
-    await_download_url,
-    get_download_url,
-    get_download_urls,
-    get_file_header_envelope,
-)
+from .download import Downloader  # noqa: F401
 from .upload import Uploader, UploadStatus  # noqa: F401
 from .utils import check_url  # noqa: F401
 from .well_knowns import WKVSCaller  # noqa: F401

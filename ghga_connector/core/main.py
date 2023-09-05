@@ -17,23 +17,13 @@
 """Main domain logic."""
 
 from pathlib import Path
-from queue import Empty, Queue
 from typing import List
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.api_calls import (
-    WorkPackageAccessor,
-    await_download_url,
-    check_url,
-    get_download_urls,
-    get_file_header_envelope,
-)
-from ghga_connector.core.file_operations import (
-    Crypt4GHDecryptor,
-    calc_part_ranges,
-    download_file_parts,
-    is_file_encrypted,
-)
+from ghga_connector.core.api_calls import Downloader, WorkPackageAccessor, check_url
+from ghga_connector.core.client import httpx_client
+from ghga_connector.core.download import run_download
+from ghga_connector.core.file_operations import Crypt4GHDecryptor, is_file_encrypted
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.upload import run_upload
 
@@ -115,47 +105,17 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     if output_file_ongoing.exists():
         output_file_ongoing.unlink()
 
-    # stage download and get file size
-    download_url_tuple = await_download_url(
-        file_id=file_id,
-        max_wait_time=max_wait_time,
-        message_display=message_display,
-        work_package_accessor=work_package_accessor,
-    )
-
-    # get file header envelope
-    try:
-        envelope = get_file_header_envelope(
-            file_id=file_id,
-            work_package_accessor=work_package_accessor,
+    with httpx_client() as client:
+        downloader = Downloader(
+            client=client, file_id=file_id, work_package_accessor=work_package_accessor
         )
-    except (
-        exceptions.FileNotRegisteredError,
-        exceptions.EnvelopeNotFoundError,
-        exceptions.ExternalApiError,
-    ) as error:
-        message_display.failure(
-            f"The request to get an envelope for file '{file_id}' failed."
-        )
-        raise error
-
-    # perform the download
-    try:
-        download_parts(
-            envelope=envelope,
-            output_file=str(output_file_ongoing),
-            file_id=file_id,
+        run_download(
+            downloader=downloader,
+            max_wait_time=max_wait_time,
+            message_display=message_display,
+            output_file_ongoing=output_file_ongoing,
             part_size=part_size,
-            file_size=download_url_tuple[1],
-            work_package_accessor=work_package_accessor,
         )
-    except exceptions.ConnectionFailedError as error:
-        # Remove file, if the download failed.
-        output_file_ongoing.unlink()
-        raise error
-    except exceptions.NoS3AccessMethodError as error:
-        output_file_ongoing.unlink()
-        raise error
 
     # rename fully downloaded file
     if output_file.exists():
@@ -165,61 +125,6 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
     message_display.success(
         f"File with id '{file_id}' has been successfully downloaded."
     )
-
-
-def download_parts(  # pylint: disable=too-many-locals
-    *,
-    max_concurrent_downloads: int = 5,
-    max_queue_size: int = 10,
-    part_size: int,
-    file_size: int,
-    file_id: str,
-    output_file: str,
-    envelope: bytes,
-    work_package_accessor: WorkPackageAccessor,
-):
-    """
-    Downloads a file from the given URL using multiple threads and saves it to a file.
-
-    :param max_concurrent_downloads: Maximum number of parallel downloads.
-    :param max_queue_size: Maximum size of the queue.
-    :param part_size: Size of each part to download.
-    """
-
-    # Split the file into parts based on the part size
-    part_ranges = calc_part_ranges(part_size=part_size, total_file_size=file_size)
-
-    # Create a queue object to store downloaded parts
-    queue: Queue = Queue(maxsize=max_queue_size)
-
-    # Get the download urls
-    download_urls = get_download_urls(
-        file_id=file_id, work_package_accessor=work_package_accessor
-    )
-
-    # Download the file parts in parallel
-    download_file_parts(
-        max_concurrent_downloads=max_concurrent_downloads,
-        queue=queue,
-        part_ranges=part_ranges,
-        download_urls=download_urls,
-    )
-
-    # Write the downloaded parts to a file
-    with open(output_file, "wb") as file:
-        # put envelope in file
-        file.write(envelope)
-        offset = len(envelope)
-        downloaded_size = 0
-        while downloaded_size < file_size:
-            try:
-                start, part = queue.get(block=False)
-            except Empty:
-                continue
-            file.seek(offset + start)
-            file.write(part)
-            downloaded_size += len(part)
-            queue.task_done()
 
 
 def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay) -> List[str]:

@@ -35,7 +35,6 @@ import httpx
 from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import httpx_client
 from ghga_connector.core.constants import TIMEOUT
 
 
@@ -212,6 +211,7 @@ def is_file_encrypted(file_path: Path):
 
 def download_content_range(
     *,
+    client: httpx.Client,
     download_url: str,
     start: int,
     end: int,
@@ -221,8 +221,7 @@ def download_content_range(
 
     headers = {"Range": f"bytes={start}-{end}"}
     try:
-        with httpx_client() as client:
-            response = client.get(download_url, headers=headers, timeout=TIMEOUT)
+        response = client.get(download_url, headers=headers, timeout=TIMEOUT)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(
             request_error=request_error, url=download_url
@@ -239,11 +238,12 @@ def download_content_range(
     raise exceptions.BadResponseCodeError(url=download_url, response_code=status_code)
 
 
-def download_file_parts(
-    max_concurrent_downloads: int,
-    queue: Queue,
-    part_ranges: Sequence[Tuple[int, int]],
+def download_file_parts(  # pylint: disable=too-many-arguments
+    client: httpx.Client,
     download_urls: Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]],
+    max_concurrent_downloads: int,
+    part_ranges: Sequence[Tuple[int, int]],
+    queue: Queue,
     download_part_funct=download_content_range,
 ) -> None:
     """
@@ -256,6 +256,7 @@ def download_file_parts(
 
     for part_range, download_url in zip(part_ranges, download_urls):
         kwargs: dict[str, Any] = {
+            "client": client,
             "download_url": download_url[0],
             "start": part_range[0],
             "end": part_range[1],

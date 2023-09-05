@@ -21,11 +21,8 @@ from pathlib import Path
 from time import sleep
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.api_calls import (
-    WorkPackageAccessor,
-    check_url,
-    get_download_url,
-)
+from ghga_connector.core.api_calls import Downloader, WorkPackageAccessor, check_url
+from ghga_connector.core.client import httpx_client
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
 
@@ -33,7 +30,7 @@ class InputHandler(ABC):
     """Abstract base for dealing with user input in batch processing"""
 
     @abstractmethod
-    def get_input(self, *, message: str):
+    def get_input(self, *, message: str) -> str:
         """Handle user input."""
 
     @abstractmethod
@@ -61,7 +58,7 @@ class BatchIoHandler(ABC):
         """Check for and return existing files in output location."""
 
     @abstractmethod
-    def get_input(self, *, message: str):
+    def get_input(self, *, message: str) -> str:
         """User input handling."""
 
     @abstractmethod
@@ -72,7 +69,7 @@ class BatchIoHandler(ABC):
 class CliInputHandler(InputHandler):
     """CLI relevant input handling"""
 
-    def get_input(self, *, message: str):
+    def get_input(self, *, message: str) -> str:
         """Simple user input handling."""
         return input(message)
 
@@ -118,7 +115,7 @@ class CliIoHandler(BatchIoHandler):
         """Check for and return existing files that would in output directory."""
         return self.output_handler.check_output(location=location)
 
-    def get_input(self, *, message: str):
+    def get_input(self, *, message: str) -> str:
         """Simple user input handling."""
         return self.input_handler.get_input(message=message)
 
@@ -190,9 +187,13 @@ class StagingState:
         remaining_unstaged = []
 
         for file_id in self.unstaged_files:
-            dl_url = get_download_url(
-                file_id=file_id, work_package_accessor=work_package_accessor
-            )
+            with httpx_client() as client:
+                downloader = Downloader(
+                    client=client,
+                    file_id=file_id,
+                    work_package_accessor=work_package_accessor,
+                )
+                dl_url = downloader.get_download_url()
             if dl_url[0]:
                 self.staged_files.append(file_id)
             else:
@@ -232,9 +233,13 @@ class FileStager:  # pylint: disable=too-many-instance-attributes
         unknown_ids = []
         for file_id in self.staging_parameters.file_ids_with_extension.keys():
             try:
-                download_information = get_download_url(
-                    file_id=file_id, work_package_accessor=self.work_package_accessor
-                )
+                with httpx_client() as client:
+                    downloader = Downloader(
+                        client=client,
+                        file_id=file_id,
+                        work_package_accessor=self.work_package_accessor,
+                    )
+                    download_information = downloader.get_download_url()
             except exceptions.BadResponseCodeError as error:
                 if error.response_code == 404:
                     unknown_ids.append(file_id)

@@ -19,23 +19,20 @@ Contains Calls of the Presigned URLs in order to Up- and Download Files
 """
 
 import base64
-import concurrent.futures
 import hashlib
 import math
 import os
+from abc import ABC, abstractmethod
 from io import BufferedReader
 from pathlib import Path
-from queue import Queue
-from typing import Any, Iterator, Sequence, Tuple, Union
+from typing import Iterator, Sequence
 
 import crypt4gh.header
 import crypt4gh.keys
 import crypt4gh.lib
-import httpx
 from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
 
-from ghga_connector.core import exceptions
-from ghga_connector.core.constants import TIMEOUT
+from ghga_connector.core.dataclasses import PartRange
 
 
 class Checksums:
@@ -75,7 +72,43 @@ class Checksums:
         self._encrypted_sha256.append(hashlib.sha256(part).hexdigest())
 
 
-class Crypt4GHEncryptor:
+class Decryptor(ABC):
+    """Convenience class to deal with file decryption"""
+
+    @abstractmethod
+    def decrypt_file(self, *, input_path: Path, output_path: Path):
+        """Decrypt provided file"""
+
+
+class Crypt4GHDecryptor(Decryptor):
+    """Convenience class to deal with Crypt4GH decryption"""
+
+    def __init__(self, decryption_key_path: Path):
+        self._decryption_key = crypt4gh.keys.get_private_key(
+            decryption_key_path, callback=None
+        )
+
+    def decrypt_file(self, *, input_path: Path, output_path: Path):
+        """Decrypt provided file using Crypt4GH lib"""
+        keys = [(0, self._decryption_key, None)]
+        with input_path.open("rb") as infile:
+            with output_path.open("wb") as outfile:
+                crypt4gh.lib.decrypt(keys=keys, infile=infile, outfile=outfile)
+
+
+class Encryptor(ABC):
+    """Handles on the fly encryption and checksum calculation"""
+
+    @abstractmethod
+    def get_encrypted_size(self) -> int:
+        """Get file size after encryption, excluding envelope"""
+
+    @abstractmethod
+    def process_file(self, file: BufferedReader):
+        """Encrypt file parts and prepare for upload."""
+
+
+class Crypt4GHEncryptor(Encryptor):
     """Handles on the fly encryption and checksum calculation"""
 
     def __init__(  # pylint: disable=too-many-arguments
@@ -86,7 +119,7 @@ class Crypt4GHEncryptor:
         checksums: Checksums = Checksums(),
         file_secret: bytes = os.urandom(32),
     ):
-        self.encrypted_file_size = 0
+        self._encrypted_file_size = 0
         self._checksums = checksums
         self._file_secret = file_secret
         self._part_size = part_size
@@ -128,9 +161,12 @@ class Crypt4GHEncryptor:
 
         return header_bytes
 
-    # type annotation for file parts, should be generator
+    def get_encrypted_size(self) -> int:
+        """Get file size after encryption, excluding envelope"""
+        return self._encrypted_file_size
+
     def process_file(self, file: BufferedReader):
-        """Encrypt and upload file parts."""
+        """Encrypt file parts and prepare for upload."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()
 
@@ -153,7 +189,7 @@ class Crypt4GHEncryptor:
                     self._checksums.update_encrypted(current_part[envelope_size:])
                 else:
                     self._checksums.update_encrypted(current_part)
-                self.encrypted_file_size += self._part_size
+                self._encrypted_file_size += self._part_size
                 yield current_part
                 upload_buffer = upload_buffer[self._part_size :]
 
@@ -164,32 +200,16 @@ class Crypt4GHEncryptor:
         while len(upload_buffer) >= self._part_size:
             current_part = upload_buffer[: self._part_size]
             self._checksums.update_encrypted(current_part)
-            self.encrypted_file_size += self._part_size
+            self._encrypted_file_size += self._part_size
             yield current_part
             upload_buffer = upload_buffer[self._part_size :]
 
         if upload_buffer:
             self._checksums.update_encrypted(upload_buffer)
-            self.encrypted_file_size += len(upload_buffer)
+            self._encrypted_file_size += len(upload_buffer)
             yield upload_buffer
 
-        self.encrypted_file_size -= envelope_size
-
-
-class Crypt4GHDecryptor:
-    """Convenience class to deal with Crypt4GH decryption"""
-
-    def __init__(self, decryption_key_path: Path):
-        self.decryption_key = crypt4gh.keys.get_private_key(
-            decryption_key_path, callback=None
-        )
-
-    def decrypt_file(self, *, input_path: Path, output_path: Path):
-        """Decrypt provided file using Crypt4GH lib"""
-        keys = [(0, self.decryption_key, None)]
-        with input_path.open("rb") as infile:
-            with output_path.open("wb") as outfile:
-                crypt4gh.lib.decrypt(keys=keys, infile=infile, outfile=outfile)
+        self._encrypted_file_size -= envelope_size
 
 
 def is_file_encrypted(file_path: Path):
@@ -209,66 +229,9 @@ def is_file_encrypted(file_path: Path):
     return True
 
 
-def download_content_range(
-    *,
-    client: httpx.Client,
-    download_url: str,
-    start: int,
-    end: int,
-    queue: Queue,
-) -> None:
-    """Download a specific range of a file's content using a presigned download url."""
-
-    headers = {"Range": f"bytes={start}-{end}"}
-    try:
-        response = client.get(download_url, headers=headers, timeout=TIMEOUT)
-    except httpx.RequestError as request_error:
-        exceptions.raise_if_connection_failed(
-            request_error=request_error, url=download_url
-        )
-        raise exceptions.RequestFailedError(url=download_url) from request_error
-
-    status_code = response.status_code
-
-    # 200, if the full file was returned, 206 else.
-    if status_code in (200, 206):
-        queue.put((start, response.content))
-        return
-
-    raise exceptions.BadResponseCodeError(url=download_url, response_code=status_code)
-
-
-def download_file_parts(  # pylint: disable=too-many-arguments
-    client: httpx.Client,
-    download_urls: Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]],
-    max_concurrent_downloads: int,
-    part_ranges: Sequence[Tuple[int, int]],
-    queue: Queue,
-    download_part_funct=download_content_range,
-) -> None:
-    """
-    Download stuff
-    """
-    # Download the parts using a thread pool executor
-    executor = concurrent.futures.ThreadPoolExecutor(
-        max_workers=max_concurrent_downloads,
-    )
-
-    for part_range, download_url in zip(part_ranges, download_urls):
-        kwargs: dict[str, Any] = {
-            "client": client,
-            "download_url": download_url[0],
-            "start": part_range[0],
-            "end": part_range[1],
-            "queue": queue,
-        }
-
-        executor.submit(download_part_funct, **kwargs)
-
-
 def calc_part_ranges(
     *, part_size: int, total_file_size: int, from_part: int = 1
-) -> Sequence[tuple[int, int]]:
+) -> Sequence[PartRange]:
     """
     Calculate and return the ranges (start, end) of file parts as a list of tuples.
 
@@ -279,13 +242,15 @@ def calc_part_ranges(
     # calc the ranges for the parts that have the full part_size:
     full_part_number = math.floor(total_file_size / part_size)
     part_ranges = [
-        (part_size * (part_no - 1), part_size * part_no - 1)
+        PartRange(start=part_size * (part_no - 1), stop=part_size * part_no - 1)
         for part_no in range(from_part, full_part_number + 1)
     ]
 
     if (total_file_size % part_size) > 0:
         # if the last part is smaller than the part_size, calculate its range separately:
-        part_ranges.append((part_size * full_part_number, total_file_size - 1))
+        part_ranges.append(
+            PartRange(start=part_size * full_part_number, stop=total_file_size - 1)
+        )
 
     return part_ranges
 

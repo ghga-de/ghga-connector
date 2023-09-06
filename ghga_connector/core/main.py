@@ -20,12 +20,12 @@ from pathlib import Path
 from typing import List
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.api_calls import Downloader, WorkPackageAccessor, check_url
-from ghga_connector.core.client import httpx_client
-from ghga_connector.core.download import run_download
+from ghga_connector.core.api_calls import WorkPackageAccessor, check_url
+from ghga_connector.core.client import async_client, httpx_client
+from ghga_connector.core.download import Downloader, run_download
 from ghga_connector.core.file_operations import Crypt4GHDecryptor, is_file_encrypted
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.upload import run_upload
+from ghga_connector.core.upload import Uploader, run_upload
 
 
 async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
@@ -59,15 +59,20 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
     if not check_url(api_url):
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
-    await run_upload(
-        api_url=api_url,
-        file_id=file_id,
-        file_path=file_path,
-        message_display=message_display,
-        private_key_path=my_private_key_path,
-        public_key_path=my_public_key_path,
-        server_public_key=server_public_key,
-    )
+    async with async_client() as client:
+        uploader = Uploader(
+            api_url=api_url,
+            client=client,
+            file_id=file_id,
+            public_key_path=my_public_key_path,
+        )
+        await run_upload(
+            file_path=file_path,
+            message_display=message_display,
+            private_key_path=my_private_key_path,
+            server_public_key=server_public_key,
+            uploader=uploader,
+        )
 
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 

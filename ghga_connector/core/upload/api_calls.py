@@ -19,9 +19,8 @@ This file contains all api calls related to uploading files
 
 import base64
 import json
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterator
+from typing import Iterator
 
 import crypt4gh.keys
 import httpx
@@ -29,27 +28,10 @@ import httpx
 from ghga_connector.core import exceptions
 from ghga_connector.core.constants import MAX_PART_NUMBER, TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
-
-# Constants for clarity of return values
-NO_DOWNLOAD_URL = None
-NO_FILE_SIZE = None
-NO_RETRY_TIME = None
+from ghga_connector.core.upload.upload_handler import UploaderBase, UploadStatus
 
 
-class UploadStatus(str, Enum):
-    """
-    Enum for the possible statuses of an upload attempt.
-    """
-
-    ACCEPTED = "accepted"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-    PENDING = "pending"
-    REJECTED = "rejected"
-    UPLOADED = "uploaded"
-
-
-class Uploader:
+class Uploader(UploaderBase):
     """
     Class bundling functionality calling Upload Controller Service to initiate and
     manage an ongoing upload
@@ -63,8 +45,8 @@ class Uploader:
         file_id: str,
         public_key_path: Path,
     ) -> None:
-        self.part_size = 0
-        self.upload_id = ""
+        self._part_size = 0
+        self._upload_id = ""
         self._api_url = api_url
         self._client = client
         self._file_id = file_id
@@ -141,10 +123,10 @@ class Uploader:
 
         response_body = response.json()
 
-        self.part_size = int(response_body["part_size"])
-        self.upload_id = response_body["upload_id"]
+        self._part_size = int(response_body["part_size"])
+        self._upload_id = response_body["upload_id"]
 
-    async def get_file_metadata(self) -> Dict:
+    async def get_file_metadata(self) -> dict[str, str]:
         """
         Get all file metadata
         """
@@ -180,16 +162,16 @@ class Uploader:
 
         return file_metadata
 
-    async def get_part_upload_url(self, *, part_no: int):
+    async def get_part_upload_url(self, *, part_no: int) -> str:
         """
         Get a presigned url to upload a specific part
         """
 
-        if not self.upload_id:
-            raise exceptions.UploadIdUnset()
+        if not self._upload_id:
+            raise exceptions.UploadIdUnsetError()
 
         # build url and headers
-        url = f"{self._api_url}/uploads/{self.upload_id}/parts/{part_no}/signed_urls"
+        url = f"{self._api_url}/uploads/{self._upload_id}/parts/{part_no}/signed_urls"
         headers = {"Accept": "application/json", "Content-Type": "application/json"}
 
         # Make function call to get upload url
@@ -206,12 +188,12 @@ class Uploader:
             spec = {
                 403: {
                     "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
                 404: {
                     "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
             }
@@ -243,26 +225,26 @@ class Uploader:
         `get_url_func` only for testing purposes.
         """
 
-        if not self.upload_id:
-            raise exceptions.UploadIdUnset()
+        if not self._upload_id:
+            raise exceptions.UploadIdUnsetError()
 
         for part_no in range(from_part, MAX_PART_NUMBER + 1):
             yield get_url_func(
-                api_url=self._api_url, upload_id=self.upload_id, part_no=part_no
+                api_url=self._api_url, upload_id=self._upload_id, part_no=part_no
             )
 
         raise exceptions.MaxPartNoExceededError()
 
-    async def get_upload_info(self) -> Dict:
+    async def get_upload_info(self) -> dict[str, str]:
         """
         Get details on a specific upload
         """
 
-        if not self.upload_id:
-            raise exceptions.UploadIdUnset()
+        if not self._upload_id:
+            raise exceptions.UploadIdUnsetError()
 
         # build url and headers
-        url = f"{self._api_url}/uploads/{self.upload_id}"
+        url = f"{self._api_url}/uploads/{self._upload_id}"
         headers = {"Accept": "*/*", "Content-Type": "application/json"}
 
         try:
@@ -276,12 +258,12 @@ class Uploader:
             spec = {
                 403: {
                     "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
                 404: {
                     "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
             }
@@ -297,11 +279,11 @@ class Uploader:
         if the upload_id is currently set to "pending"
         """
 
-        if not self.upload_id:
-            raise exceptions.UploadIdUnset()
+        if not self._upload_id:
+            raise exceptions.UploadIdUnsetError()
 
         # build url and headers
-        url = f"{self._api_url}/uploads/{self.upload_id}"
+        url = f"{self._api_url}/uploads/{self._upload_id}"
         headers = {"Accept": "*/*", "Content-Type": "application/json"}
         post_data = {"status": upload_status}
         serialized_data = json.dumps(post_data)
@@ -319,20 +301,20 @@ class Uploader:
             spec = {
                 400: {
                     "uploadNotPending": lambda: exceptions.CantChangeUploadStatusError(
-                        upload_id=self.upload_id, upload_status=upload_status
+                        upload_id=self._upload_id, upload_status=upload_status
                     ),
                     "uploadStatusChange": lambda: exceptions.CantChangeUploadStatusError(
-                        upload_id=self.upload_id, upload_status=upload_status
+                        upload_id=self._upload_id, upload_status=upload_status
                     ),
                 },
                 403: {
                     "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
                 404: {
                     "noSuchUpload": lambda: exceptions.UploadNotRegisteredError(
-                        upload_id=self.upload_id
+                        upload_id=self._upload_id
                     )
                 },
             }

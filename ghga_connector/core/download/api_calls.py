@@ -17,27 +17,28 @@
 This file contains all api calls related to uploading files
 """
 
+import concurrent.futures
 import base64
+from queue import Queue
 from time import sleep
-from typing import Iterator, Tuple, Union
+from typing import Any, Iterator, Sequence, Tuple, Union
 
 import httpx
-from requests.structures import CaseInsensitiveDict
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls.work_package import WorkPackageAccessor
-from ghga_connector.core.client import httpx_client
+from ghga_connector.core.dataclasses import PartRange
+from ghga_connector.core.download.download_handler import (
+    DownloaderBase,
+    RetryResponse,
+    URLResponse,
+)
 from ghga_connector.core.constants import TIMEOUT
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
-# Constants for clarity of return values
-NO_DOWNLOAD_URL = None
-NO_FILE_SIZE = None
-NO_RETRY_TIME = None
 
-
-class Downloader:
+class Downloader(DownloaderBase):
     """TODO"""
 
     def __init__(
@@ -46,33 +47,127 @@ class Downloader:
         work_package_accessor: WorkPackageAccessor,
         client: httpx.Client,
     ):
-        self.client = client
-        self.file_id = file_id
-        self.work_package_accessor = work_package_accessor
+        self._client = client
+        self._file_id = file_id
+        self._work_package_accessor = work_package_accessor
+
+    def await_download_url(
+        self,
+        *,
+        max_wait_time: int,
+        message_display: AbstractMessageDisplay,
+    ) -> URLResponse:
+        """Wait until download URL can be generated.
+        Returns a URLResponse containing two elements:
+            1. the download url
+            2. the file size in bytes
+        """
+
+        # get the download_url, wait if needed
+        wait_time = 0
+        while wait_time < max_wait_time:
+            try:
+                response = self.get_download_url()
+            except exceptions.BadResponseCodeError as error:
+                message_display.failure(
+                    "The request was invalid and returned a bad HTTP status code."
+                )
+                raise error
+            except exceptions.RequestFailedError as error:
+                message_display.failure("The request failed.")
+                raise error
+
+            if isinstance(response, RetryResponse):
+                # typechecker is a bit weird here. Could skip the else and indentation,
+                # but but then it thinks response for this branch is of type URLResponse
+                retry_time = response.retry_after
+                wait_time += retry_time
+                message_display.display(
+                    f"File staging, will try to download again in {retry_time} seconds"
+                )
+                sleep(retry_time)
+            else:
+                return response
+
+        raise exceptions.MaxWaitTimeExceededError(max_wait_time=max_wait_time)
+
+    def download_content_range(
+        self,
+        *,
+        download_url: str,
+        start: int,
+        end: int,
+        queue: Queue,
+    ) -> None:
+        """Download a specific range of a file's content using a presigned download url."""
+
+        headers = {"Range": f"bytes={start}-{end}"}
+        try:
+            response = self._client.get(download_url, headers=headers, timeout=TIMEOUT)
+        except httpx.RequestError as request_error:
+            exceptions.raise_if_connection_failed(
+                request_error=request_error, url=download_url
+            )
+            raise exceptions.RequestFailedError(url=download_url) from request_error
+
+        status_code = response.status_code
+
+        # 200, if the full file was returned, 206 else.
+        if status_code in (200, 206):
+            queue.put((start, response.content))
+            return
+
+        raise exceptions.BadResponseCodeError(
+            url=download_url, response_code=status_code
+        )
+
+    def download_file_parts(  # pylint: disable=too-many-arguments
+        self,
+        *,
+        url_response: Iterator[URLResponse],
+        max_concurrent_downloads: int,
+        part_ranges: Sequence[PartRange],
+        queue: Queue[Tuple[int, bytes]],
+    ) -> None:
+        """
+        Download stuff
+        """
+        # Download the parts using a thread pool executor
+        executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_concurrent_downloads,
+        )
+
+        for part_range, download_url in zip(part_ranges, url_response):
+            kwargs: dict[str, Any] = {
+                "download_url": download_url,
+                "start": part_range.start,
+                "end": part_range.stop,
+                "queue": queue,
+            }
+
+            executor.submit(self.download_content_range, **kwargs)
 
     def get_download_url(  # noqa: C901 pylint: disable=too-many-locals
         self,
-    ) -> Union[Tuple[None, None, int], Tuple[str, int, None]]:
+    ) -> Union[RetryResponse, URLResponse]:
         """
         Perform a RESTful API call to retrieve a presigned download URL.
         Returns:
-            A tuple of three elements:
-                1. the download url
-                2. the file size (in bytes)
-                3. the retry-time
-            If the download url is not available yet, the first two elements are None and
-            the retry-time is set.
-            Otherwise, only the last element is None while the others are set.
+            If the download url is not available yet, a RetryResponse is returned,
+            containing the time in seconds after which the download url should become
+            available.
+            Otherwise, a URLResponse containing the download url and file size in bytes
+            is returned.
         """
 
         # fetch a work order token
-        decrypted_token = self.work_package_accessor.get_work_order_token(
-            file_id=self.file_id
+        decrypted_token = self._work_package_accessor.get_work_order_token(
+            file_id=self._file_id
         )
 
         # build url and headers
-        url = f"{self.work_package_accessor.dcs_api_url}/objects/{self.file_id}"
-        headers = CaseInsensitiveDict(
+        url = f"{self._work_package_accessor.dcs_api_url}/objects/{self._file_id}"
+        headers = httpx.Headers(
             {
                 "Accept": "application/json",
                 "Authorization": f"Bearer {decrypted_token}",
@@ -82,7 +177,7 @@ class Downloader:
 
         # Make function call to get download url
         try:
-            response = self.client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = self._client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
             raise exceptions.RequestFailedError(url=url) from request_error
@@ -106,7 +201,7 @@ class Downloader:
             if "retry-after" not in headers:
                 raise exceptions.RetryTimeExpectedError(url=url)
 
-            return (NO_DOWNLOAD_URL, NO_FILE_SIZE, int(headers["retry-after"]))
+            return RetryResponse(retry_after=int(headers["retry-after"]))
 
         # look for an access method of type s3 in the response:
         response_body = response.json()
@@ -123,58 +218,23 @@ class Downloader:
         if download_url is None:
             raise exceptions.NoS3AccessMethodError(url=url)
 
-        return download_url, file_size, NO_RETRY_TIME
+        return URLResponse(
+            download_url=download_url,
+            file_size=file_size,
+        )
 
     def get_download_urls(
         self,
-    ) -> Iterator[Union[Tuple[None, None, int], Tuple[str, int, None]]]:
+    ) -> Iterator[URLResponse]:
         """
         For a specific multi-part upload identified by the `file_id`, it returns an
         iterator to obtain download_urls.
         """
         while True:
-            yield self.get_download_url()
-
-    def await_download_url(
-        self,
-        *,
-        max_wait_time: int,
-        message_display: AbstractMessageDisplay,
-    ) -> Tuple[str, int]:
-        """Wait until download URL can be generated.
-        Returns a tuple with two elements:
-            1. the download url
-            2. the file size in bytes
-        """
-
-        # get the download_url, wait if needed
-        wait_time = 0
-        while wait_time < max_wait_time:
-            try:
-                response_body = self.get_download_url()
-            except exceptions.BadResponseCodeError as error:
-                message_display.failure(
-                    "The request was invalid and returned a bad HTTP status code."
-                )
-                raise error
-            except exceptions.RequestFailedError as error:
-                message_display.failure("The request failed.")
-                raise error
-
-            if response_body[0] is not None:
-                download_url: str = response_body[0]
-                file_size: int = response_body[1]
-                return (download_url, file_size)
-
-            retry_time: int = response_body[2]
-
-            wait_time += retry_time
-            message_display.display(
-                f"File staging, will try to download again in {retry_time} seconds"
-            )
-            sleep(retry_time)
-
-        raise exceptions.MaxWaitTimeExceededError(max_wait_time=max_wait_time)
+            url_response = self.get_download_url()
+            if isinstance(url_response, RetryResponse):
+                raise exceptions.UnexcpectedRetryResponseError()
+            yield url_response
 
     def get_file_header_envelope(self) -> bytes:
         """
@@ -183,16 +243,14 @@ class Downloader:
             The file header envelope (bytes object)
         """
         # fetch a work order token
-        decrypted_token = self.work_package_accessor.get_work_order_token(
-            file_id=self.file_id
+        decrypted_token = self._work_package_accessor.get_work_order_token(
+            file_id=self._file_id
         )
 
         # build url and headers
-        url = (
-            f"{self.work_package_accessor.dcs_api_url}/objects/{self.file_id}/envelopes"
-        )
+        url = f"{self._work_package_accessor.dcs_api_url}/objects/{self._file_id}/envelopes"
 
-        headers = CaseInsensitiveDict(
+        headers = httpx.Headers(
             {
                 "Accept": "application/json",
                 "Authorization": f"Bearer {decrypted_token}",
@@ -202,8 +260,7 @@ class Downloader:
 
         # Make function call to get download url
         try:
-            with httpx_client() as client:
-                response = client.get(url=url, headers=headers, timeout=TIMEOUT)
+            response = self._client.get(url=url, headers=headers, timeout=TIMEOUT)
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -225,10 +282,10 @@ class Downloader:
         spec = {
             404: {
                 "envelopeNotFoundError": lambda: exceptions.EnvelopeNotFoundError(
-                    file_id=self.file_id
+                    file_id=self._file_id
                 ),
                 "noSuchObject": lambda: exceptions.FileNotRegisteredError(
-                    file_id=self.file_id
+                    file_id=self._file_id
                 ),
             },
             500: {"externalAPIError": exceptions.ExternalApiError},

@@ -15,17 +15,105 @@
 #
 """TODO"""
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
+from typing import Iterator, Sequence, Union
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.api_calls import Downloader
-from ghga_connector.core.file_operations import calc_part_ranges, download_file_parts
+from ghga_connector.core.dataclasses import PartRange
+from ghga_connector.core.file_operations import calc_part_ranges
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
 
+@dataclass
+class RetryResponse:
+    """TODO"""
+
+    retry_after: int
+
+
+@dataclass
+class URLResponse:
+    """TODO"""
+
+    download_url: str
+    file_size: int
+
+
+class DownloaderBase(ABC):
+    """TODO"""
+
+    @abstractmethod
+    def await_download_url(
+        self,
+        *,
+        max_wait_time: int,
+        message_display: AbstractMessageDisplay,
+    ) -> URLResponse:
+        """Wait until download URL can be generated.
+        Returns a URLResponse containing two elements:
+            1. the download url
+            2. the file size in bytes
+        """
+
+    @abstractmethod
+    def get_download_url(self) -> Union[RetryResponse, URLResponse]:
+        """
+        Perform a RESTful API call to retrieve a presigned download URL.
+        Returns:
+            If the download url is not available yet, a RetryResponse is returned,
+            containing the time in seconds after which the download url should become
+            available.
+            Otherwise, a URLResponse containing the download url and file size in bytes
+            is returned.
+        """
+
+    @abstractmethod
+    def get_download_urls(
+        self,
+    ) -> Iterator[URLResponse]:
+        """
+        For the multi-part upload identified by the `file_id`, it returns an
+        iterator to obtain download_urls.
+        """
+
+    @abstractmethod
+    def get_file_header_envelope(self) -> bytes:
+        """
+        Perform a RESTful API call to retrieve a file header envelope.
+        Returns:
+            The file header envelope (bytes object)
+        """
+
+    @abstractmethod
+    def download_content_range(
+        self,
+        *,
+        download_url: str,
+        start: int,
+        end: int,
+        queue: Queue,
+    ) -> None:
+        """Download a specific range of a file's content using a presigned download url."""
+
+    @abstractmethod
+    def download_file_parts(  # pylint: disable=too-many-arguments
+        self,
+        *,
+        url_response: Iterator[URLResponse],
+        max_concurrent_downloads: int,
+        part_ranges: Sequence[PartRange],
+        queue: Queue,
+    ) -> None:
+        """
+        Download stuff
+        """
+
+
 def run_download(
-    downloader: Downloader,
+    downloader: DownloaderBase,
     max_wait_time: int,
     message_display: AbstractMessageDisplay,
     output_file_ongoing: Path,
@@ -33,7 +121,7 @@ def run_download(
 ):
     """TODO"""
     # stage download and get file size
-    download_url_tuple = downloader.await_download_url(
+    url_response = downloader.await_download_url(
         max_wait_time=max_wait_time,
         message_display=message_display,
     )
@@ -47,7 +135,7 @@ def run_download(
         exceptions.ExternalApiError,
     ) as error:
         message_display.failure(
-            f"The request to get an envelope for file '{downloader.file_id}' failed."
+            f"The request to get an envelope for file '{downloader._file_id}' failed."
         )
         raise error
 
@@ -56,9 +144,9 @@ def run_download(
         download_parts(
             downloader=downloader,
             envelope=envelope,
-            output_file=str(output_file_ongoing),
+            output_file=output_file_ongoing,
             part_size=part_size,
-            file_size=download_url_tuple[1],
+            file_size=url_response.file_size,
         )
     except exceptions.ConnectionFailedError as error:
         # Remove file, if the download failed.
@@ -71,12 +159,12 @@ def run_download(
 
 def download_parts(  # pylint: disable=too-many-locals
     *,
-    downloader: Downloader,
+    downloader: DownloaderBase,
     max_concurrent_downloads: int = 5,
     max_queue_size: int = 10,
     part_size: int,
     file_size: int,
-    output_file: str,
+    output_file: Path,
     envelope: bytes,
 ):
     """
@@ -87,26 +175,25 @@ def download_parts(  # pylint: disable=too-many-locals
     :param part_size: Size of each part to download.
     """
 
-    # Split the file into parts based on the part size
-    part_ranges = calc_part_ranges(part_size=part_size, total_file_size=file_size)
-
     # Create a queue object to store downloaded parts
     queue: Queue = Queue(maxsize=max_queue_size)
+
+    # Split the file into parts based on the part size
+    part_ranges = calc_part_ranges(part_size=part_size, total_file_size=file_size)
 
     # Get the download urls
     download_urls = downloader.get_download_urls()
 
     # Download the file parts in parallel
-    download_file_parts(
-        client=downloader.client,
+    downloader.download_file_parts(
         max_concurrent_downloads=max_concurrent_downloads,
         queue=queue,
         part_ranges=part_ranges,
-        download_urls=download_urls,
+        url_response=download_urls,
     )
 
     # Write the downloaded parts to a file
-    with open(output_file, "wb") as file:
+    with output_file.open("wb") as file:
         # put envelope in file
         file.write(envelope)
         offset = len(envelope)

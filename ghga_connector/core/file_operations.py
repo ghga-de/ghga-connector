@@ -25,7 +25,7 @@ import os
 from abc import ABC, abstractmethod
 from io import BufferedReader
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Generator, Iterator, Sequence
 
 import crypt4gh.header
 import crypt4gh.keys
@@ -104,7 +104,7 @@ class Encryptor(ABC):
         """Get file size after encryption, excluding envelope"""
 
     @abstractmethod
-    def process_file(self, file: BufferedReader):
+    def process_file(self, file: BufferedReader) -> Generator[bytes, None, None]:
         """Encrypt file parts and prepare for upload."""
 
 
@@ -165,7 +165,7 @@ class Crypt4GHEncryptor(Encryptor):
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
-    def process_file(self, file: BufferedReader):
+    def process_file(self, file: BufferedReader) -> Generator[bytes, None, None]:
         """Encrypt file parts and prepare for upload."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()

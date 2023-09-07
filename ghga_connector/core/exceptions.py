@@ -75,18 +75,8 @@ class DirectoryDoesNotExistError(RuntimeError):
         super().__init__(message)
 
 
-class DownloadFinalizationError(RuntimeError):
-    """
-    Thrown when a downloaded file cannot be moved to its final location, as another file
-    already exists at that location that was not present at the beginning of the batch process
-    """
-
-    def __init__(self, *, file_path: Path):
-        message = (
-            "Cannot move downloaded file to its final location as another file "
-            + f"unexpectedly exists at '{file_path}'"
-        )
-        super().__init__(message)
+class DownloadError(RuntimeError):
+    """Raised when an error is encountered during file download"""
 
 
 class EncryptedSizeMismatch(RuntimeError):
@@ -157,6 +147,19 @@ class FileNotRegisteredError(RuntimeError):
             "because this file id does not exist."
         )
         super().__init__(message)
+
+
+class FinalizeUploadError(RuntimeError):
+    """Raised when a finished multipart upload cannot be finalized"""
+
+    def __init__(self, *, cause: str):
+        self.cause = cause
+        message = f"Could not finalize download due to: {cause}"
+        super().__init__(message)
+
+
+class GetEnvelopeError(RuntimeError):
+    """Raised when fetching an header envelope fails"""
 
 
 class InvalidWorkPackageToken(RuntimeError):
@@ -259,8 +262,8 @@ class PrivateKeyFileDoesNotExistError(RuntimeError):
 class PubKeyFileDoesNotExistError(RuntimeError):
     """Thrown, when the specified public key file does not exist."""
 
-    def __init__(self, *, pubkey_path: Path):
-        message = f"The public key file '{pubkey_path}' does not exist."
+    def __init__(self, *, public_key_path: Path):
+        message = f"The public key file '{public_key_path}' does not exist."
         super().__init__(message)
 
 
@@ -272,6 +275,20 @@ class PubKeyMismatchError(RuntimeError):
 
     def __init__(self):
         message = "Provided public key does not match the public key from the metadata."
+        super().__init__(message)
+
+
+class RenameDownloadedFileError(RuntimeError):
+    """
+    Thrown when a downloaded file cannot be moved to its final location, as another file
+    already exists at that location that was not present at the beginning of the batch process
+    """
+
+    def __init__(self, *, file_path: Path):
+        message = (
+            "Cannot move downloaded file to its final location as another file "
+            + f"unexpectedly exists at '{file_path}'"
+        )
         super().__init__(message)
 
 
@@ -289,6 +306,10 @@ class RetryTimeExpectedError(RuntimeError):
     def __init__(self, *, url: str):
         message = f"No `Retry-After` header in response from server following the url: '{url}'"
         super().__init__(message)
+
+
+class StartUploadError(RuntimeError):
+    """Raised when an issue is encountered during the initialization of a multipart upload"""
 
 
 class UnauthorizedAPICallError(RuntimeError):

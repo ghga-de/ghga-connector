@@ -43,6 +43,7 @@ class Downloader(DownloaderBase):
 
     def __init__(
         self,
+        *,
         file_id: str,
         work_package_accessor: WorkPackageAccessor,
         client: httpx.Client,
@@ -159,68 +160,10 @@ class Downloader(DownloaderBase):
             Otherwise, a URLResponse containing the download url and file size in bytes
             is returned.
         """
-
-        # fetch a work order token
-        decrypted_token = self._work_package_accessor.get_work_order_token(
-            file_id=self._file_id
-        )
-
-        # build url and headers
-        url = f"{self._work_package_accessor.dcs_api_url}/objects/{self._file_id}"
-        headers = httpx.Headers(
-            {
-                "Accept": "application/json",
-                "Authorization": f"Bearer {decrypted_token}",
-                "Content-Type": "application/json",
-            }
-        )
-
-        # Make function call to get download url
-        try:
-            response = self._client.get(url=url, headers=headers, timeout=TIMEOUT)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
-
-        status_code = response.status_code
-        if status_code != 200:
-            if status_code == 403:
-                content = response.json()
-                # handle both normal and httpyexpect 403 response
-                if "description" in content:
-                    cause = content["description"]
-                else:
-                    cause = content["detail"]
-                raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
-            if status_code != 202:
-                raise exceptions.BadResponseCodeError(
-                    url=url, response_code=status_code
-                )
-
-            headers = response.headers
-            if "retry-after" not in headers:
-                raise exceptions.RetryTimeExpectedError(url=url)
-
-            return RetryResponse(retry_after=int(headers["retry-after"]))
-
-        # look for an access method of type s3 in the response:
-        response_body = response.json()
-        download_url = None
-        access_methods = response_body["access_methods"]
-        for access_method in access_methods:
-            if access_method["type"] == "s3":
-                download_url = access_method["access_url"]["url"]
-                file_size = response_body["size"]
-                break
-        else:
-            raise exceptions.NoS3AccessMethodError(url=url)
-
-        if download_url is None:
-            raise exceptions.NoS3AccessMethodError(url=url)
-
-        return URLResponse(
-            download_url=download_url,
-            file_size=file_size,
+        return get_download_url(
+            client=self._client,
+            file_id=self._file_id,
+            work_package_accessor=self._work_package_accessor,
         )
 
     def get_download_urls(
@@ -293,3 +236,75 @@ class Downloader(DownloaderBase):
 
         ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
+
+
+def get_download_url(  # noqa: C901 pylint: disable=too-many-locals
+    client: httpx.Client, file_id: str, work_package_accessor: WorkPackageAccessor
+) -> Union[RetryResponse, URLResponse]:
+    """
+    Perform a RESTful API call to retrieve a presigned download URL.
+    Returns:
+        If the download url is not available yet, a RetryResponse is returned,
+        containing the time in seconds after which the download url should become
+        available.
+        Otherwise, a URLResponse containing the download url and file size in bytes
+        is returned.
+    """
+    # fetch a work order token
+    decrypted_token = work_package_accessor.get_work_order_token(file_id=file_id)
+
+    # build url and headers
+    url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}"
+    headers = httpx.Headers(
+        {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {decrypted_token}",
+            "Content-Type": "application/json",
+        }
+    )
+
+    # Make function call to get download url
+    try:
+        response = client.get(url=url, headers=headers, timeout=TIMEOUT)
+    except httpx.RequestError as request_error:
+        exceptions.raise_if_connection_failed(request_error=request_error, url=url)
+        raise exceptions.RequestFailedError(url=url) from request_error
+
+    status_code = response.status_code
+    if status_code != 200:
+        if status_code == 403:
+            content = response.json()
+            # handle both normal and httpyexpect 403 response
+            if "description" in content:
+                cause = content["description"]
+            else:
+                cause = content["detail"]
+            raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
+        if status_code != 202:
+            raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
+
+        headers = response.headers
+        if "retry-after" not in headers:
+            raise exceptions.RetryTimeExpectedError(url=url)
+
+        return RetryResponse(retry_after=int(headers["retry-after"]))
+
+    # look for an access method of type s3 in the response:
+    response_body = response.json()
+    download_url = None
+    access_methods = response_body["access_methods"]
+    for access_method in access_methods:
+        if access_method["type"] == "s3":
+            download_url = access_method["access_url"]["url"]
+            file_size = response_body["size"]
+            break
+    else:
+        raise exceptions.NoS3AccessMethodError(url=url)
+
+    if download_url is None:
+        raise exceptions.NoS3AccessMethodError(url=url)
+
+    return URLResponse(
+        download_url=download_url,
+        file_size=file_size,
+    )

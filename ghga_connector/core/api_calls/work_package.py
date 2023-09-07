@@ -24,6 +24,7 @@ import httpx
 from ghga_service_commons.utils.crypt import decrypt
 
 from ghga_connector.core import exceptions
+from ghga_connector.core.client import httpx_client
 
 
 @dataclass
@@ -32,7 +33,6 @@ class WorkPackageAccessor:
 
     access_token: str
     api_url: str
-    client: httpx.Client
     dcs_api_url: str
     package_id: str
     my_private_key: bytes
@@ -49,7 +49,8 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = self.client.get(url=url, headers=headers)
+            with httpx_client() as client:
+                response = client.get(url=url, headers=headers)
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -75,7 +76,8 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = self.client.post(url=url, headers=headers)
+            with httpx_client() as client:
+                response = client.post(url=url, headers=headers)
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 

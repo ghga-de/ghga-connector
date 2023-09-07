@@ -21,8 +21,9 @@ from pathlib import Path
 from time import sleep
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.api_calls import Downloader, WorkPackageAccessor, check_url
+from ghga_connector.core.api_calls import WorkPackageAccessor, check_url
 from ghga_connector.core.client import httpx_client
+from ghga_connector.core.download.api_calls import get_download_url, URLResponse
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
 
@@ -188,13 +189,12 @@ class StagingState:
 
         for file_id in self.unstaged_files:
             with httpx_client() as client:
-                downloader = Downloader(
+                url_response = get_download_url(
                     client=client,
                     file_id=file_id,
                     work_package_accessor=work_package_accessor,
                 )
-                dl_url = downloader.get_download_url()
-            if dl_url[0]:
+            if isinstance(url_response, URLResponse):
                 self.staged_files.append(file_id)
             else:
                 remaining_unstaged.append(file_id)
@@ -234,12 +234,11 @@ class FileStager:  # pylint: disable=too-many-instance-attributes
         for file_id in self.staging_parameters.file_ids_with_extension.keys():
             try:
                 with httpx_client() as client:
-                    downloader = Downloader(
+                    url_response = get_download_url(
                         client=client,
                         file_id=file_id,
                         work_package_accessor=self.work_package_accessor,
                     )
-                    download_information = downloader.get_download_url()
             except exceptions.BadResponseCodeError as error:
                 if error.response_code == 404:
                     unknown_ids.append(file_id)
@@ -247,7 +246,7 @@ class FileStager:  # pylint: disable=too-many-instance-attributes
                 raise error
 
             # split into already staged and not yet staged files
-            if download_information[0]:
+            if isinstance(url_response, URLResponse):
                 self.staging_state.add_staged(file_id=file_id)
             else:
                 self.staging_state.add_unstaged(file_id=file_id)

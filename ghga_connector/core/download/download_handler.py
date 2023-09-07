@@ -134,10 +134,7 @@ def run_download(
         exceptions.EnvelopeNotFoundError,
         exceptions.ExternalApiError,
     ) as error:
-        message_display.failure(
-            f"The request to get an envelope for file '{downloader._file_id}' failed."
-        )
-        raise error
+        raise exceptions.GetEnvelopeError() from error
 
     # perform the download
     try:
@@ -148,13 +145,13 @@ def run_download(
             part_size=part_size,
             file_size=url_response.file_size,
         )
-    except exceptions.ConnectionFailedError as error:
+    except (
+        exceptions.ConnectionFailedError,
+        exceptions.NoS3AccessMethodError,
+    ) as error:
         # Remove file, if the download failed.
         output_file_ongoing.unlink()
-        raise error
-    except exceptions.NoS3AccessMethodError as error:
-        output_file_ongoing.unlink()
-        raise error
+        raise exceptions.DownloadError() from error
 
 
 def download_parts(  # pylint: disable=too-many-locals

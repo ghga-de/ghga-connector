@@ -25,7 +25,7 @@ from ghga_connector.core.client import async_client, httpx_client
 from ghga_connector.core.download import Downloader, run_download
 from ghga_connector.core.file_operations import Crypt4GHDecryptor, is_file_encrypted
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.upload import Uploader, run_upload
+from ghga_connector.core.upload import run_upload
 
 
 async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-branches
@@ -37,13 +37,14 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
     server_public_key: str,
     my_public_key_path: Path,
     my_private_key_path: Path,
+    part_size: int,
 ) -> None:
     """
     Core command to upload a file. Can be called by CLI, GUI, etc.
     """
 
     if not my_public_key_path.is_file():
-        raise exceptions.PubKeyFileDoesNotExistError(pubkey_path=my_public_key_path)
+        raise exceptions.PubKeyFileDoesNotExistError(public_key_path=my_public_key_path)
 
     if not my_private_key_path.is_file():
         raise exceptions.PrivateKeyFileDoesNotExistError(
@@ -60,19 +61,34 @@ async def upload(  # noqa C901, pylint: disable=too-many-statements,too-many-bra
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
     async with async_client() as client:
-        uploader = Uploader(
-            api_url=api_url,
-            client=client,
-            file_id=file_id,
-            public_key_path=my_public_key_path,
-        )
-        await run_upload(
-            file_path=file_path,
-            message_display=message_display,
-            private_key_path=my_private_key_path,
-            server_public_key=server_public_key,
-            uploader=uploader,
-        )
+        try:
+            await run_upload(
+                api_url=api_url,
+                client=client,
+                file_id=file_id,
+                file_path=file_path,
+                my_private_key_path=my_private_key_path,
+                my_public_key_path=my_public_key_path,
+                part_size=part_size,
+                server_public_key=server_public_key,
+            )
+        except exceptions.StartUploadError as error:
+            message_display.failure(
+                "The request to start a multipart upload has failed."
+            )
+            raise error
+        except exceptions.CantChangeUploadStatusError as error:
+            message_display.failure(
+                f"The file with id '{file_id}' was already uploaded."
+            )
+            raise error
+        except exceptions.ConnectionFailedError as error:
+            message_display.failure("The upload failed too many times and was aborted.")
+            raise error
+        except exceptions.FinalizeUploadError as error:
+            message_display.failure(
+                f"Finishing the upload with id '{file_id}' failed.\n{error.cause}"
+            )
 
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
@@ -114,17 +130,26 @@ def download(  # pylint: disable=too-many-arguments, too-many-locals # noqa: C90
         downloader = Downloader(
             client=client, file_id=file_id, work_package_accessor=work_package_accessor
         )
-        run_download(
-            downloader=downloader,
-            max_wait_time=max_wait_time,
-            message_display=message_display,
-            output_file_ongoing=output_file_ongoing,
-            part_size=part_size,
-        )
+        try:
+            run_download(
+                downloader=downloader,
+                max_wait_time=max_wait_time,
+                message_display=message_display,
+                output_file_ongoing=output_file_ongoing,
+                part_size=part_size,
+            )
+        except exceptions.GetEnvelopeError as error:
+            message_display.failure(
+                f"The request to get an envelope for file '{file_id}' failed."
+            )
+            raise error
+        except exceptions.DownloadError as error:
+            message_display.failure(f"Failed downloading with id '{file_id}'.")
+            raise error
 
     # rename fully downloaded file
     if output_file.exists():
-        raise exceptions.DownloadFinalizationError(file_path=output_file)
+        raise exceptions.RenameDownloadedFileError(file_path=output_file)
     output_file_ongoing.rename(output_file)
 
     message_display.success(

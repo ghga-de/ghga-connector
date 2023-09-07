@@ -189,6 +189,7 @@ def upload(  # noqa C901
             server_public_key=server_pubkey,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
+            part_size=CONFIG.part_size,
         )
     )
 
@@ -225,7 +226,7 @@ def download(  # pylint: disable=too-many-arguments,too-many-locals
 
     if not my_public_key_path.is_file():
         raise core.exceptions.PubKeyFileDoesNotExistError(
-            pubkey_path=my_public_key_path
+            public_key_path=my_public_key_path
         )
 
     if not output_dir.is_dir():

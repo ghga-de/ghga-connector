@@ -243,7 +243,7 @@ async def test_download(
     ):
         # needed to mock user input
         with patch(
-            "ghga_connector.core.batch_processing.CliInputHandler.get_input",
+            "ghga_connector.core.download.batch_processing.CliInputHandler.get_input",
             return_value="yes" if proceed_on_missing else "no",
         ):
             if file_name == "file_not_downloadable":
@@ -307,7 +307,7 @@ async def test_download(
     [
         (True, "file_uploadable", exceptions.ApiNotReachableError),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", exceptions.FileNotRegisteredError),
+        (False, "file_not_uploadable", exceptions.StartUploadError),
         (False, "file_with_bad_path", exceptions.FileDoesNotExistError),
         (False, "encrypted_file", exceptions.FileAlreadyEncryptedError),
     ],
@@ -385,6 +385,7 @@ async def test_upload(
                 server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
+                part_size=DEFAULT_PART_SIZE,
             )
 
             await s3_fixture.storage.complete_multipart_upload(
@@ -478,6 +479,7 @@ async def test_multipart_upload(
                 server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
+                part_size=DEFAULT_PART_SIZE,
             )
 
     # confirm upload

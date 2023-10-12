@@ -32,7 +32,7 @@ from ghga_service_commons.utils import crypt
 from ghga_connector import core
 from ghga_connector.config import Config
 
-CONFIG = Config()  # will be patched for testing
+CONFIG = Config()  # type: ignore [call-arg]
 
 
 class CLIMessageDisplay(core.AbstractMessageDisplay):

@@ -23,8 +23,8 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 dependencies = [
-    "typer>=0.7.0",
-    "crypt4gh>=1.6",
+    "typer~=0.9.0",
+    "crypt4gh>=1.6, <2",
     "ghga-service-commons[api, crypt]>=0.7,<0.8",
     "hexkit>=0.10,<0.11",
 ]

@@ -36,15 +36,15 @@ class WKVSCaller:
 
     def get_wps_api_url(self) -> str:
         """Retrieve the API url for the WPS"""
-        return self._get_value("wps_api_url")
+        return self._get_value("wps_api_url").rstrip("/")
 
     def get_dcs_api_url(self) -> str:
         """Retrieve the API url for the DCS"""
-        return self._get_value("dcs_api_url")
+        return self._get_value("dcs_api_url").rstrip("/")
 
     def get_ucs_api_url(self) -> str:
         """Retrieve the API url for the UCS"""
-        return self._get_value("ucs_api_url")
+        return self._get_value("ucs_api_url").rstrip("/")
 
     def _get_value(self, value_name: str) -> Any:
         """Retrieve the GHGA crypt4gh public key

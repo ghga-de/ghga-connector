@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ghga_connector"
-version = "0.3.16"
+version = "0.4.0"
 description = "GHGA Connector - A CLI client application for interacting with the GHGA system."
 readme = "README.md"
 authors = [

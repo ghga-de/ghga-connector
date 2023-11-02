@@ -165,6 +165,11 @@ async def get_big_s3_object(
             object_id="big-downloadable",
         )
 
+        # Cache computed 'content' property since it's inaccessible after temporary
+        # file is disposed, but the content is required for tests.
+        if not hasattr(object_fixture, "_content"):
+            object_fixture._content = object_fixture.content
+
         # upload file to s3
         assert not await s3.storage.does_object_exist(
             bucket_id=object_fixture.bucket_id, object_id=object_fixture.object_id

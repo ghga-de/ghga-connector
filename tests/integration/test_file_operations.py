@@ -54,7 +54,7 @@ async def test_download_content_range(
     download_url = await s3_fixture.storage.get_object_download_url(
         object_id=big_object.object_id, bucket_id=big_object.bucket_id
     )
-    expected_bytes = big_object.content[start : end + 1]
+    expected_bytes = big_object._content[start : end + 1]
 
     queue: Queue = Queue(maxsize=10)
 
@@ -79,8 +79,8 @@ async def test_download_file_parts(
     """Test the `download_file_parts` function."""
     # prepare state and the expected result:
     big_object = await get_big_s3_object(s3_fixture)
-    total_file_size = len(big_object.content)
-    expected_bytes = big_object.content
+    total_file_size = len(big_object._content)
+    expected_bytes = big_object._content
 
     download_url = await s3_fixture.storage.get_object_download_url(
         object_id=big_object.object_id, bucket_id=big_object.bucket_id

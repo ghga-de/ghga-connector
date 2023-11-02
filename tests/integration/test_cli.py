@@ -115,7 +115,7 @@ async def test_multipart_download(
 
     # right now the desired file size is only
     # approximately met by the provided big file:
-    actual_file_size = len(big_object.content)
+    actual_file_size = len(big_object._content)
 
     # get s3 download url
     download_url = await s3_fixture.storage.get_object_download_url(
@@ -132,7 +132,7 @@ async def test_multipart_download(
     monkeypatch.setenv("FAKE_ENVELOPE", fake_envelope)
 
     big_file_content = str.encode(fake_envelope)
-    big_file_content += big_object.content
+    big_file_content += big_object._content
     api_url = "http://127.0.0.1"
 
     with patch(

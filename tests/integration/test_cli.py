@@ -36,7 +36,7 @@ from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
 from ghga_connector.cli import configure_upload, download
-from ghga_connector.core import exceptions, upload
+from ghga_connector.core import exceptions, upload  # type: ignore [attr-defined]
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state
@@ -115,7 +115,7 @@ async def test_multipart_download(
 
     # right now the desired file size is only
     # approximately met by the provided big file:
-    actual_file_size = len(big_object._content)
+    actual_file_size = len(big_object.content)
 
     # get s3 download url
     download_url = await s3_fixture.storage.get_object_download_url(
@@ -132,7 +132,7 @@ async def test_multipart_download(
     monkeypatch.setenv("FAKE_ENVELOPE", fake_envelope)
 
     big_file_content = str.encode(fake_envelope)
-    big_file_content += big_object._content
+    big_file_content += big_object.content
     api_url = "http://127.0.0.1"
 
     with patch(

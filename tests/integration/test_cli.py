@@ -36,7 +36,7 @@ from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
 from ghga_connector.cli import configure_upload, download
-from ghga_connector.core import exceptions, upload  # type: ignore [attr-defined]
+from ghga_connector.core import exceptions, upload
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.file_operations import Crypt4GHEncryptor
 from tests.fixtures import state

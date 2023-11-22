@@ -26,7 +26,7 @@ dependencies = [
     "typer~=0.9.0",
     "crypt4gh>=1.6, <2",
     "ghga-service-commons[api, crypt]~=1.1.0",
-    "hexkit~=0.11.1",
+    "hexkit~=1.0.0",
 ]
 
 [project.license]

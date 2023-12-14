@@ -213,7 +213,7 @@ class StagingState:
 
 
 @dataclass
-class FileStager:  # pylint: disable=too-many-instance-attributes
+class FileStager:
     """Utility class to deal with file staging in batch processing."""
 
     message_display: AbstractMessageDisplay

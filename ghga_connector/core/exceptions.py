@@ -19,6 +19,7 @@
 from pathlib import Path
 
 import httpx
+
 from ghga_connector.core.constants import MAX_PART_NUMBER
 
 

@@ -32,7 +32,7 @@ jobs:
             tests
 
       - id: coveralls
-        if: matrix.python-version == "3.9"
+        if: matrix.python-version == '3.9'
         name: Upload coverage to coveralls
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

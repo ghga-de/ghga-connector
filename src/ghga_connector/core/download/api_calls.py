@@ -13,15 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This file contains all api calls related to uploading files
-"""
+"""This file contains all api calls related to uploading files"""
 
 import base64
 import concurrent.futures
+from collections.abc import Iterator, Sequence
 from queue import Queue
 from time import sleep
-from typing import Any, Iterator, Sequence, Tuple, Union
+from typing import Any, Union
 
 import httpx
 
@@ -120,13 +119,13 @@ class Downloader(DownloaderBase):
             url=download_url, response_code=status_code
         )
 
-    def download_file_parts(  # pylint: disable=too-many-arguments
+    def download_file_parts(
         self,
         *,
         url_response: Iterator[URLResponse],
         max_concurrent_downloads: int,
         part_ranges: Sequence[PartRange],
-        queue: Queue[Tuple[int, bytes]],
+        queue: Queue[tuple[int, bytes]],
     ) -> None:
         """Download stuff"""
         # Download the parts using a thread pool executor
@@ -144,7 +143,7 @@ class Downloader(DownloaderBase):
 
             executor.submit(self.download_content_range, **kwargs)
 
-    def get_download_url(  # noqa: C901 pylint: disable=too-many-locals
+    def get_download_url(
         self,
     ) -> Union[RetryResponse, URLResponse]:
         """
@@ -234,7 +233,7 @@ class Downloader(DownloaderBase):
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
 
-def get_download_url(  # noqa: C901 pylint: disable=too-many-locals
+def get_download_url(
     client: httpx.Client, file_id: str, work_package_accessor: WorkPackageAccessor
 ) -> Union[RetryResponse, URLResponse]:
     """

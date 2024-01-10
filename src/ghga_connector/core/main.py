@@ -27,7 +27,7 @@ from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.upload import run_upload
 
 
-async def upload(
+async def upload(  # noqa: PLR0913
     *,
     api_url: str,
     file_id: str,
@@ -89,7 +89,7 @@ async def upload(
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
 
-def download(
+def download(  # noqa: PLR0913
     *,
     api_url: str,
     output_dir: Path,

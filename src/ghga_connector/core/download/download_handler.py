@@ -153,7 +153,7 @@ def run_download(
         raise exceptions.DownloadError() from error
 
 
-def download_parts(
+def download_parts(  # noqa: PLR0913
     *,
     downloader: DownloaderBase,
     max_concurrent_downloads: int = 5,

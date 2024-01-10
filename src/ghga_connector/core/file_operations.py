@@ -42,6 +42,7 @@ class Checksums:
         self._encrypted_sha256: list[str] = []
 
     def __repr__(self) -> str:
+        """Return multiline representation of checksum hashes"""
         return (
             f"Unencrypted: {self._unencrypted_sha256.hexdigest()}\n"
             + f"Encrypted MD5: {self._encrypted_md5}\n"
@@ -108,7 +109,7 @@ class Encryptor(ABC):
 class Crypt4GHEncryptor(Encryptor):
     """Handles on the fly encryption and checksum calculation"""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(  # noqa: PLR0913
         self,
         part_size: int,
         private_key_path: Path,

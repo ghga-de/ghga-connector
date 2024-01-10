@@ -28,7 +28,7 @@ from ghga_connector.core.upload.api_calls import Uploader, UploaderBase
 class ChunkedUploader:
     """Handler class dealing with upload functionality"""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         encryptor: Encryptor,
@@ -73,7 +73,7 @@ class ChunkedUploader:
                 )
 
 
-async def run_upload(
+async def run_upload(  # noqa: PLR0913
     api_url: str,
     client: AsyncClient,
     file_id: str,
@@ -117,7 +117,7 @@ async def run_upload(
 
     try:
         await chunked_uploader.encrypt_and_upload()
-    except exceptions.ConnectionFailedError() as error:
+    except exceptions.ConnectionFailedError as error:
         raise error
 
     try:

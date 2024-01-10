@@ -14,5 +14,8 @@
 # limitations under the License.
 #
 
-from ghga_connector.core.upload.api_calls import Uploader
-from ghga_connector.core.upload.upload_handler import run_upload, UploaderBase
+from ghga_connector.core.upload.api_calls import Uploader  # noqa: F401
+from ghga_connector.core.upload.upload_handler import (  # noqa: F401
+    UploaderBase,
+    run_upload,
+)

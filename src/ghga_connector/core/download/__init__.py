@@ -14,5 +14,8 @@
 # limitations under the License.
 #
 
-from ghga_connector.core.download.api_calls import Downloader
-from ghga_connector.core.download.download_handler import DownloaderBase, run_download
+from ghga_connector.core.download.api_calls import Downloader  # noqa: F401
+from ghga_connector.core.download.download_handler import (  # noqa: F401
+    DownloaderBase,
+    run_download,
+)

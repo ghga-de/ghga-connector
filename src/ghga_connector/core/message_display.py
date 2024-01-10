@@ -45,6 +45,6 @@ class MessageColors(str, enum.Enum):
     https://github.com/pallets/click/blob/c96545f6f4ba0eab99de6ec8b4ceb77c9bdb2528/src/click/termui.py#L30
     """
 
-    DEFAULT: str = "white"
-    SUCCESS: str = "green"
-    FAILURE: str = "red"
+    DEFAULT = "white"
+    SUCCESS = "green"
+    FAILURE = "red"

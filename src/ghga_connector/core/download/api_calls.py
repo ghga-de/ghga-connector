@@ -26,7 +26,7 @@ import httpx
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls.work_package import WorkPackageAccessor
-from ghga_connector.core.constants import TIMEOUT
+from ghga_connector.core.constants import TIMEOUT, TIMEOUT_LONG
 from ghga_connector.core.dataclasses import PartRange
 from ghga_connector.core.download.download_handler import (
     DownloaderBase,
@@ -260,7 +260,7 @@ def get_download_url(
 
     # Make function call to get download url
     try:
-        response = client.get(url=url, headers=headers, timeout=TIMEOUT)
+        response = client.get(url=url, headers=headers, timeout=TIMEOUT_LONG)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
@@ -294,9 +294,6 @@ def get_download_url(
             file_size = response_body["size"]
             break
     else:
-        raise exceptions.NoS3AccessMethodError(url=url)
-
-    if download_url is None:
         raise exceptions.NoS3AccessMethodError(url=url)
 
     return URLResponse(

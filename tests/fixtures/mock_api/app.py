@@ -16,7 +16,7 @@
 
 """
 Runs a small fastapi mock server for testing purposes.
-All mocks work correclty with file_id == "1".
+All mocks work correctly with file_id == "1".
 The drs3 mock sends back a "wait 1 minute" for file_id == "1m"
 All other file_ids will fail
 """

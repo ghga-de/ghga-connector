@@ -148,7 +148,7 @@ def run_download(
         exceptions.ConnectionFailedError,
         exceptions.NoS3AccessMethodError,
     ) as error:
-        # Remove file, if the download failed.
+        # Remove file if the download failed.
         output_file_ongoing.unlink()
         raise exceptions.DownloadError() from error
 

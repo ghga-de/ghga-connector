@@ -103,7 +103,8 @@ def configure_download(
     dcs_api_url = wkvs_caller.get_dcs_api_url()
     wps_api_url = wkvs_caller.get_wps_api_url()
 
-    # get work package access token and id from user input. Will be used in later PR
+    message_display.display("Fetching work package token...")
+    # get work package access token and id from user input
     work_package_id, work_package_token = core.get_wps_token(
         max_tries=3, message_display=message_display
     )

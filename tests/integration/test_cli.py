@@ -103,7 +103,7 @@ async def test_multipart_download(
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
+    monkeypatch.setattr("ghga_connector.core.get_wps_token", mock_wps_token)
     monkeypatch.setattr(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([big_object.object_id], [""]))),
@@ -203,7 +203,7 @@ async def test_download(
         monkeypatch.setenv(name, value)
 
     # The download function will ask the user for input.
-    monkeypatch.setattr("ghga_connector.core.main.get_wps_token", mock_wps_token)
+    monkeypatch.setattr("ghga_connector.core.get_wps_token", mock_wps_token)
     monkeypatch.setattr(
         "ghga_connector.core.api_calls.work_package.WorkPackageAccessor.get_package_files",
         Mock(return_value=dict(zip([file.file_id], [""]))),
@@ -243,7 +243,7 @@ async def test_download(
     ):
         # needed to mock user input
         with patch(
-            "ghga_connector.core.batch_processing.CliInputHandler.get_input",
+            "ghga_connector.core.download.batch_processing.CliInputHandler.get_input",
             return_value="yes" if proceed_on_missing else "no",
         ):
             if file_name == "file_not_downloadable":
@@ -307,7 +307,7 @@ async def test_download(
     [
         (True, "file_uploadable", exceptions.ApiNotReachableError),
         (False, "file_uploadable", None),
-        (False, "file_not_uploadable", exceptions.FileNotRegisteredError),
+        (False, "file_not_uploadable", exceptions.StartUploadError),
         (False, "file_with_bad_path", exceptions.FileDoesNotExistError),
         (False, "encrypted_file", exceptions.FileAlreadyEncryptedError),
     ],
@@ -373,8 +373,8 @@ async def test_upload(
     )
 
     with patch("ghga_connector.cli.CONFIG", get_test_config()):
-        with pytest.raises(  # type: ignore
-            expected_exception
+        with pytest.raises(
+            expected_exception  # type: ignore
         ) if expected_exception else nullcontext():
             ucs_api_url, server_pubkey, message_display = configure_upload(debug=True)
             await upload(
@@ -385,6 +385,7 @@ async def test_upload(
                 server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
+                part_size=DEFAULT_PART_SIZE,
             )
 
             await s3_fixture.storage.complete_multipart_upload(
@@ -478,6 +479,7 @@ async def test_multipart_upload(
                 server_public_key=server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
+                part_size=DEFAULT_PART_SIZE,
             )
 
     # confirm upload

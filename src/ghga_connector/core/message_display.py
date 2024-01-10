@@ -25,17 +25,14 @@ class AbstractMessageDisplay(ABC):
     @abstractmethod
     def display(self, message: str):
         """Display a message with standard formatting"""
-        ...
 
     @abstractmethod
     def success(self, message: str):
         """Display a message representing information about a successful operation"""
-        ...
 
     @abstractmethod
     def failure(self, message: str):
         """Display a message representing information about a failed operation"""
-        ...
 
 
 class MessageColors(str, enum.Enum):

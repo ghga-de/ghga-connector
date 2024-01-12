@@ -19,14 +19,21 @@
 from collections.abc import Iterator
 from queue import Empty, Queue
 from typing import Any
+from unittest.mock import Mock
 
 import pytest
 
+from ghga_connector.core.api_calls import WorkPackageAccessor
 from ghga_connector.core.client import httpx_client
 from ghga_connector.core.downloading import Downloader
 from ghga_connector.core.downloading.request_dataclasses import URLResponse
 from ghga_connector.core.file_operations import calc_part_ranges
-from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
+from tests.fixtures.s3 import (  # noqa: F401
+    S3Fixture,
+    get_big_s3_object,
+    reset_state,
+    s3_fixture,
+)
 
 
 @pytest.mark.parametrize(
@@ -59,8 +66,12 @@ async def test_download_content_range(
 
     # download content range with dedicated function:
     with httpx_client() as client:
+        # no work package accessor calls in download_content_range, just mock for correct type
+        dummy_accessor = Mock(spec=WorkPackageAccessor)
         downloader = Downloader(
-            file_id="file_001", work_package_accessor=None, client=client
+            file_id=big_object.object_id,
+            work_package_accessor=dummy_accessor,
+            client=client,
         )
         downloader.download_content_range(
             download_url=download_url, start=start, end=end, queue=queue
@@ -76,7 +87,7 @@ async def test_download_content_range(
     "part_size",
     [5 * 1024 * 1024, 3 * 1024 * 1024, 1 * 1024 * 1024],
 )
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_download_file_parts(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa: F811
@@ -95,7 +106,7 @@ async def test_download_file_parts(
         while True:
             yield URLResponse(download_url=download_url, file_size=0)
 
-    download_urls = url_generator()
+    url_responses = url_generator()
 
     queue: Queue = Queue(maxsize=10)
 
@@ -104,13 +115,18 @@ async def test_download_file_parts(
     with httpx_client() as client:
         # prepare kwargs:
         kwargs: dict[str, Any] = {
-            "url_response": download_urls,
+            "url_response": url_responses,
             "queue": queue,
             "part_ranges": part_ranges,
             "max_concurrent_downloads": 5,
         }
+
+        # no work package accessor calls in download_file_parts, just mock for correct type
+        dummy_accessor = Mock(spec=WorkPackageAccessor)
         downloader = Downloader(
-            file_id="file_001", work_package_accessor=None, client=client
+            file_id=big_object.object_id,
+            work_package_accessor=dummy_accessor,
+            client=client,
         )
         # download file parts with dedicated function:
         downloader.download_file_parts(**kwargs)

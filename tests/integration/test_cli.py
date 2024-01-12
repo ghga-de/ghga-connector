@@ -42,7 +42,12 @@ from ghga_connector.core.crypt import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import router
-from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
+from tests.fixtures.s3 import (  # noqa: F401
+    S3Fixture,
+    get_big_s3_object,
+    reset_state,
+    s3_fixture,
+)
 from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_token
 
 URL_PATTERN = re.compile(r"^https?://127\.0\.0\.1.*")

@@ -254,8 +254,8 @@ def ulc_get_files(file_id: str):
             md5_checksum="",
             size=0,
             grouping_label="inbox",
-            creation_date=now_as_utc().isoformat(),
-            update_date=now_as_utc().isoformat(),
+            creation_date=now_as_utc(),
+            update_date=now_as_utc(),
             format="",
             current_upload_id="pending",
         )

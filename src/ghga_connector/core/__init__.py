@@ -27,7 +27,7 @@ from .constants import (  # noqa: F401
     MAX_RETRIES,
     MAX_WAIT_TIME,
 )
-from .download.batch_processing import (  # noqa: F401
+from .downloading.batch_processing import (  # noqa: F401
     CliIoHandler,
     FileStager,
     StagingParameters,

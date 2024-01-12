@@ -13,102 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
 
-from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Union
 
 from ghga_connector.core import exceptions
-from ghga_connector.core.dataclasses import PartRange
+from ghga_connector.core.downloading.abstract_downloader import DownloaderBase
 from ghga_connector.core.file_operations import calc_part_ranges
 from ghga_connector.core.message_display import AbstractMessageDisplay
-
-
-@dataclass
-class RetryResponse:
-    """TODO"""
-
-    retry_after: int
-
-
-@dataclass
-class URLResponse:
-    """TODO"""
-
-    download_url: str
-    file_size: int
-
-
-class DownloaderBase(ABC):
-    """TODO"""
-
-    @abstractmethod
-    def await_download_url(
-        self,
-        *,
-        max_wait_time: int,
-        message_display: AbstractMessageDisplay,
-    ) -> URLResponse:
-        """Wait until download URL can be generated.
-        Returns a URLResponse containing two elements:
-            1. the download url
-            2. the file size in bytes
-        """
-
-    @abstractmethod
-    def get_download_url(self) -> Union[RetryResponse, URLResponse]:
-        """
-        Perform a RESTful API call to retrieve a presigned download URL.
-        Returns:
-            If the download url is not available yet, a RetryResponse is returned,
-            containing the time in seconds after which the download url should become
-            available.
-            Otherwise, a URLResponse containing the download url and file size in bytes
-            is returned.
-        """
-
-    @abstractmethod
-    def get_download_urls(
-        self,
-    ) -> Iterator[URLResponse]:
-        """
-        For the multi-part upload identified by the `file_id`, it returns an
-        iterator to obtain download_urls.
-        """
-
-    @abstractmethod
-    def get_file_header_envelope(self) -> bytes:
-        """
-        Perform a RESTful API call to retrieve a file header envelope.
-        Returns:
-            The file header envelope (bytes object)
-        """
-
-    @abstractmethod
-    def download_content_range(
-        self,
-        *,
-        download_url: str,
-        start: int,
-        end: int,
-        queue: Queue,
-    ) -> None:
-        """Download a specific range of a file's content using a presigned download url."""
-
-    @abstractmethod
-    def download_file_parts(
-        self,
-        *,
-        url_response: Iterator[URLResponse],
-        max_concurrent_downloads: int,
-        part_ranges: Sequence[PartRange],
-        queue: Queue,
-    ) -> None:
-        """Download stuff"""
 
 
 def run_download(
@@ -118,7 +30,7 @@ def run_download(
     output_file_ongoing: Path,
     part_size: int,
 ):
-    """TODO"""
+    """Use the provided downloader to run the whole download process."""
     # stage download and get file size
     url_response = downloader.await_download_url(
         max_wait_time=max_wait_time,

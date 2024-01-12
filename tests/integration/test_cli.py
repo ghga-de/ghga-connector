@@ -38,7 +38,7 @@ from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 from ghga_connector.cli import configure_upload, download
 from ghga_connector.core import exceptions, upload
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
-from ghga_connector.core.file_operations import Crypt4GHEncryptor
+from ghga_connector.core.crypt import Crypt4GHEncryptor
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import router
@@ -175,7 +175,7 @@ async def test_multipart_download(
             False,
             False,
             "file_envelope_missing",
-            exceptions.FileNotRegisteredError,
+            exceptions.GetEnvelopeError,
             True,
         ),
     ],
@@ -243,7 +243,7 @@ async def test_download(
     ):
         # needed to mock user input
         with patch(
-            "ghga_connector.core.download.batch_processing.CliInputHandler.get_input",
+            "ghga_connector.core.downloading.batch_processing.CliInputHandler.get_input",
             return_value="yes" if proceed_on_missing else "no",
         ):
             if file_name == "file_not_downloadable":
@@ -276,8 +276,8 @@ async def test_download(
                             my_private_key_path=Path(PRIVATE_KEY_FILE),
                         )
             else:
-                with pytest.raises(  # type: ignore
-                    expected_exception
+                with pytest.raises(
+                    expected_exception  # type: ignore
                 ) if expected_exception else nullcontext():
                     download(
                         output_dir=output_dir,

@@ -316,7 +316,7 @@ class UnauthorizedAPICallError(RuntimeError):
         super().__init__(message)
 
 
-class UnexcpectedRetryResponseError(RuntimeError):
+class UnexpectedRetryResponseError(RuntimeError):
     """
     Thrown when an unexpected RetryResponse was received while requesting URLs for a
     staged download

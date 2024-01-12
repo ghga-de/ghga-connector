@@ -13,9 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from enum import Enum
 
-from ghga_connector.core.download.api_calls import Downloader  # noqa: F401
-from ghga_connector.core.download.download_handler import (  # noqa: F401
-    DownloaderBase,
-    run_download,
-)
+
+class UploadStatus(str, Enum):
+    """Enum for the possible statuses of an upload attempt."""
+
+    ACCEPTED = "accepted"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    UPLOADED = "uploaded"

@@ -13,13 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Module for reusable wrapper classes improving readability"""
-from dataclasses import dataclass
+"""TODO"""
 
-
-@dataclass
-class PartRange:
-    """Container for inclusive download ranges"""
-
-    start: int
-    stop: int
+from .abstract_downloader import DownloaderBase  # noqa: F401
+from .downloader import Downloader  # noqa: F401
+from .main import run_download  # noqa: F401

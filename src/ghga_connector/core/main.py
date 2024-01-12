@@ -21,10 +21,11 @@ from pathlib import Path
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor, check_url
 from ghga_connector.core.client import async_client, httpx_client
-from ghga_connector.core.download import Downloader, run_download
-from ghga_connector.core.file_operations import Crypt4GHDecryptor, is_file_encrypted
+from ghga_connector.core.crypt import Crypt4GHDecryptor
+from ghga_connector.core.downloading import Downloader, run_download
+from ghga_connector.core.file_operations import is_file_encrypted
 from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.upload import run_upload
+from ghga_connector.core.uploading import Uploader, run_upload
 
 
 async def upload(  # noqa: PLR0913
@@ -57,16 +58,20 @@ async def upload(  # noqa: PLR0913
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
     async with async_client() as client:
+        uploader = Uploader(
+            api_url=api_url,
+            client=client,
+            file_id=file_id,
+            public_key_path=my_public_key_path,
+        )
         try:
             await run_upload(
-                api_url=api_url,
-                client=client,
                 file_id=file_id,
                 file_path=file_path,
                 my_private_key_path=my_private_key_path,
-                my_public_key_path=my_public_key_path,
                 part_size=part_size,
                 server_public_key=server_public_key,
+                uploader=uploader,
             )
         except exceptions.StartUploadError as error:
             message_display.failure(

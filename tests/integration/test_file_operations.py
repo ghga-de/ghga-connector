@@ -18,12 +18,13 @@
 
 from collections.abc import Iterator
 from queue import Empty, Queue
-from typing import Any, Union
+from typing import Any
 
 import pytest
 
 from ghga_connector.core.client import httpx_client
-from ghga_connector.core.download.api_calls import Downloader
+from ghga_connector.core.downloading import Downloader
+from ghga_connector.core.downloading.request_dataclasses import URLResponse
 from ghga_connector.core.file_operations import calc_part_ranges
 from tests.fixtures.s3 import S3Fixture, get_big_s3_object, s3_fixture  # noqa: F401
 
@@ -90,11 +91,9 @@ async def test_download_file_parts(
         object_id=big_object.object_id, bucket_id=big_object.bucket_id
     )
 
-    def url_generator() -> (
-        Iterator[Union[tuple[None, None, int], tuple[str, int, None]]]
-    ):
+    def url_generator() -> Iterator[URLResponse]:
         while True:
-            yield download_url, 0, None
+            yield URLResponse(download_url=download_url, file_size=0)
 
     download_urls = url_generator()
 
@@ -105,15 +104,16 @@ async def test_download_file_parts(
     with httpx_client() as client:
         # prepare kwargs:
         kwargs: dict[str, Any] = {
-            "client": client,
-            "download_urls": download_urls,
+            "url_response": download_urls,
             "queue": queue,
             "part_ranges": part_ranges,
             "max_concurrent_downloads": 5,
         }
-
+        downloader = Downloader(
+            file_id="file_001", work_package_accessor=None, client=client
+        )
         # download file parts with dedicated function:
-        download_fil e_parts(**kwargs)
+        downloader.download_file_parts(**kwargs)
 
         obtained = 0
         while obtained < len(expected_bytes):

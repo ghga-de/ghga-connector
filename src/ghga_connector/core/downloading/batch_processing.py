@@ -23,7 +23,11 @@ from time import sleep
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor, check_url
 from ghga_connector.core.client import httpx_client
-from ghga_connector.core.download.api_calls import URLResponse, get_download_url
+from ghga_connector.core.downloading.api_calls import (
+    URLResponse,
+    get_download_url,
+    get_file_authorization,
+)
 from ghga_connector.core.message_display import AbstractMessageDisplay
 
 
@@ -189,10 +193,11 @@ class StagingState:
 
         for file_id in self.unstaged_files:
             with httpx_client() as client:
+                url_and_headers = get_file_authorization(
+                    file_id=file_id, work_package_accessor=work_package_accessor
+                )
                 url_response = get_download_url(
-                    client=client,
-                    file_id=file_id,
-                    work_package_accessor=work_package_accessor,
+                    client=client, url_and_headers=url_and_headers
                 )
             if isinstance(url_response, URLResponse):
                 self.staged_files.append(file_id)
@@ -232,10 +237,12 @@ class FileStager:
         for file_id in self.staging_parameters.file_ids_with_extension:
             try:
                 with httpx_client() as client:
-                    url_response = get_download_url(
-                        client=client,
+                    url_and_headers = get_file_authorization(
                         file_id=file_id,
                         work_package_accessor=self.work_package_accessor,
+                    )
+                    url_response = get_download_url(
+                        client=client, url_and_headers=url_and_headers
                     )
             except exceptions.BadResponseCodeError as error:
                 if error.response_code == 404:

@@ -40,6 +40,7 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: check-docstring-first
+      - id: debug-statements
       - id: destroyed-symlinks
       - id: detect-private-key
       - id: mixed-line-ending

@@ -1,5 +1,3 @@
-<!-- Please provide a short overview of the features of this service.-->
-
 The GHGA Connector is a command line client facilitating interaction with the file storage infrastructure of GHGA.
 To this end, it provides commands for the up- and download of files that interact with the RESTful APIs exposed by the Upload Controller Service (https://github.com/ghga-de/upload-controller-service) and Download Controller Service (https://github.com/ghga-de/download-controller-service), respectively.
 

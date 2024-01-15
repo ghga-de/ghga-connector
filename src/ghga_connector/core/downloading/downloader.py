@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""Contains a concrete implementation of the abstract downloader"""
 
 import base64
 import concurrent.futures
@@ -27,23 +27,23 @@ import httpx
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor
 from ghga_connector.core.constants import TIMEOUT
-from ghga_connector.core.dataclasses import PartRange
 from ghga_connector.core.downloading.abstract_downloader import DownloaderBase
 from ghga_connector.core.downloading.api_calls import (
     get_download_url,
     get_envelope_authorization,
     get_file_authorization,
 )
-from ghga_connector.core.downloading.request_dataclasses import (
+from ghga_connector.core.downloading.structs import (
     RetryResponse,
     URLResponse,
 )
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
+from ghga_connector.core.structs import PartRange
 
 
 class Downloader(DownloaderBase):
-    """TODO"""
+    """Groups download functionality together that is used in the higher level core modules"""
 
     def __init__(
         self,

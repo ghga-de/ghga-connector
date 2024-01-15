@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-"""TODO"""
+"""Base classes for encryption/decryption functionality"""
 
 from abc import ABC, abstractmethod
 from collections.abc import Generator

@@ -13,15 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Abstract and common downloader related functionality"""
+"""Contains base class for download functionality"""
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from queue import Queue
 
-from ghga_connector.core.dataclasses import PartRange
-from ghga_connector.core.downloading.request_dataclasses import URLResponse
+from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.message_display import AbstractMessageDisplay
+from ghga_connector.core.structs import PartRange
 
 
 class DownloaderBase(ABC):

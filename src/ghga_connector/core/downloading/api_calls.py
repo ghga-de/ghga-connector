@@ -22,7 +22,7 @@ import httpx
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls.work_package import WorkPackageAccessor
 from ghga_connector.core.constants import TIMEOUT_LONG
-from ghga_connector.core.downloading.request_dataclasses import (
+from ghga_connector.core.downloading.structs import (
     RetryResponse,
     UrlAndHeaders,
     URLResponse,

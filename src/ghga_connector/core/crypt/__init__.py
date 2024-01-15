@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""Subpackage containing all encryption/decryption related functionality"""
 
 from .abstract_bases import Decryptor, Encryptor  # noqa: F401
 from .decryption import Crypt4GHDecryptor  # noqa: F401

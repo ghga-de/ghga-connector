@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""This subpackage contains functionality needed to download files from GHGA"""
 
 from .abstract_downloader import DownloaderBase  # noqa: F401
 from .downloader import Downloader  # noqa: F401

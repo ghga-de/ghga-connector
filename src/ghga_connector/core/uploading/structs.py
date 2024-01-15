@@ -13,30 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Module for reusable wrapper classes improving readability"""
-from dataclasses import dataclass
+"""Contains additional data structures needed by the upload code"""
 
-from httpx import Headers
-
-
-@dataclass
-class RetryResponse:
-    """Response to download request if file is not yet staged"""
-
-    retry_after: int
+from enum import Enum
 
 
-@dataclass
-class URLResponse:
-    """Response to download request, containing file size and presigned object storage URL for download"""
+class UploadStatus(str, Enum):
+    """Enum for the possible statuses of an upload attempt."""
 
-    download_url: str
-    file_size: int
-
-
-@dataclass
-class UrlAndHeaders:
-    """Combination of endpoint url and headers needed to make an authorized call against the endpoint"""
-
-    endpoint_url: str
-    headers: Headers
+    ACCEPTED = "accepted"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    PENDING = "pending"
+    REJECTED = "rejected"
+    UPLOADED = "uploaded"

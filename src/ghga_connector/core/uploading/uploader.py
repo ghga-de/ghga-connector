@@ -30,7 +30,7 @@ from ghga_connector.core.constants import MAX_PART_NUMBER, TIMEOUT
 from ghga_connector.core.crypt import Encryptor
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.uploading.abstract_uploader import UploaderBase
-from ghga_connector.core.uploading.dataclasses import UploadStatus
+from ghga_connector.core.uploading.structs import UploadStatus
 
 
 class Uploader(UploaderBase):

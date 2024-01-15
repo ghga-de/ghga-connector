@@ -26,7 +26,7 @@ import pytest
 from ghga_connector.core.api_calls import WorkPackageAccessor
 from ghga_connector.core.client import httpx_client
 from ghga_connector.core.downloading import Downloader
-from ghga_connector.core.downloading.request_dataclasses import URLResponse
+from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.file_operations import calc_part_ranges
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,

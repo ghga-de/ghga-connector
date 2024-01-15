@@ -37,7 +37,7 @@ from ghga_connector.core.exceptions import (
     WellKnownValueNotFound,
 )
 from ghga_connector.core.uploading import Uploader
-from ghga_connector.core.uploading.dataclasses import UploadStatus
+from ghga_connector.core.uploading.structs import UploadStatus
 from tests.fixtures.utils import mock_wps_token
 
 

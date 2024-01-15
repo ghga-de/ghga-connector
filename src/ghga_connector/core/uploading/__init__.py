@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""This subpackage contains functionality to upload a file to GHGA"""
 
 
 from .api_calls import Uploader  # noqa: F401

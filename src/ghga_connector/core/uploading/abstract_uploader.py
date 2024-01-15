@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""Contains base class for upload functionality"""
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 
-from ghga_connector.core.uploading.dataclasses import UploadStatus
+from ghga_connector.core.uploading.structs import UploadStatus
 
 
 class UploaderBase(ABC):

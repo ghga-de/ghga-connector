@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""Contains general logic that needs to be exposed to higher level core functionality"""
 
 from pathlib import Path
 from queue import Empty, Queue

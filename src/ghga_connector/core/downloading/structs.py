@@ -13,17 +13,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""TODO"""
+"""Contains additional data structures needed by the download code"""
 
-from enum import Enum
+from dataclasses import dataclass
+
+from httpx import Headers
 
 
-class UploadStatus(str, Enum):
-    """Enum for the possible statuses of an upload attempt."""
+@dataclass
+class RetryResponse:
+    """Response to download request if file is not yet staged"""
 
-    ACCEPTED = "accepted"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-    PENDING = "pending"
-    REJECTED = "rejected"
-    UPLOADED = "uploaded"
+    retry_after: int
+
+
+@dataclass
+class URLResponse:
+    """Response to download request, containing file size and presigned object storage URL for download"""
+
+    download_url: str
+    file_size: int
+
+
+@dataclass
+class UrlAndHeaders:
+    """Combination of endpoint url and headers needed to make an authorized call against the endpoint"""
+
+    endpoint_url: str
+    headers: Headers

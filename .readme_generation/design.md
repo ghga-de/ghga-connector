@@ -1,7 +1,3 @@
-<!-- Please provide an overview of the architecture and design of the code base.
-Mention anything that deviates from the standard triple hexagonal architecture and
-the corresponding structure. -->
-
 This is a Python-based client enabling interaction with GHGA's file services.
 Contrary to the design of the actual services, the client does not follow the triple-hexagonal architecture.
 The client is roughly structured into three parts:

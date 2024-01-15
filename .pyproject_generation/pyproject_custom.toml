@@ -1,0 +1,17 @@
+[project]
+name = "ghga_connector"
+version = "1.1.2"
+description = "GHGA Connector - A CLI client application for interacting with the GHGA system."
+dependencies = [
+    "typer~=0.9.0",
+    "crypt4gh>=1.6, <2",
+    "ghga-service-commons[api, crypt]~=2.0.0",
+    "hexkit[s3]~=2.0.0",
+]
+
+
+[project.urls]
+Repository = "https://github.com/ghga-de/ghga-connector"
+
+[project.scripts]
+ghga-connector = "ghga_connector.__main__:run"

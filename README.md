@@ -1,4 +1,3 @@
-
 [![tests](https://github.com/ghga-de/ghga-connector/actions/workflows/tests.yaml/badge.svg)](https://github.com/ghga-de/ghga-connector/actions/workflows/tests.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/ghga-de/ghga-connector/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/ghga-connector?branch=main)
 
@@ -8,12 +7,12 @@ GHGA Connector - A CLI client application for interacting with the GHGA system.
 
 ## Description
 
-<!-- Please provide a short overview of the features of this service.-->
-
 The GHGA Connector is a command line client facilitating interaction with the file storage infrastructure of GHGA.
-To this end, it provides commands for the up- and download of files that interact with the RESTful APIs exposed by the Upload Controller Service (https://github.com/ghga-de/upload-controller-service) and Download Controller Service (https://github.com/ghga-de/download-controller-service), respectively.
+To this end, it provides commands for the up- and download of files that interact with the RESTful APIs exposed
+by the Upload Controller Service (https://github.com/ghga-de/upload-controller-service) and Download Controller Service (https://github.com/ghga-de/download-controller-service), respectively.
 
-When uploading, the Connector expects an unencrypted file that is subsequently encrypted according to the Crypt4GH standard (https://www.ga4gh.org/news_item/crypt4gh-a-secure-method-for-sharing-human-genetic-data/) and only afterwards uploaded to the GHGA storage infrastructure.
+When uploading, the Connector expects an unencrypted file that is subsequently encrypted according to the Crypt4
+GH standard (https://www.ga4gh.org/news_item/crypt4gh-a-secure-method-for-sharing-human-genetic-data/) and only afterwards uploaded to the GHGA storage infrastructure.
 
 When downloading, the resulting file is still encrypted in this manner and can be decrypted using the Connector's decrypt command.
 As the user is expected to download multiple files, this command takes a directory location as input and an optional output directory location can be provided, creating the directory if it does not yet exist (defaulting to the current working directory, if none is provided).
@@ -96,10 +95,6 @@ of the pydantic documentation.
 
 
 ## Architecture and Design:
-<!-- Please provide an overview of the architecture and design of the code base.
-Mention anything that deviates from the standard triple hexagonal architecture and
-the corresponding structure. -->
-
 This is a Python-based client enabling interaction with GHGA's file services.
 Contrary to the design of the actual services, the client does not follow the triple-hexagonal architecture.
 The client is roughly structured into three parts:

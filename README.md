@@ -21,6 +21,7 @@ Most of the commands need the submitter's private key that matches the public ke
 The private key is used for file encryption in the upload path and decryption of the work package access and work order tokens during download.
 Additionally, the decrypt command needs the private key to decrypt the downloaded file.
 
+
 ## Installation
 
 We recommend using the provided Docker container.
@@ -101,6 +102,7 @@ The client is roughly structured into three parts:
 1. A command line interface using typer is provided at the highest level of the package, i.e. directly within the ghga_connector directory.
 2. Functionality dealing with intermediate transformations, delegating work and handling state is provided within the core module.
 3. core.api_calls provides abstractions over S3 and work package service interactions.
+
 
 ## Development
 

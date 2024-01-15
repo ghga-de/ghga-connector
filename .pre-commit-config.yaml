@@ -40,16 +40,12 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: check-docstring-first
-      - id: debug-statements
       - id: destroyed-symlinks
       - id: detect-private-key
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: no-commit-to-branch
         args: [--branch, dev, --branch, int, --branch, main]
-      - id: debug-statements
-      - id: debug-statements
-      - id: debug-statements
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.13
     hooks:

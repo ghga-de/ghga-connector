@@ -55,9 +55,7 @@ class Crypt4GHEncryptor(Encryptor):
             part=part, segment_size=crypt4gh.lib.SEGMENT_SIZE
         )
 
-        encrypted_segments = []
-        for segment in segments:
-            encrypted_segments.append(self._encrypt_segment(segment))
+        encrypted_segments = [self._encrypt_segment(segment) for segment in segments]
 
         return b"".join(encrypted_segments), incomplete_segment
 

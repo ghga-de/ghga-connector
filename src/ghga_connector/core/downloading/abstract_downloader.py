@@ -35,7 +35,7 @@ class DownloaderBase(ABC):
         message_display: AbstractMessageDisplay,
     ) -> URLResponse:
         """Wait until download URL can be generated.
-        Returns a URLResponse containing two elements:
+        Returns a URLResponse with two attributes:
             1. the download url
             2. the file size in bytes
         """

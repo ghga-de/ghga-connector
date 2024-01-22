@@ -70,7 +70,7 @@ class Crypt4GHEncryptor(Encryptor):
     def _create_envelope(self) -> bytes:
         """
         Gather file encryption/decryption secret and assemble a crypt4gh envelope using the
-        servers private and the clients public key
+        server's private and the client's public key
         """
         private_key = crypt4gh.keys.get_private_key(
             self._private_key_path, callback=None

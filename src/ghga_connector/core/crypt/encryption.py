@@ -20,6 +20,7 @@ import os
 from collections.abc import Generator
 from io import BufferedReader
 from pathlib import Path
+from typing import Optional
 
 import crypt4gh.header
 import crypt4gh.keys
@@ -40,14 +41,16 @@ class Crypt4GHEncryptor(Encryptor):
         private_key_path: Path,
         server_public_key: str,
         checksums: Checksums = Checksums(),
-        file_secret: bytes = os.urandom(32),
+        file_secret: Optional[bytes] = None,
     ):
         self._encrypted_file_size = 0
         self._checksums = checksums
-        self._file_secret = file_secret
         self._part_size = part_size
         self._private_key_path = private_key_path
         self._server_public_key = base64.b64decode(server_public_key)
+        if file_secret is None:
+            file_secret = os.urandom(32)
+        self._file_secret = file_secret
 
     def _encrypt(self, part: bytes):
         """Encrypt file part using secret"""
@@ -90,6 +93,7 @@ class Crypt4GHEncryptor(Encryptor):
         """Encrypt file parts and prepare for upload."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()
+        update_encrypted = self._checksums.update_encrypted
 
         # get envelope size to adjust checksum buffers and encrypted content size
         envelope_size = len(upload_buffer)
@@ -107,9 +111,9 @@ class Crypt4GHEncryptor(Encryptor):
             if len(upload_buffer) >= self._part_size:
                 current_part = upload_buffer[: self._part_size]
                 if self._checksums.encrypted_is_empty():
-                    self._checksums.update_encrypted(current_part[envelope_size:])
+                    update_encrypted(current_part[envelope_size:])
                 else:
-                    self._checksums.update_encrypted(current_part)
+                    update_encrypted(current_part)
                 self._encrypted_file_size += self._part_size
                 yield current_part
                 upload_buffer = upload_buffer[self._part_size :]
@@ -120,13 +124,13 @@ class Crypt4GHEncryptor(Encryptor):
 
         while len(upload_buffer) >= self._part_size:
             current_part = upload_buffer[: self._part_size]
-            self._checksums.update_encrypted(current_part)
+            update_encrypted(current_part)
             self._encrypted_file_size += self._part_size
             yield current_part
             upload_buffer = upload_buffer[self._part_size :]
 
         if upload_buffer:
-            self._checksums.update_encrypted(upload_buffer)
+            update_encrypted(upload_buffer)
             self._encrypted_file_size += len(upload_buffer)
             yield upload_buffer
 

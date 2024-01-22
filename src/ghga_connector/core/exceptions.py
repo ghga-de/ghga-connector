@@ -32,7 +32,7 @@ class AbortBatchProcessError(RuntimeError):
 
 
 class ApiNotReachableError(RuntimeError):
-    """Thrown, when the api is not reachable."""
+    """Thrown when the api is not reachable."""
 
     def __init__(self, *, api_url: str):
         message = f"The url '{api_url}' is currently not reachable."
@@ -40,7 +40,7 @@ class ApiNotReachableError(RuntimeError):
 
 
 class BadResponseCodeError(RuntimeError):
-    """Thrown, when a request returns an unexpected response code (e.g. 500)"""
+    """Thrown when a request returns an unexpected response code (e.g. 500)"""
 
     def __init__(self, *, url: str, response_code: int):
         self.response_code = response_code
@@ -60,7 +60,7 @@ class CantChangeUploadStatusError(RuntimeError):
 
 
 class ConnectionFailedError(RuntimeError):
-    """Thrown, when a ConnectError or ConnectTimeout error is raised by httpx"""
+    """Thrown when a ConnectError or ConnectTimeout error is raised by httpx"""
 
     def __init__(self, *, url: str, reason: str):
         message = f"Request to '{url}' failed to connect. Reason: {reason}"
@@ -68,7 +68,7 @@ class ConnectionFailedError(RuntimeError):
 
 
 class DirectoryDoesNotExistError(RuntimeError):
-    """Thrown, when the specified directory does not exist."""
+    """Thrown when the specified directory does not exist."""
 
     def __init__(self, *, directory: Path):
         message = f"The directory '{directory}' does not exist."
@@ -92,7 +92,7 @@ class EncryptedSizeMismatch(RuntimeError):
 
 
 class EnvelopeNotFoundError(RuntimeError):
-    """Thrown, when the envelope requested for a file could not be retrieved"""
+    """Thrown when the envelope requested for a file could not be retrieved"""
 
     def __init__(self, *, file_id: str):
         message = (
@@ -102,7 +102,7 @@ class EnvelopeNotFoundError(RuntimeError):
 
 
 class ExternalApiError(RuntimeError):
-    """Thrown, when the services request to an external API failed"""
+    """Thrown when the services request to an external API failed"""
 
     def __init__(self):
         message = "The service was unable to contact an external API."
@@ -110,7 +110,7 @@ class ExternalApiError(RuntimeError):
 
 
 class FileAlreadyEncryptedError(RuntimeError):
-    """Thrown, when the specified file is already encrypted."""
+    """Thrown when the specified file is already encrypted."""
 
     def __init__(self, *, file_path: Path):
         message = (
@@ -121,7 +121,7 @@ class FileAlreadyEncryptedError(RuntimeError):
 
 
 class FileAlreadyExistsError(RuntimeError):
-    """Thrown, when the specified file already exists."""
+    """Thrown when the specified file already exists."""
 
     def __init__(self, *, output_file: str):
         message = f"The file '{output_file}' already exists."
@@ -129,7 +129,7 @@ class FileAlreadyExistsError(RuntimeError):
 
 
 class FileDoesNotExistError(RuntimeError):
-    """Thrown, when the specified file does not exist."""
+    """Thrown when the specified file does not exist."""
 
     def __init__(self, *, file_path: Path):
         message = f"The file '{file_path}' does not exist."
@@ -137,7 +137,7 @@ class FileDoesNotExistError(RuntimeError):
 
 
 class FileNotRegisteredError(RuntimeError):
-    """Thrown, when a request for a file returns a 404 error."""
+    """Thrown when a request for a file returns a 404 error."""
 
     def __init__(self, *, file_id: str):
         message = (
@@ -161,7 +161,7 @@ class GetEnvelopeError(RuntimeError):
 
 
 class InvalidWorkPackageToken(RuntimeError):
-    """Thrown, when the work package string pasted by the user could not be parsed"""
+    """Thrown when the work package string pasted by the user could not be parsed"""
 
     def __init__(self, *, tries: int):
         message = f"Parsing of the work package string failed ({tries}) times."
@@ -196,7 +196,7 @@ class MaxPartNoExceededError(RuntimeError):
 
 
 class MaxWaitTimeExceededError(RuntimeError):
-    """Thrown, when the specified wait time for getting a download url has been exceeded."""
+    """Thrown when the specified wait time for getting a download url has been exceeded."""
 
     def __init__(self, *, max_wait_time: int):
         message = f"Exceeded maximum wait time of ({max_wait_time}) seconds."
@@ -204,15 +204,44 @@ class MaxWaitTimeExceededError(RuntimeError):
 
 
 class NoS3AccessMethodError(RuntimeError):
-    """Thrown, when a request returns the desired response code, but no S3 Access Method"""
+    """Thrown when a request returns the desired response code, but no S3 Access Method"""
 
     def __init__(self, *, url: str):
         message = f"The request to '{url}' did not return an S3 Access Method."
         super().__init__(message)
 
 
+class NoFileAccessError(RuntimeError):
+    """
+    Thrown when a user does not have the credentials for
+    a specific file id (response code 403)
+    """
+
+    def __init__(self, *, file_id: str):
+        message = (
+            "You are not registered as the data submitter "
+            f"for the file with the id '{file_id}'."
+        )
+        super().__init__(message)
+
+
+class NoUploadAccessError(RuntimeError):
+    """
+    Thrown when a user does not have the credentials to get or change
+    details of an ongoing upload with a specific upload id
+    (response code 403)
+    """
+
+    def __init__(self, *, upload_id: str):
+        message = (
+            "You are not registered as a Data Submitter "
+            f"for the file corresponding to the upload_id '{upload_id}'."
+        )
+        super().__init__(message)
+
+
 class NoUploadPossibleError(RuntimeError):
-    """Thrown, when a multipart upload currently can't be started (response code 400)"""
+    """Thrown when a multipart upload currently can't be started (response code 400)"""
 
     def __init__(self, *, file_id: str):
         message = (
@@ -248,7 +277,7 @@ class OutputPathIsNotDirectory(RuntimeError):
 
 
 class PrivateKeyFileDoesNotExistError(RuntimeError):
-    """Thrown, when the specified private key file does exist."""
+    """Thrown when the specified private key file does exist."""
 
     def __init__(self, *, private_key_path: Path):
         message = f"The private key file '{private_key_path}' does not exist."
@@ -256,7 +285,7 @@ class PrivateKeyFileDoesNotExistError(RuntimeError):
 
 
 class PubKeyFileDoesNotExistError(RuntimeError):
-    """Thrown, when the specified public key file does not exist."""
+    """Thrown when the specified public key file does not exist."""
 
     def __init__(self, *, public_key_path: Path):
         message = f"The public key file '{public_key_path}' does not exist."
@@ -289,7 +318,7 @@ class RenameDownloadedFileError(RuntimeError):
 
 
 class RequestFailedError(RuntimeError):
-    """Thrown, when a request fails without returning a response code"""
+    """Thrown when a request fails without returning a response code"""
 
     def __init__(self, *, url: str):
         message = f"The request to '{url}' failed."
@@ -297,7 +326,7 @@ class RequestFailedError(RuntimeError):
 
 
 class RetryTimeExpectedError(RuntimeError):
-    """Thrown, when a request didn't contain a retry time even though it was expected."""
+    """Thrown when a request didn't contain a retry time even though it was expected."""
 
     def __init__(self, *, url: str):
         message = f"No `Retry-After` header in response from server following the url: '{url}'"
@@ -339,41 +368,12 @@ class UploadIdUnsetError(RuntimeError):
 
 
 class UploadNotRegisteredError(RuntimeError):
-    """Thrown, when a request for a multipart upload returns a 404 error."""
+    """Thrown when a request for a multipart upload returns a 404 error."""
 
     def __init__(self, *, upload_id: str):
         message = (
             f"The request for the upload with the id '{upload_id}' failed, "
             "because this upload does not exist."
-        )
-        super().__init__(message)
-
-
-class UserHasNoFileAccessError(RuntimeError):
-    """
-    Thrown when a user does not have the credentials for
-    a specific file id (response code 403)
-    """
-
-    def __init__(self, *, file_id: str):
-        message = (
-            "You are not registered as the data submitter "
-            f"for the file with the id '{file_id}'."
-        )
-        super().__init__(message)
-
-
-class UserHasNoUploadAccessError(RuntimeError):
-    """
-    Thrown when a user does not have the credentials to get or change
-    details of an ongoing upload with a specific upload id
-    (response code 403)
-    """
-
-    def __init__(self, *, upload_id: str):
-        message = (
-            "You are not registered as a Data Submitter "
-            f"for the file corresponding to the upload_id '{upload_id}'."
         )
         super().__init__(message)
 

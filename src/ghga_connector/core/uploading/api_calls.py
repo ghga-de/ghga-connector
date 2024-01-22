@@ -111,7 +111,7 @@ class Uploader(UploaderBase):
                     ),
                 },
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    "noFileAccess": lambda: exceptions.NoFileAccessError(
                         file_id=self._file_id
                     )
                 },
@@ -140,7 +140,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    "noFileAccess": lambda: exceptions.NoFileAccessError(
                         file_id=self._file_id
                     )
                 },
@@ -179,7 +179,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },
@@ -245,7 +245,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },
@@ -295,7 +295,7 @@ class Uploader(UploaderBase):
                     ),
                 },
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },

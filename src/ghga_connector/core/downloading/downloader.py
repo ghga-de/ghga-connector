@@ -196,9 +196,9 @@ class Downloader(DownloaderBase):
         if status_code == 403:
             content = response.json()
             # handle both normal and httpyexpect 403 response
-            if "description" in content:
+            try:
                 cause = content["description"]
-            else:
+            except KeyError:
                 cause = content["detail"]
             raise exceptions.UnauthorizedAPICallError(url=url, cause=cause)
 

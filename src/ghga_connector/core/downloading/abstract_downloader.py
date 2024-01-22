@@ -44,10 +44,7 @@ class DownloaderBase(ABC):
     def get_download_urls(
         self,
     ) -> Iterator[URLResponse]:
-        """
-        For a specific multi-part download identified by `file_id`, return an iterator to
-        lazily obtain download URLs.
-        """
+        """For a specific multi-part download, return an iterator to lazily obtain download URLs."""
 
     @abstractmethod
     def get_file_header_envelope(self) -> bytes:

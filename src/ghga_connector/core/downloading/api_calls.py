@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""This module provides all API calls related to uploading files."""
+"""This module provides all API calls related to downloading files."""
 
 from typing import Union
 

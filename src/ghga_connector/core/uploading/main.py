@@ -53,7 +53,7 @@ async def run_upload(  # noqa: PLR0913
         exceptions.NoUploadPossibleError,
         exceptions.RequestFailedError,
         exceptions.UploadNotRegisteredError,
-        exceptions.UserHasNoUploadAccessError,
+        exceptions.NoUploadAccessError,
     ) as error:
         raise exceptions.StartUploadError() from error
 

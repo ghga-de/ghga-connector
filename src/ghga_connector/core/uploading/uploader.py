@@ -114,7 +114,7 @@ class Uploader(UploaderBase):
                     ),
                 },
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    "noFileAccess": lambda: exceptions.NoFileAccessError(
                         file_id=self._file_id
                     )
                 },
@@ -143,7 +143,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoFileAccessError(
+                    "noFileAccess": lambda: exceptions.NoFileAccessError(
                         file_id=self._file_id
                     )
                 },
@@ -182,7 +182,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },
@@ -207,17 +207,13 @@ class Uploader(UploaderBase):
         get_url_func=get_part_upload_url,
     ) -> Iterator[str]:
         """
-        For a specific mutli-part upload identified by the `upload_id`, it returns an
-        iterator to iterate through file parts and obtain the corresponding upload urls.
+        Return an iterator for a specific multipart upload to lazily iterate through
+        file parts and obtain the corresponding upload urls.
 
-        By default it start with the first part but you may also start from a specific part
-        in the middle of the file using the `from_part` argument. This might be useful to
-        resume an interrupted upload process.
+        By default this starts with the first part but you may also start from a
+        specific part using the `from_part` argument.
 
-        Please note: the upload corresponding to the `upload_id` must have already been
-        initiated.
-
-        `get_url_func` only for testing purposes.
+        Please note: the upload must already have been initiated.
         """
         if not self._upload_id:
             raise exceptions.UploadIdUnsetError()
@@ -248,7 +244,7 @@ class Uploader(UploaderBase):
         if status_code != 200:
             spec = {
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },
@@ -298,7 +294,7 @@ class Uploader(UploaderBase):
                     ),
                 },
                 403: {
-                    "noFileAccess": lambda: exceptions.UserHasNoUploadAccessError(
+                    "noFileAccess": lambda: exceptions.NoUploadAccessError(
                         upload_id=self._upload_id
                     )
                 },

@@ -187,7 +187,7 @@ class MaxPartNoExceededError(RuntimeError):
     """
     Thrown requesting a part number larger than the maximally possible number of parts.
 
-    This exception is a bug.
+    This exception should never be reaised and indicates a bug.
     """
 
     def __init__(self):

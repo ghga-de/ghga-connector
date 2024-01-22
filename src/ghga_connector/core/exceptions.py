@@ -185,7 +185,7 @@ class InvalidWPSResponseError(RuntimeError):
 
 class MaxPartNoExceededError(RuntimeError):
     """
-    Thrown requesting a part number larger than the maximally possible number of parts.
+    Thrown when requesting a part number larger than the maximally possible number of parts.
 
     This exception should never be reaised and indicates a bug.
     """

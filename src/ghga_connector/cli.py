@@ -18,6 +18,7 @@
 import asyncio
 import os
 import sys
+from dataclasses import dataclass
 from distutils.util import strtobool
 from functools import partial
 from pathlib import Path
@@ -53,6 +54,31 @@ class CLIMessageDisplay(core.AbstractMessageDisplay):
         typer.secho(message, fg=core.MessageColors.FAILURE, err=True)
 
 
+@dataclass
+class DownloadParameters:
+    """Contains parameters returned by API calls to prepare information needed for download"""
+
+    dcs_api_url: str
+    file_ids_with_extension: dict[str, str]
+    work_package_accessor: core.WorkPackageAccessor
+
+
+@dataclass
+class UploadParameters:
+    """Contains parameters returned by API calls to prepare information needed for upload"""
+
+    ucs_api_url: str
+    server_pubkey: str
+
+
+@dataclass
+class WorkPackageInformation:
+    """Wraps decrypted work package token and id to pass to other functions"""
+
+    decrypted_token: str
+    package_id: str
+
+
 def exception_hook(
     type_: BaseException,
     value: BaseException,
@@ -82,45 +108,57 @@ def init_message_display(debug: bool = False) -> CLIMessageDisplay:
     return message_display
 
 
-def configure_upload(debug: bool = False):
-    """Run necessary API calls to configure file upload"""
+def retrieve_upload_parameters() -> UploadParameters:
+    """Configure httpx client and retrieve necessary parameters from WKVS"""
     core.HttpxClientState.configure(CONFIG.max_retries)
-    message_display = init_message_display(debug=debug)
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     ucs_api_url = wkvs_caller.get_ucs_api_url()
     server_pubkey = wkvs_caller.get_server_pubkey()
 
-    return ucs_api_url, server_pubkey, message_display
+    return UploadParameters(server_pubkey=server_pubkey, ucs_api_url=ucs_api_url)
 
 
-def configure_download(
-    *, my_private_key: bytes, my_public_key: bytes, debug: bool = False
-):
+def retrieve_download_parameters(
+    *,
+    my_private_key: bytes,
+    my_public_key: bytes,
+    work_package_information: WorkPackageInformation,
+) -> DownloadParameters:
     """Run necessary API calls to configure file download"""
     core.HttpxClientState.configure(CONFIG.max_retries)
-    message_display = init_message_display(debug=debug)
     wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
     dcs_api_url = wkvs_caller.get_dcs_api_url()
     wps_api_url = wkvs_caller.get_wps_api_url()
 
-    message_display.display("Fetching work package token...")
+    work_package_accessor = core.WorkPackageAccessor(
+        access_token=work_package_information.decrypted_token,
+        api_url=wps_api_url,
+        dcs_api_url=dcs_api_url,
+        package_id=work_package_information.package_id,
+        my_private_key=my_private_key,
+        my_public_key=my_public_key,
+    )
+    file_ids_with_extension = work_package_accessor.get_package_files()
+
+    return DownloadParameters(
+        dcs_api_url=dcs_api_url,
+        file_ids_with_extension=file_ids_with_extension,
+        work_package_accessor=work_package_accessor,
+    )
+
+
+def get_work_package_information(
+    my_private_key: bytes, message_display: core.AbstractMessageDisplay
+):
+    """Fetch a work packge id and work package token and decrypt the token"""
     # get work package access token and id from user input
     work_package_id, work_package_token = core.get_wps_token(
         max_tries=3, message_display=message_display
     )
     decrypted_token = crypt.decrypt(data=work_package_token, key=my_private_key)
-
-    message_display.display("Retrieving API configuration information...")
-    work_package_accessor = core.WorkPackageAccessor(
-        access_token=decrypted_token,
-        api_url=wps_api_url,
-        dcs_api_url=dcs_api_url,
-        package_id=work_package_id,
-        my_private_key=my_private_key,
-        my_public_key=my_public_key,
+    return WorkPackageInformation(
+        decrypted_token=decrypted_token, package_id=work_package_id
     )
-    file_ids_with_extension = work_package_accessor.get_package_files()
-    return dcs_api_url, file_ids_with_extension, work_package_accessor, message_display
 
 
 def init_file_stager(
@@ -171,14 +209,15 @@ def upload(
     ),
 ):
     """Command to upload a file"""
-    ucs_api_url, server_pubkey, message_display = configure_upload(debug=debug)
+    message_display = init_message_display(debug=debug)
+    parameters = retrieve_upload_parameters()
     asyncio.run(
         core.upload(
-            api_url=ucs_api_url,
+            api_url=parameters.ucs_api_url,
             file_id=file_id,
             file_path=file_path,
             message_display=message_display,
-            server_public_key=server_pubkey,
+            server_public_key=parameters.server_pubkey,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             part_size=CONFIG.part_size,
@@ -226,34 +265,38 @@ def download(
         filepath=my_private_key_path, callback=None
     )
 
-    (
-        dcs_api_url,
-        file_ids_with_extension,
-        work_package_accessor,
-        message_display,
-    ) = configure_download(
-        my_private_key=my_private_key, my_public_key=my_public_key, debug=debug
+    message_display = init_message_display(debug=debug)
+    message_display.display("Fetching work package token...")
+    work_package_information = get_work_package_information(
+        my_private_key=my_private_key, message_display=message_display
+    )
+
+    message_display.display("Retrieving API configuration information...")
+    parameters = retrieve_download_parameters(
+        my_private_key=my_private_key,
+        my_public_key=my_public_key,
+        work_package_information=work_package_information,
     )
 
     file_stager = init_file_stager(
-        dcs_api_url=dcs_api_url,
-        file_ids_with_extension=file_ids_with_extension,
+        dcs_api_url=parameters.dcs_api_url,
+        file_ids_with_extension=parameters.file_ids_with_extension,
         message_display=message_display,
         output_dir=output_dir,
-        work_package_accessor=work_package_accessor,
+        work_package_accessor=parameters.work_package_accessor,
     )
     while file_stager.file_ids_remain():
         for file_id in file_stager.get_staged():
             message_display.display(f"Downloading file with id '{file_id}'...")
             core.download(
-                api_url=dcs_api_url,
+                api_url=parameters.dcs_api_url,
                 file_id=file_id,
-                file_extension=file_ids_with_extension[file_id],
+                file_extension=parameters.file_ids_with_extension[file_id],
                 output_dir=output_dir,
                 max_wait_time=CONFIG.max_wait_time,
                 part_size=CONFIG.part_size,
                 message_display=message_display,
-                work_package_accessor=work_package_accessor,
+                work_package_accessor=parameters.work_package_accessor,
             )
         file_stager.update_staged_files()
 

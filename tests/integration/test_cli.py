@@ -35,7 +35,11 @@ from ghga_service_commons.api.mock_router import (  # noqa: F401
 from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
-from ghga_connector.cli import configure_upload, download
+from ghga_connector.cli import (
+    download,
+    init_message_display,
+    retrieve_upload_parameters,
+)
 from ghga_connector.core import exceptions, upload
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.crypt import Crypt4GHEncryptor
@@ -381,13 +385,14 @@ async def test_upload(
         with pytest.raises(
             expected_exception  # type: ignore
         ) if expected_exception else nullcontext():
-            ucs_api_url, server_pubkey, message_display = configure_upload(debug=True)
+            message_display = init_message_display(debug=True)
+            parameters = retrieve_upload_parameters()
             await upload(
-                api_url=ucs_api_url,
+                api_url=parameters.ucs_api_url,
                 file_id=uploadable_file.file_id,
                 file_path=file_path,
                 message_display=message_display,
-                server_public_key=server_pubkey,
+                server_public_key=parameters.server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
                 part_size=DEFAULT_PART_SIZE,
@@ -475,13 +480,14 @@ async def test_multipart_upload(
             "ghga_connector.cli.CONFIG",
             get_test_config(),
         ):
-            ucs_api_url, server_pubkey, message_display = configure_upload(debug=True)
+            message_display = init_message_display(debug=True)
+            parameters = retrieve_upload_parameters()
             await upload(
-                api_url=ucs_api_url,
+                api_url=parameters.ucs_api_url,
                 file_id=file_id,
                 file_path=Path(file.name),
                 message_display=message_display,
-                server_public_key=server_pubkey,
+                server_public_key=parameters.server_pubkey,
                 my_public_key_path=Path(PUBLIC_KEY_FILE),
                 my_private_key_path=Path(PRIVATE_KEY_FILE),
                 part_size=DEFAULT_PART_SIZE,

@@ -266,7 +266,7 @@ def download(
     )
 
     message_display = init_message_display(debug=debug)
-    message_display.display("Fetching work package token...")
+    message_display.display("\nFetching work package token...")
     work_package_information = get_work_package_information(
         my_private_key=my_private_key, message_display=message_display
     )

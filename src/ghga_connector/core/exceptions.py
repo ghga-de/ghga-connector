@@ -213,29 +213,25 @@ class NoS3AccessMethodError(RuntimeError):
 
 class NoFileAccessError(RuntimeError):
     """
-    Thrown when a user does not have the credentials for
-    a specific file id (response code 403)
+    Thrown when a user does not have the credentials to access metadata or start an
+    upload for a specific file identified by the given file_id (response code 403)
     """
 
     def __init__(self, *, file_id: str):
-        message = (
-            "You are not registered as the data submitter "
-            f"for the file with the id '{file_id}'."
-        )
+        message = f"You are not registered as a data submitter for the file with the id '{file_id}'."
         super().__init__(message)
 
 
 class NoUploadAccessError(RuntimeError):
     """
-    Thrown when a user does not have the credentials to get or change
-    details of an ongoing upload with a specific upload id
-    (response code 403)
+    Thrown when a user does not have the credentials to get or change details of an
+    ongoing upload identified by the given upload_id (response code 403)
     """
 
     def __init__(self, *, upload_id: str):
         message = (
-            "You are not registered as a Data Submitter "
-            f"for the file corresponding to the upload_id '{upload_id}'."
+            "You are not registered as a data submitter "
+            + f"for the file corresponding to the upload_id '{upload_id}'."
         )
         super().__init__(message)
 

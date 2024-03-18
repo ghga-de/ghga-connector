@@ -44,8 +44,8 @@ class ProgressBar:
         )
 
     def __enter__(self):
-        """Enter inner context manager and add progress bar task on enter."""
-        self._progress.__enter__()
+        """Enable progress bar and add progress bar task on enter."""
+        self._progress.start()
         self._task_id = self._progress.add_task(
             description="File Download",
             total=self._file_size,
@@ -53,10 +53,10 @@ class ProgressBar:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        """Remove existing task on failure and exit inner context manager."""
+        """Remove existing task on failure and stop progress bar."""
         if exc_type:
             self._progress.remove_task(self._task_id)
-        self._progress.__exit__(exc_type, exc_value, traceback)
+        self._progress.stop()
 
     def advance(self, size: int):
         """Advance progress bar by specified amount of bytes and display."""

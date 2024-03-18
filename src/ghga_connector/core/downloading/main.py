@@ -112,10 +112,11 @@ def download_parts(  # noqa: PLR0913
         with ProgressBar(file_name=output_file.name, file_size=file_size) as progress:
             while downloaded_size < file_size:
                 try:
-                    # can't block
+                    # this will block forever, poll instead and retry if empty
                     start, part = queue.get(block=False)
                 except Empty:
-                    # retry empty on empty queue
+                    # not sure if this ramps up CPU usage and this should sleep for some
+                    # amount of time
                     continue
                 file.seek(offset + start)
                 file.write(part)

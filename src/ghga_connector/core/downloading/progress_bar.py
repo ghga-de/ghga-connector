@@ -31,11 +31,11 @@ class ProgressBar:
 
     def __init__(self, file_name: str, file_size: int, binary_units: bool = False):
         self._task_id = TaskID(-1)
-        self._file_id = file_name
+        self._file_name = file_name
         self._file_size = file_size
 
         self._progress = Progress(
-            TextColumn(f"Downloading file with ID '{self._file_id}'"),
+            TextColumn(f"Downloading to file '{self._file_name}'"),
             BarColumn(),
             TimeRemainingColumn(compact=True, elapsed_when_finished=True),
             TransferSpeedColumn(),

@@ -1,12 +1,13 @@
 [project]
 name = "ghga_connector"
-version = "1.2.0"
+version = "1.2.1"
 description = "GHGA Connector - A CLI client application for interacting with the GHGA system."
 dependencies = [
     "typer~=0.9.0",
     "crypt4gh>=1.6, <2",
     "ghga-service-commons[api, crypt]~=2.0.0",
     "hexkit[s3]~=2.0.0",
+    "rich>=13.7.1, <14"
 ]
 
 

@@ -31,7 +31,7 @@ from enum import Enum
 try:  # workaround for https://github.com/pydantic/pydantic/issues/5821
     from typing import Literal
 except ImportError:
-    from typing import Literal  # type: ignore
+    from typing import Literal
 
 import httpx
 from fastapi import HTTPException, status

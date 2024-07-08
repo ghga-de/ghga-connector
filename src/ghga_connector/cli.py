@@ -25,7 +25,6 @@ from types import TracebackType
 
 import crypt4gh.keys
 import typer
-from distutils.util import strtobool
 from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
@@ -76,6 +75,11 @@ class WorkPackageInformation:
 
     decrypted_token: str
     package_id: str
+
+
+def strtobool(value: str) -> bool:
+    """Inplace replacement for distutils.utils"""
+    return value.lower() in ("y", "yes", "on", "1", "true", "t")
 
 
 def exception_hook(

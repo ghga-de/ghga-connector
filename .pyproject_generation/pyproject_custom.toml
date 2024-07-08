@@ -16,3 +16,23 @@ Repository = "https://github.com/ghga-de/ghga-connector"
 
 [project.scripts]
 ghga-connector = "ghga_connector.__main__:run"
+
+[tool.tox]
+legacy_tox_ini = """
+    [tox]
+    env_list = py3{10,12}
+
+    [gh-actions]
+    python =
+        3.10: py310
+        3.11: py311
+        3.12: py312
+
+    [testenv]
+    pass_env =
+        TC_HOST
+        DOCKER_HOST
+    deps =
+        --no-deps -r ./lock/requirements-dev.txt
+    commands = pytest {posargs}
+"""

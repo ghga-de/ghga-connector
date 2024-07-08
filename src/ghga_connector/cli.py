@@ -370,17 +370,20 @@ def decrypt(  # noqa: PLR0912, C901
                 decryption_private_key_path=my_private_key_path,
             )
         except ValueError as error:
-            errors[str(input_file)] = (
-                f"Could not decrypt the provided file with the given key.\nError: {str(error)}"
-            )
+            errors[
+                str(input_file)
+            ] = f"Could not decrypt the provided file with the given key.\nError: {
+                    str(error)}"
             continue
 
         message_display.success(
-            f"Successfully decrypted file '{input_file}' to location '{output_dir}'."
+            f"Successfully decrypted file '{
+                input_file}' to location '{output_dir}'."
         )
     if file_count == 0:
         message_display.display(
-            f"No files were processed because the directory '{input_dir}' contains no "
+            f"No files were processed because the directory '{
+                input_dir}' contains no "
             + "applicable files."
         )
 

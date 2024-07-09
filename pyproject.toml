@@ -158,7 +158,7 @@ source = [
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    env_list = py3{10,12}
+    env_list = py3{9,12}
 
     [gh-actions]
     python =

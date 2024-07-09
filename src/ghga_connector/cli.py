@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from types import TracebackType
+from typing import Union
 
 import crypt4gh.keys
 import typer
@@ -85,7 +86,7 @@ def strtobool(value: str) -> bool:
 def exception_hook(
     type_: BaseException,
     value: BaseException,
-    traceback: TracebackType | None,
+    traceback: Union[TracebackType, None],
     message_display: CLIMessageDisplay,
 ):
     """When debug mode is NOT enabled, gets called to perform final error handling
@@ -370,20 +371,17 @@ def decrypt(  # noqa: PLR0912, C901
                 decryption_private_key_path=my_private_key_path,
             )
         except ValueError as error:
-            errors[
-                str(input_file)
-            ] = f"Could not decrypt the provided file with the given key.\nError: {
-                    str(error)}"
+            errors[str(input_file)] = (
+                f"Could not decrypt the provided file with the given key.\nError: {str(error)}"
+            )
             continue
 
         message_display.success(
-            f"Successfully decrypted file '{
-                input_file}' to location '{output_dir}'."
+            f"Successfully decrypted file '{input_file}' to location '{output_dir}'."
         )
     if file_count == 0:
         message_display.display(
-            f"No files were processed because the directory '{
-                input_dir}' contains no "
+            f"No files were processed because the directory '{input_dir}' contains no "
             + "applicable files."
         )
 

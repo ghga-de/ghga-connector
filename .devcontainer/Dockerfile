@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+FROM mcr.microsoft.com/vscode/devcontainers/python:3.9-bullseye
 
 ENV PYTHONUNBUFFERED 1
 

@@ -159,7 +159,7 @@ class Downloader(DownloaderBase):
             max_workers=max_concurrent_downloads,
         )
 
-        for part_range, download_url in zip(part_ranges, url_response, strict=False):
+        for part_range, download_url in zip(part_ranges, url_response):
             kwargs: dict[str, Any] = {
                 "download_url": download_url.download_url,
                 "start": part_range.start,

@@ -6,12 +6,13 @@ jobs:
   tests:
     name: Tests
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
+        os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout repository
@@ -20,7 +21,7 @@ jobs:
 
       - name: Common steps
         id: common
-        uses: ghga-de/gh-action-common@v5
+        uses: ghga-de/gh-action-common@v6
         with:
           python-version: ${{ matrix.python-version }}
 

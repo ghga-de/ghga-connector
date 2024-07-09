@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [
     { name = "German Human Genome Phenome Archive (GHGA)", email = "contact@ghga.de" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 1 - Planning",
     "Operating System :: POSIX :: Linux",
@@ -60,7 +60,7 @@ src = [
     "examples",
     "scripts",
 ]
-target-version = "py312"
+target-version = "py39"
 
 [tool.ruff.lint]
 fixable = [
@@ -162,6 +162,7 @@ legacy_tox_ini = """
 
     [gh-actions]
     python =
+        3.9: py39
         3.10: py310
         3.11: py311
         3.12: py312

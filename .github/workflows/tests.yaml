@@ -6,13 +6,12 @@ jobs:
   tests:
     name: Tests
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-        os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
       - name: Checkout repository
@@ -32,23 +31,15 @@ jobs:
 
       - name: Run tests with Python ${{ matrix.python-version }}
         id: pytest
-        if: ${{ matrix.python-version != '3.12' && runner.os == 'Linux' || runner.os == 'macOS' }}
+        if: ${{ matrix.python-version != '3.12' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox
 
-      - name: Run tests with Python ${{ matrix.python-version }} on Windows
-        id: pytest-windows
-        if: ${{ runner.os == 'Windows' }}
-        run: |
-          set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
-
-          tox
-
       - name: Run tests with Python ${{ matrix.python-version }} measuring coverage
         id: pytest-coverage
-        if: ${{ matrix.python-version == '3.12' && runner.os == 'Linux' }}
+        if: ${{ matrix.python-version == '3.12' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 

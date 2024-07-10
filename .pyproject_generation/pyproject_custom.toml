@@ -23,7 +23,7 @@ target-version = "py39"
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    env_list = py3{10,12}
+    env_list = py3{9,12}
 
     [gh-actions]
     python =
@@ -37,6 +37,7 @@ legacy_tox_ini = """
         TC_HOST
         DOCKER_HOST
     deps =
+        pypiwin32
         --no-deps -r ./lock/requirements-dev.txt
     commands = pytest {posargs}
 """

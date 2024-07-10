@@ -172,6 +172,7 @@ legacy_tox_ini = """
         TC_HOST
         DOCKER_HOST
     deps =
+        pypiwin32
         --no-deps -r ./lock/requirements-dev.txt
     commands = pytest {posargs}
 """

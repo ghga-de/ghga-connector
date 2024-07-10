@@ -2,7 +2,7 @@
 # but are allowed to have different content in the current repository
 
 ./devcontainer/Dockerfile
-
+scripts/check_license.py
 scripts/script_utils/deps.py
 scripts/script_utils/lock_deps.py
 scripts/update_openapi_docs.py

@@ -21,7 +21,7 @@ jobs:
 
       - name: Common steps
         id: common
-        uses: ghga-de/gh-action-common@v6
+        uses: ghga-de/gh-action-common@v6.0.1
         with:
           python-version: ${{ matrix.python-version }}
 

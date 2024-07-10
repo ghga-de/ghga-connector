@@ -24,6 +24,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Union
 
 # root directory of the package:
 ROOT_DIR = Path(__file__).parent.parent.resolve()
@@ -139,11 +140,11 @@ class GlobalCopyrightNotice:
     """
 
     def __init__(self):
-        self._text: str | None = None
-        self._n_lines: int | None = None
+        self._text: Union[str, None] = None
+        self._n_lines: Union[int, None] = None
 
     @property
-    def text(self) -> str | None:
+    def text(self) -> Union[str, None]:
         return self._text
 
     @text.setter
@@ -166,7 +167,7 @@ class GlobalCopyrightNotice:
 class UnexpectedBinaryFileError(RuntimeError):
     """Thrown when trying to read a binary file."""
 
-    def __init__(self, file_path: str | Path):
+    def __init__(self, file_path: Union[str, Path]):
         message = f"The file could not be read because it is binary: {str(file_path)}"
         super().__init__(message)
 

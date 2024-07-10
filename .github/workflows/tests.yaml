@@ -32,19 +32,28 @@ jobs:
 
       - name: Run tests with Python ${{ matrix.python-version }}
         id: pytest
-        if: ${{ matrix.python-version != '3.12' }}
+        if: ${{ matrix.python-version != '3.12' && runner.os == 'Linux' || runner.os == 'macOS' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox
 
+      - name: Run tests with Python ${{ matrix.python-version }}
+        id: pytest-windows
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
+
+          tox
+
       - name: Run tests with Python ${{ matrix.python-version }} measuring coverage
         id: pytest-coverage
-        if: ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.12' && runner.os == 'Linux' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox -- --cov="${{ steps.common.outputs.PACKAGE_NAME }}" --cov-report=xml
+
 
       - name: Upload coverage to coveralls
         id: coveralls

@@ -38,10 +38,11 @@ jobs:
 
           tox
 
-      - name: Run tests with Python ${{ matrix.python-version }}
+      - name: Run tests with Python ${{ matrix.python-version }} on Windows
         id: pytest-windows
         if: ${{ runner.os == 'Windows' }}
         run: |
+          py Scripts\pywin32_postinstall.py -install
           set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox

@@ -27,8 +27,10 @@ jobs:
 
       - name: Debug
         id: Debug
+        if: runnner.os == 'macOS'
         run: |
-          docker info
+              brew install docker
+              colima start
 
       - name: Install tox plugin
         id: install-tox-gh-actions

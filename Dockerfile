@@ -37,6 +37,7 @@ RUN pip install --no-deps -r requirements.txt
 RUN rm requirements.txt
 COPY --from=builder /service/dist/ /service
 RUN pip install --no-deps *.whl
+RUN pip install --no-deps --upgrade setuptools
 RUN rm *.whl
 # create new user and execute as that user
 RUN useradd --create-home appuser

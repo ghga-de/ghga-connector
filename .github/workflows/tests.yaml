@@ -43,7 +43,7 @@ jobs:
         id: pytest-windows
         if: ${{ runner.os == 'Windows' }}
         run: |
-          export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
+          set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox
 
@@ -51,7 +51,7 @@ jobs:
         id: pytest
         if: ${{ matrix.python-version != '3.12' && runner.os == 'Linux' || runner.os == 'macOS' }}
         run: |
-          set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}=${{ steps.common.outputs.CONFIG_YAML }}"
+          export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}=${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox
 

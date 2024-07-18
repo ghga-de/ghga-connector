@@ -27,7 +27,7 @@ jobs:
 
       - name: Debug
         id: Debug
-        if: runnner.os == 'macOS'
+        if: runner.os == 'macOS'
         run: |
               brew install docker
               colima start

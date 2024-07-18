@@ -25,8 +25,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Debug
-        id: Debug
+      - name: Install docker and colima and start
+        id: macos-setup
         if: runner.os == 'macOS'
         run: |
               brew install docker

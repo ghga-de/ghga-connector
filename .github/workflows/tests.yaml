@@ -32,6 +32,7 @@ jobs:
               brew install docker
               brew install colima
               if [ -f ~/.colima/_lima/_networks/user-v2 ]
+              then
                 rm -rf ~/.colima/_lima/_networks/user-v2
               fi
               colima start

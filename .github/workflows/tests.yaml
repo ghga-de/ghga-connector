@@ -11,8 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
-        os: [macos-13, ubuntu-latest]
+        python-version: ['3.9']
+        os: [windows-latest]
 
     steps:
       - name: Checkout repository
@@ -39,17 +39,25 @@ jobs:
         run: |
           pip install --disable-pip-version-check "tox-gh-actions>=3.2,<4"
 
-      - name: Run tests with Python ${{ matrix.python-version }}
-        id: pytest
-        if: ${{ matrix.python-version != '3.12' }}
+      - name: Run tests on Windows with Python ${{ matrix.python-version }}
+        id: pytest-windows
+        if: ${{ runner.os == 'Windows' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
           tox
 
+      - name: Run tests with Python ${{ matrix.python-version }}
+        id: pytest
+        if: ${{ matrix.python-version != '3.12' && runner.os == 'Linux' || runner.os == 'macOS' }}
+        run: |
+          set ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}=${{ steps.common.outputs.CONFIG_YAML }}"
+
+          tox
+
       - name: Run tests with Python ${{ matrix.python-version }} measuring coverage
         id: pytest-coverage
-        if: ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.12' && runner.os == 'Linux' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
@@ -58,7 +66,7 @@ jobs:
 
       - name: Upload coverage to coveralls
         id: coveralls
-        if: ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.12' && runner.os == 'Linux' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

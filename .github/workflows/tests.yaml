@@ -30,6 +30,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
               brew install docker
+              brew install colima
               colima start
 
       - name: Install tox plugin

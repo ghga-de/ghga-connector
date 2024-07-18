@@ -38,7 +38,7 @@ jobs:
         id: windows-setup
         if: runner.os == 'Windows'
         run: |
-          pip install --disable-pip-version-check pywin32
+          pip install --disable-pip-version-check pywin32 pypiwin32
 
       - name: Install tox plugin
         id: install-tox-gh-actions

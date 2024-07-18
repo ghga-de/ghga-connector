@@ -32,7 +32,7 @@ jobs:
               brew install docker
               brew install colima
               colima start
-              ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+              sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
 
       - name: Install tox plugin
         id: install-tox-gh-actions

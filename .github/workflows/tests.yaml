@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install docker and colima and start
+      - name: Install docker and colima and start (macOS)
         id: macos-setup
         if: runner.os == 'macOS'
         run: |
@@ -33,6 +33,12 @@ jobs:
               brew install colima
               colima start
               sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+
+      - name: Install missing package (Windows)
+        id: windows-setup
+        if: runner.os == 'Windows'
+        run: |
+          pip install --disable-pip-version-check pywin32
 
       - name: Install tox plugin
         id: install-tox-gh-actions

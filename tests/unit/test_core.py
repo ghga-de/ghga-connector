@@ -18,15 +18,15 @@
 
 import pytest
 
-from ghga_connector.core.main import check_url
+from ghga_connector.core.api_calls.utils import check_url
 
 
 @pytest.mark.parametrize(
     "api_url,wait_time,expected_response",
     # Google has a higher availability than ghga.de
-    [("https://www.google.de/", 1000, True), ("https://bad_url", 1000, False)],
+    [("https://www.google.de/", 5, True), ("https://bad_url", 5, False)],
 )
-def test_check_url(api_url: str, wait_time: int, expected_response: bool):
+def test_check_url(api_url: str, timeout_in_seconds: int, expected_response: bool):
     """Test the check_url function"""
-    response = check_url(api_url, wait_time=wait_time)
+    response = check_url(api_url, timeout_in_seconds=timeout_in_seconds)
     assert response == expected_response

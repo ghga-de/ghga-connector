@@ -39,7 +39,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pip install --disable-pip-version-check pypiwin32
-          tree C:\hostedtoolcache\windows
+          tree C:\hostedtoolcache\windows > location.log
+          cat location.log
           echo "Finished Searching"
 
       - name: Install tox plugin

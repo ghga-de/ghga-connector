@@ -39,7 +39,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pip install --disable-pip-version-check pypiwin32
-          Get-Childitem -Path C:\ -Include *pywin32_postinstall* -Recurse -ErrorAction SilentlyContinue
+          tree C:\hostedtoolcache\windows
           echo "Finished Searching"
 
       - name: Install tox plugin

@@ -16,14 +16,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
-from time import sleep
+from time import sleep, time
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor, is_service_healthy
 from ghga_connector.core.client import httpx_client
 from ghga_connector.core.downloading.api_calls import (
+    RetryResponse,
     URLResponse,
     get_download_url,
     get_file_authorization,
@@ -129,163 +129,102 @@ class CliIoHandler(BatchIoHandler):
         return self.input_handler.handle_response(response=response)
 
 
-class StagingParameters:
-    """Container for variable parameters provided to the batch processor"""
-
-    def __init__(
-        self,
-        api_url: str,
-        file_ids_with_extension: dict[str, str],
-        max_wait_time: int,
-        retry_after: int = 60,
-    ) -> None:
-        self.api_url = api_url
-        self.check_api_available()
-        self.file_ids_with_extension = file_ids_with_extension
-        self.max_wait_time = max_wait_time
-        # amount of seconds between staging attempts
-        self.retry_after = retry_after
-
-    def check_api_available(self):
-        """Get response from endpoint, else throw corresponding exception"""
-        if not is_service_healthy(self.api_url):
-            raise exceptions.ApiNotReachableError(api_url=self.api_url)
-
-    def get_file_ids(self) -> list[str]:
-        """Get file ids that should be staged"""
-        return list(self.file_ids_with_extension.keys())
-
-    def remove_existing(self, *, file_ids: list[str]):
-        """Delete file information for already existing files."""
-        for file_id in file_ids:
-            del self.file_ids_with_extension[file_id]
-
-
-@dataclass
-class StagingState:
-    """Handle state for staged and not yet staged file ids."""
-
-    time_started: datetime = field(default_factory=datetime.utcnow, init=False)
-    staged_files: list[str] = field(default_factory=list, init=False)
-    unstaged_files: list[str] = field(default_factory=list, init=False)
-
-    def add_staged(self, *, file_id: str):
-        """Delegate adding staged file ids"""
-        self.staged_files.append(file_id)
-
-    def add_unstaged(self, *, file_id: str):
-        """Delegate adding unstaged file ids"""
-        self.unstaged_files.append(file_id)
-
-    def update_staged_files_wait(
-        self, *, max_wait_time: int, work_package_accessor: WorkPackageAccessor
-    ) -> bool:
-        """
-        Update staged file list after all previously staged files have been processed.
-        Caller has to make sure, that all file ids in self.staged_files have actually
-        been processed.
-
-        Returns a boolean instructing the caller to wait for retry_time and call this
-        method again.
-        """
-        self.staged_files = []
-        remaining_unstaged = []
-
-        for file_id in self.unstaged_files:
-            with httpx_client() as client:
-                url_and_headers = get_file_authorization(
-                    file_id=file_id, work_package_accessor=work_package_accessor
-                )
-                url_response = get_download_url(
-                    client=client, url_and_headers=url_and_headers
-                )
-            if isinstance(url_response, URLResponse):
-                self.staged_files.append(file_id)
-            else:
-                remaining_unstaged.append(file_id)
-
-        self.unstaged_files = remaining_unstaged
-
-        if self.unstaged_files and not self.staged_files:
-            self._check_wait_time(max_wait_time=max_wait_time)
-            return True
-        return False
-
-    def _check_wait_time(self, *, max_wait_time: int):
-        """Raise exception if maximum wait time has been exceeded"""
-        time_waited = datetime.utcnow() - self.time_started
-        if time_waited.total_seconds() >= max_wait_time:
-            raise exceptions.MaxWaitTimeExceededError(max_wait_time=max_wait_time)
-
-
-@dataclass
 class FileStager:
     """Utility class to deal with file staging in batch processing."""
 
+    staged: dict[str, URLResponse]  # successfully staged files with their urls
+    unstaged: dict[str, float]  # files that are currently being staged with retry times
+    failed: list[str]  # files that could not be staged
+
     message_display: AbstractMessageDisplay
     io_handler: BatchIoHandler
-    staging_parameters: StagingParameters
-    staging_state: StagingState = field(default_factory=StagingState, init=False)
+    output_dir: Path
     work_package_accessor: WorkPackageAccessor
+    max_wait_time: int
 
-    def check_and_stage(self, output_dir: Path):
-        """Call DRS endpoint to stage files. Report file ids with 404 responses to user."""
-        existing_files = self.io_handler.check_output(location=output_dir)
-        self.staging_parameters.remove_existing(file_ids=existing_files)
+    def __init__(  # noqa: PLR0913
+        self,
+        *,
+        wanted_file_ids: list[str],
+        dcs_api_url: str,
+        output_dir: Path,
+        max_wait_time: int,
+        message_display: AbstractMessageDisplay,
+        work_package_accessor: WorkPackageAccessor,
+    ):
+        """Initialize the FileStager."""
+        io_handler = CliIoHandler()
+        existing_file_ids = set(io_handler.check_output(location=output_dir))
+        if not is_service_healthy(dcs_api_url):
+            raise exceptions.ApiNotReachableError(api_url=dcs_api_url)
+        self.api_url = dcs_api_url
+        self.message_display = message_display
+        self.work_package_accessor = work_package_accessor
+        self.max_wait_time = max_wait_time
+        self.time_started = now = time()
+        self.staged = {}
+        self.unstaged = {
+            file_id: now
+            for file_id in wanted_file_ids
+            if file_id not in existing_file_ids
+        }
+        self.failed = []
+        self.ignore_failed = False
 
-        unknown_ids = []
-        for file_id in self.staging_parameters.file_ids_with_extension:
-            try:
-                with httpx_client() as client:
-                    url_and_headers = get_file_authorization(
-                        file_id=file_id,
-                        work_package_accessor=self.work_package_accessor,
-                    )
-                    url_response = get_download_url(
-                        client=client, url_and_headers=url_and_headers
-                    )
-            except exceptions.BadResponseCodeError as error:
-                if error.response_code == 404:
-                    unknown_ids.append(file_id)
-                    continue
-                raise error
+    def get_staged_files(self):
+        """Get files that are already staged."""
+        staging_items = list(self.unstaged.items())
+        for file_id, retry_time in staging_items:
+            if time() >= retry_time:
+                self._check_file(file_id=file_id)
+        if not self.staged and not self._handle_failures():
+            sleep(1)
+        self._check_timeout()
+        staged = self.staged.copy()
+        self.staged.clear()
+        return staged
 
-            # split into already staged and not yet staged files
-            if isinstance(url_response, URLResponse):
-                self.staging_state.add_staged(file_id=file_id)
-            else:
-                self.staging_state.add_unstaged(file_id=file_id)
+    @property
+    def finished(self) -> bool:
+        """Check whether work is finished, i.e. no staged or unstaged files remain."""
+        return not (self.staged or self.unstaged)
 
-        if unknown_ids:
-            self._handle_unknown(unknown_ids)
+    def _check_file(self, file_id: str) -> None:
+        """Check whether a file with the given file_id is staged."""
+        try:
+            with httpx_client() as client:
+                url_and_headers = get_file_authorization(
+                    file_id=file_id,
+                    work_package_accessor=self.work_package_accessor,
+                )
+                response = get_download_url(
+                    client=client, url_and_headers=url_and_headers
+                )
+        except exceptions.BadResponseCodeError as error:
+            if error.response_code != 404:
+                raise
+            response = None
+        if isinstance(response, URLResponse):
+            del self.unstaged[file_id]
+            self.staged[file_id] = response
+        elif isinstance(response, RetryResponse):
+            self.unstaged[file_id] = time() + response.retry_after
+        else:
+            self.failed.append(file_id)
 
-    def file_ids_remain(self):
-        """Returns if any staged or unstaged file ids remain"""
-        return any((self.staging_state.staged_files, self.staging_state.unstaged_files))
+    def _check_timeout(self):
+        if time() - self.time_started >= self.max_wait_time:
+            raise exceptions.MaxWaitTimeExceededError(max_wait_time=self.max_wait_time)
 
-    def get_staged(self):
-        """Return currently staged file ids"""
-        return self.staging_state.staged_files
-
-    def update_staged_files(self):
-        """Delegate updating file_ids for staging and handle wait/retries."""
-        while self.staging_state.update_staged_files_wait(
-            max_wait_time=self.staging_parameters.max_wait_time,
-            work_package_accessor=self.work_package_accessor,
-        ):
-            self.message_display.display(
-                f"No staged files available, retrying in {self.staging_parameters.retry_after}"
-                + f" seconds for {len(self.staging_state.unstaged_files)} unstaged file(s)."
-            )
-            sleep(self.staging_parameters.retry_after)
-
-    def _handle_unknown(self, unknown_ids: list[str]):
-        """Process user interaction for unknown file IDs"""
-        message = (
-            f"No download exists for the following file IDs: {', '.join(unknown_ids)}"
-        )
+    def _handle_failures(self) -> bool:
+        """Handle failed downloads and return whether there was user interaction."""
+        if not self.failed or self.ignore_failed:
+            return False
+        failed = ", ".join(self.failed)
+        message = f"No download exists for the following file IDs: {failed}"
         self.message_display.failure(message)
-
+        if self.finished:
+            raise exceptions.AbortBatchProcessError()
         unknown_ids_present = (
             "Some of the provided file IDs cannot be downloaded."
             + "\nDo you want to proceed ?\n[Yes][No]\n"
@@ -293,3 +232,5 @@ class FileStager:
         response = self.io_handler.get_input(message=unknown_ids_present)
         self.io_handler.handle_response(response=response)
         self.message_display.display("Downloading remaining files")
+        self.start_time = time()
+        return True

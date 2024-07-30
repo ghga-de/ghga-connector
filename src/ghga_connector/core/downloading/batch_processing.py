@@ -132,9 +132,12 @@ class CliIoHandler(BatchIoHandler):
 class FileStager:
     """Utility class to deal with file staging in batch processing."""
 
-    staged: dict[str, URLResponse]  # successfully staged files with their urls
-    unstaged: dict[str, float]  # files that are currently being staged with retry times
-    failed: list[str]  # files that could not be staged
+    # Successfully staged files with their download URLs and sizes
+    staged_urls: dict[str, URLResponse]
+    # Files that are currently being staged with retry times:
+    unstaged_retry_times: dict[str, float]
+    # Files that could not be staged because they cannot be found:
+    missing_files: list[str]
 
     message_display: AbstractMessageDisplay
     io_handler: BatchIoHandler
@@ -162,35 +165,44 @@ class FileStager:
         self.work_package_accessor = work_package_accessor
         self.max_wait_time = max_wait_time
         self.time_started = now = time()
-        self.staged = {}
-        self.unstaged = {
+        # in the beginning, consider all files as staged with a retry time of 0
+        self.staged_urls = {}
+        self.unstaged_retry_times = {
             file_id: now
             for file_id in wanted_file_ids
             if file_id not in existing_file_ids
         }
-        self.failed = []
+        self.missing_files = []
         self.ignore_failed = False
 
-    def get_staged_files(self):
-        """Get files that are already staged."""
-        staging_items = list(self.unstaged.items())
+    def get_staged_files(self) -> dict[str, URLResponse]:
+        """Get files that are already staged.
+
+        Returns a dict with file IDs as keys and URLResponses as values.
+        These values contain the download URLs and file sizes.
+        The dict should cleared after these files have been downloaded.
+        """
+        staging_items = list(self.unstaged_retry_times.items())
         for file_id, retry_time in staging_items:
             if time() >= retry_time:
                 self._check_file(file_id=file_id)
-        if not self.staged and not self._handle_failures():
+        if not self.staged_urls and not self._handle_failures():
             sleep(1)
         self._check_timeout()
-        staged = self.staged.copy()
-        self.staged.clear()
-        return staged
+        return self.staged_urls
 
     @property
     def finished(self) -> bool:
         """Check whether work is finished, i.e. no staged or unstaged files remain."""
-        return not (self.staged or self.unstaged)
+        return not (self.staged_urls or self.unstaged_retry_times)
 
     def _check_file(self, file_id: str) -> None:
-        """Check whether a file with the given file_id is staged."""
+        """Check whether a file with the given file_id is staged.
+
+        The method returns nothing, but adapts the internal state accordingly.
+        Particularly, files that cannot be found are added to missing_files.
+        If files cannot be staged for other reason, a BadResponseCodeError is raised.
+        """
         try:
             with httpx_client() as client:
                 url_and_headers = get_file_authorization(
@@ -205,26 +217,34 @@ class FileStager:
                 raise
             response = None
         if isinstance(response, URLResponse):
-            del self.unstaged[file_id]
-            self.staged[file_id] = response
+            del self.unstaged_retry_times[file_id]
+            self.staged_urls[file_id] = response
         elif isinstance(response, RetryResponse):
-            self.unstaged[file_id] = time() + response.retry_after
+            self.unstaged_retry_times[file_id] = time() + response.retry_after
         else:
-            self.failed.append(file_id)
+            self.missing_files.append(file_id)
 
     def _check_timeout(self):
+        """Check whether we have waited too long for the files to be staged.
+
+        In that cases, a MaxWaitTimeExceededError is raised.
+        """
         if time() - self.time_started >= self.max_wait_time:
             raise exceptions.MaxWaitTimeExceededError(max_wait_time=self.max_wait_time)
 
     def _handle_failures(self) -> bool:
-        """Handle failed downloads and return whether there was user interaction."""
-        if not self.failed or self.ignore_failed:
+        """Handle failed downloads and either abort or proceed based on user input.
+
+        Returns whether there was user interaction.
+        Raises an error if the user chose to abort the download.
+        """
+        if not self.missing_files or self.ignore_failed:
             return False
-        failed = ", ".join(self.failed)
+        failed = ", ".join(self.missing_files)
         message = f"No download exists for the following file IDs: {failed}"
         self.message_display.failure(message)
         if self.finished:
-            raise exceptions.AbortBatchProcessError()
+            return False
         unknown_ids_present = (
             "Some of the provided file IDs cannot be downloaded."
             + "\nDo you want to proceed ?\n[Yes][No]\n"

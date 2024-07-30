@@ -232,5 +232,5 @@ class FileStager:
         response = self.io_handler.get_input(message=unknown_ids_present)
         self.io_handler.handle_response(response=response)
         self.message_display.display("Downloading remaining files")
-        self.start_time = time()
+        self.time_started = time()  # reset the timer
         return True

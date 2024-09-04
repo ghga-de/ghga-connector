@@ -17,7 +17,7 @@
 """Global Config Parameters"""
 
 from hexkit.config import config_from_yaml
-from pydantic import Field
+from pydantic import Field, NonNegativeInt
 from pydantic_settings import BaseSettings
 
 from ghga_connector.core.constants import DEFAULT_PART_SIZE, MAX_RETRIES, MAX_WAIT_TIME
@@ -40,4 +40,12 @@ class Config(BaseSettings):
     wkvs_api_url: str = Field(
         default="https://data.ghga.de/.well-known",
         description="URL to the root of the WKVS API. Should start with https://",
+    )
+    exponential_backoff_max: NonNegativeInt = Field(
+        default=60,
+        description="Maximum number of seconds to wait for when using exponential backoff retry strategies.",
+    )
+    retry_status_codes: list[int] = Field(
+        default=[408, 500, 502, 503, 504],
+        description="List of status codes that should trigger retrying a request.",
     )

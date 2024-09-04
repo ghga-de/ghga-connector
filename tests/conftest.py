@@ -16,10 +16,10 @@
 
 import pytest
 
-from ghga_connector.core import MAX_RETRIES, HttpxClientState
+from ghga_connector.core import MAX_RETRIES, HttpxClientConfigurator
 
 
 @pytest.fixture(autouse=True)
 def default_session_configuration():
     """Configure httpx Client with default number of max_retries"""
-    HttpxClientState.configure(max_retries=MAX_RETRIES)
+    HttpxClientConfigurator.configure(max_retries=MAX_RETRIES)

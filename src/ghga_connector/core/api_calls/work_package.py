@@ -16,36 +16,57 @@
 
 import base64
 import json
-from dataclasses import dataclass
 
 import httpx
 from ghga_service_commons.utils.crypt import decrypt
 
-from ghga_connector.core import exceptions
-from ghga_connector.core.client import httpx_client
+from ghga_connector.config import Config
+from ghga_connector.core import configure_async_retries, exceptions
 
 
-@dataclass
 class WorkPackageAccessor:
     """Wrapper for WPS associated API call parameters"""
 
-    access_token: str
-    api_url: str
-    dcs_api_url: str
-    package_id: str
-    my_private_key: bytes
-    my_public_key: bytes
+    def __init__(  # noqa: PLR0913
+        self,
+        access_token: str,
+        api_url: str,
+        client: httpx.AsyncClient,
+        config: Config,
+        dcs_api_url: str,
+        package_id: str,
+        my_private_key: bytes,
+        my_public_key: bytes,
+    ) -> None:
+        self.access_token = access_token
+        self.api_url = api_url
+        self.client = client
+        self.dcs_api_url = dcs_api_url
+        self.package_id = package_id
+        self.my_private_key = my_private_key
+        self.my_public_key = my_public_key
+        self.retry_handler = configure_async_retries(config)
 
-    def get_package_files(self) -> dict[str, str]:
+    async def _get(self, headers: httpx.Headers, url: str) -> httpx.Response:
+        """GET request to be wrapped by retry handler."""
+        return await self.client.get(url=url, headers=headers)
+
+    async def _post(self, headers: httpx.Headers, url: str) -> httpx.Response:
+        """POST request to be wrapped by retry handler."""
+        return await self.client.post(url=url, headers=headers)
+
+    async def get_package_files(self) -> dict[str, str]:
         """Call WPS endpoint and retrieve work package information."""
         url = f"{self.api_url}/work-packages/{self.package_id}"
 
         # send authorization header as bearer token
-        headers = {"Authorization": f"Bearer {self.access_token}"}
-
+        headers = httpx.Headers({"Authorization": f"Bearer {self.access_token}"})
         try:
-            with httpx_client() as client:
-                response = client.get(url=url, headers=headers)
+            response = await self.retry_handler(
+                fn=self._get,
+                headers=headers,
+                url=url,
+            )
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 
@@ -60,7 +81,7 @@ class WorkPackageAccessor:
         work_package = response.json()
         return work_package["files"]
 
-    def get_work_order_token(self, *, file_id: str) -> str:
+    async def get_work_order_token(self, *, file_id: str) -> str:
         """Call WPS endpoint to retrieve and decrypt work order token."""
         url = f"{self.api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-tokens"
 
@@ -68,8 +89,11 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            with httpx_client() as client:
-                response = client.post(url=url, headers=headers)
+            response = await self.retry_handler(
+                fn=self._post,
+                headers=headers,
+                url=url,
+            )
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 

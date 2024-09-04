@@ -25,11 +25,13 @@ from types import TracebackType
 from typing import Union
 
 import crypt4gh.keys
+import httpx
 import typer
 from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
 from ghga_connector.config import Config
+from ghga_connector.core.client import async_client
 
 CONFIG = Config()
 
@@ -112,37 +114,40 @@ def init_message_display(debug: bool = False) -> CLIMessageDisplay:
     return message_display
 
 
-def retrieve_upload_parameters() -> UploadParameters:
+async def retrieve_upload_parameters(client: httpx.AsyncClient) -> UploadParameters:
     """Configure httpx client and retrieve necessary parameters from WKVS"""
-    core.HttpxClientState.configure(CONFIG.max_retries)
-    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
-    ucs_api_url = wkvs_caller.get_ucs_api_url()
-    server_pubkey = wkvs_caller.get_server_pubkey()
+    core.HttpxClientConfigurator.configure(CONFIG.max_retries)
+    wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
+    ucs_api_url = await wkvs_caller.get_ucs_api_url()
+    server_pubkey = await wkvs_caller.get_server_pubkey()
 
     return UploadParameters(server_pubkey=server_pubkey, ucs_api_url=ucs_api_url)
 
 
-def retrieve_download_parameters(
+async def retrieve_download_parameters(
     *,
+    client: httpx.AsyncClient,
     my_private_key: bytes,
     my_public_key: bytes,
     work_package_information: WorkPackageInformation,
 ) -> DownloadParameters:
     """Run necessary API calls to configure file download"""
-    core.HttpxClientState.configure(CONFIG.max_retries)
-    wkvs_caller = core.WKVSCaller(CONFIG.wkvs_api_url)
-    dcs_api_url = wkvs_caller.get_dcs_api_url()
-    wps_api_url = wkvs_caller.get_wps_api_url()
+    core.HttpxClientConfigurator.configure(CONFIG.max_retries)
+    wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
+    dcs_api_url = await wkvs_caller.get_dcs_api_url()
+    wps_api_url = await wkvs_caller.get_wps_api_url()
 
     work_package_accessor = core.WorkPackageAccessor(
         access_token=work_package_information.decrypted_token,
         api_url=wps_api_url,
+        client=client,
+        config=CONFIG,
         dcs_api_url=dcs_api_url,
         package_id=work_package_information.package_id,
         my_private_key=my_private_key,
         my_public_key=my_public_key,
     )
-    file_ids_with_extension = work_package_accessor.get_package_files()
+    file_ids_with_extension = await work_package_accessor.get_package_files()
 
     return DownloadParameters(
         dcs_api_url=dcs_api_url,
@@ -168,7 +173,7 @@ def get_work_package_information(
 cli = typer.Typer(no_args_is_help=True)
 
 
-def upload(
+async def upload(
     *,
     file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
@@ -188,7 +193,8 @@ def upload(
 ):
     """Command to upload a file"""
     message_display = init_message_display(debug=debug)
-    parameters = retrieve_upload_parameters()
+    async with async_client() as client:
+        parameters = await retrieve_upload_parameters(client)
     asyncio.run(
         core.upload(
             api_url=parameters.ucs_api_url,
@@ -208,7 +214,7 @@ if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
 
 
 @cli.command(no_args_is_help=True)
-def download(
+async def download(
     *,
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
@@ -249,36 +255,39 @@ def download(
         my_private_key=my_private_key, message_display=message_display
     )
 
-    message_display.display("Retrieving API configuration information...")
-    parameters = retrieve_download_parameters(
-        my_private_key=my_private_key,
-        my_public_key=my_public_key,
-        work_package_information=work_package_information,
-    )
+    async with async_client() as client:
+        message_display.display("Retrieving API configuration information...")
+        parameters = await retrieve_download_parameters(
+            client=client,
+            my_private_key=my_private_key,
+            my_public_key=my_public_key,
+            work_package_information=work_package_information,
+        )
 
-    stager = core.FileStager(
-        wanted_file_ids=list(parameters.file_ids_with_extension),
-        dcs_api_url=parameters.dcs_api_url,
-        output_dir=output_dir,
-        max_wait_time=CONFIG.max_wait_time,
-        message_display=message_display,
-        work_package_accessor=parameters.work_package_accessor,
-    )
-    while not stager.finished:
-        staged_files = stager.get_staged_files()
-        for file_id in staged_files:
-            message_display.display(f"Downloading file with id '{file_id}'...")
-            core.download(
-                api_url=parameters.dcs_api_url,
-                file_id=file_id,
-                file_extension=parameters.file_ids_with_extension[file_id],
-                output_dir=output_dir,
-                max_wait_time=CONFIG.max_wait_time,
-                part_size=CONFIG.part_size,
-                message_display=message_display,
-                work_package_accessor=parameters.work_package_accessor,
-            )
-        staged_files.clear()
+        stager = core.FileStager(
+            wanted_file_ids=list(parameters.file_ids_with_extension),
+            dcs_api_url=parameters.dcs_api_url,
+            output_dir=output_dir,
+            message_display=message_display,
+            work_package_accessor=parameters.work_package_accessor,
+            client=client,
+            config=CONFIG,
+        )
+        while not stager.finished:
+            staged_files = await stager.get_staged_files()
+            for file_id in staged_files:
+                message_display.display(f"Downloading file with id '{file_id}'...")
+                await core.download(
+                    api_url=parameters.dcs_api_url,
+                    file_id=file_id,
+                    file_extension=parameters.file_ids_with_extension[file_id],
+                    output_dir=output_dir,
+                    max_wait_time=CONFIG.max_wait_time,
+                    part_size=CONFIG.part_size,
+                    message_display=message_display,
+                    work_package_accessor=parameters.work_package_accessor,
+                )
+            staged_files.clear()
 
 
 @cli.command(no_args_is_help=True)

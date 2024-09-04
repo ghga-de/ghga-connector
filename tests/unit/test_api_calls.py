@@ -204,15 +204,15 @@ def test_get_wps_file_info(httpx_mock: HTTPXMock):
 async def test_wkvs_calls(httpx_mock: HTTPXMock):
     """Test handling of responses for WKVS api calls"""
     wkvs_url = "https://127.0.0.1"
-    wkvs_caller = WKVSCaller(wkvs_url)
+    wkvs_caller = WKVSCaller(client="", wkvs_url=wkvs_url)
 
     with pytest.raises(WellKnownValueNotFound):
         httpx_mock.add_response(status_code=404)
-        wkvs_caller.get_server_pubkey()
+        await wkvs_caller.get_server_pubkey()
 
     with pytest.raises(KeyError):
         httpx_mock.add_response(status_code=200, json={})
-        wkvs_caller.get_server_pubkey()
+        await wkvs_caller.get_server_pubkey()
 
     # test each call to CYA
     for func, value_name in [

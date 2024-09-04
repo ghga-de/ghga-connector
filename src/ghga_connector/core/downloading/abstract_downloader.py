@@ -16,24 +16,17 @@
 """Contains base class for download functionality"""
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence
-from queue import Queue
+from collections.abc import AsyncGenerator, Coroutine
+from typing import Any
 
 from ghga_connector.core.downloading.structs import URLResponse
-from ghga_connector.core.message_display import AbstractMessageDisplay
-from ghga_connector.core.structs import PartRange
 
 
 class DownloaderBase(ABC):
     """Base class defining the interface a downloader object needs to provide"""
 
     @abstractmethod
-    def await_download_url(
-        self,
-        *,
-        max_wait_time: int,
-        message_display: AbstractMessageDisplay,
-    ) -> URLResponse:
+    def await_download_url(self) -> Coroutine[Any, Any, URLResponse]:
         """Wait until download URL can be generated.
         Returns a URLResponse with two attributes:
             1. the download url
@@ -41,13 +34,11 @@ class DownloaderBase(ABC):
         """
 
     @abstractmethod
-    def get_download_urls(
-        self,
-    ) -> Iterator[URLResponse]:
+    def get_download_urls(self) -> AsyncGenerator[URLResponse, None]:
         """For a specific multi-part download, return an iterator to lazily obtain download URLs."""
 
     @abstractmethod
-    def get_file_header_envelope(self) -> bytes:
+    def get_file_header_envelope(self) -> Coroutine[Any, Any, bytes]:
         """
         Perform a RESTful API call to retrieve a file header envelope.
         Returns:
@@ -61,17 +52,5 @@ class DownloaderBase(ABC):
         download_url: str,
         start: int,
         end: int,
-        queue: Queue,
-    ) -> None:
+    ) -> Coroutine[Any, Any, None]:
         """Download a specific range of a file's content using a presigned download url."""
-
-    @abstractmethod
-    def download_file_parts(
-        self,
-        *,
-        url_response: Iterator[URLResponse],
-        max_concurrent_downloads: int,
-        part_ranges: Sequence[PartRange],
-        queue: Queue,
-    ) -> None:
-        """Download all file parts specified by part_ranges"""

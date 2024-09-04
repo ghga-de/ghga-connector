@@ -78,9 +78,9 @@ def get_file_authorization(
     )
 
 
-def get_download_url(
+async def get_download_url(
     *,
-    client: httpx.Client,
+    client: httpx.AsyncClient,
     url_and_headers: UrlAndHeaders,
 ) -> Union[RetryResponse, URLResponse]:
     """
@@ -95,7 +95,7 @@ def get_download_url(
     url = url_and_headers.endpoint_url
 
     try:
-        response = client.get(
+        response = await client.get(
             url=url, headers=url_and_headers.headers, timeout=TIMEOUT_LONG
         )
     except httpx.RequestError as request_error:

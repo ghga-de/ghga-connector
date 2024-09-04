@@ -73,7 +73,7 @@ async def test_download_content_range(
             work_package_accessor=dummy_accessor,
             client=client,
         )
-        downloader.download_content_range(
+        await downloader.download_content_range(
             download_url=download_url, start=start, end=end, queue=queue
         )
 

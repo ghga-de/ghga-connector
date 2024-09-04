@@ -152,7 +152,7 @@ async def test_multipart_download(
             wps_api_url=api_url,
         ),
     ):
-        download(
+        await download(
             output_dir=tmp_path,
             my_public_key_path=Path(PUBLIC_KEY_FILE),
             my_private_key_path=Path(PRIVATE_KEY_FILE),
@@ -265,7 +265,7 @@ async def test_download(
                         exceptions.UnauthorizedAPICallError,
                         match="This is not the token you're looking for.",
                     ):
-                        download(
+                        await download(
                             output_dir=output_dir,
                             my_public_key_path=Path(PUBLIC_KEY_FILE),
                             my_private_key_path=Path(PRIVATE_KEY_FILE),
@@ -279,7 +279,7 @@ async def test_download(
                         match="Endpoint file ID did not match file ID"
                         " announced in work order token",
                     ):
-                        download(
+                        await download(
                             output_dir=output_dir,
                             my_public_key_path=Path(PUBLIC_KEY_FILE),
                             my_private_key_path=Path(PRIVATE_KEY_FILE),
@@ -292,7 +292,7 @@ async def test_download(
                     if expected_exception
                     else nullcontext()
                 ):
-                    download(
+                    await download(
                         output_dir=output_dir,
                         my_public_key_path=Path(PUBLIC_KEY_FILE),
                         my_private_key_path=Path(PRIVATE_KEY_FILE),
@@ -394,7 +394,7 @@ async def test_upload(
             else nullcontext()
         ):
             message_display = init_message_display(debug=True)
-            parameters = retrieve_upload_parameters()
+            parameters = await retrieve_upload_parameters()
             await upload(
                 api_url=parameters.ucs_api_url,
                 file_id=uploadable_file.file_id,
@@ -489,7 +489,7 @@ async def test_multipart_upload(
             get_test_config(),
         ):
             message_display = init_message_display(debug=True)
-            parameters = retrieve_upload_parameters()
+            parameters = await retrieve_upload_parameters()
             await upload(
                 api_url=parameters.ucs_api_url,
                 file_id=file_id,

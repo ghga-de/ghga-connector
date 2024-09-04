@@ -29,6 +29,7 @@ dependencies = [
     "ghga-service-commons[crypt]>=3.1.1, <4",
     "hexkit[s3]>=3, <4",
     "rich>=13.7.1, <14",
+    "tenacity >=9.0.0, <10",
 ]
 
 [project.license]

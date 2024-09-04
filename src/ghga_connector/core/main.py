@@ -20,9 +20,9 @@ from pathlib import Path
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor, is_service_healthy
-from ghga_connector.core.client import async_client, httpx_client
+from ghga_connector.core.client import async_client
 from ghga_connector.core.crypt import Crypt4GHDecryptor
-from ghga_connector.core.downloading import Downloader, run_download
+from ghga_connector.core.downloading import Downloader
 from ghga_connector.core.file_operations import is_file_encrypted
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.uploading import Uploader, run_upload
@@ -94,7 +94,7 @@ async def upload(  # noqa: PLR0913
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
 
-def download(  # noqa: PLR0913
+async def download(  # noqa: PLR0913
     *,
     api_url: str,
     output_dir: Path,
@@ -124,18 +124,17 @@ def download(  # noqa: PLR0913
     if output_file_ongoing.exists():
         output_file_ongoing.unlink()
 
-    with httpx_client() as client:
+    async with async_client() as client:
         downloader = Downloader(
-            client=client, file_id=file_id, work_package_accessor=work_package_accessor
+            client=client,
+            file_id=file_id,
+            max_concurrent_downloads=5,
+            max_wait_time=3600,
+            message_display=message_display,
+            work_package_accessor=work_package_accessor,
         )
         try:
-            run_download(
-                downloader=downloader,
-                max_wait_time=max_wait_time,
-                message_display=message_display,
-                output_file_ongoing=output_file_ongoing,
-                part_size=part_size,
-            )
+            await downloader.download_file(output_path=output_file, part_size=part_size)
         except exceptions.GetEnvelopeError as error:
             message_display.failure(
                 f"The request to get an envelope for file '{file_id}' failed."

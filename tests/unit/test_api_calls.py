@@ -24,6 +24,7 @@ from unittest.mock import Mock
 
 import pytest
 from pytest_httpx import HTTPXMock
+from tenacity import RetryError
 
 from ghga_connector.core import WKVSCaller
 from ghga_connector.core.api_calls import WorkPackageAccessor
@@ -156,6 +157,7 @@ async def test_get_part_upload_urls(
                 break
 
 
+@pytest.mark.asyncio
 async def test_get_wps_file_info(httpx_mock: HTTPXMock):
     """Test response handling with some mock - just make sure code paths work"""
     config = get_test_config(max_retries=2)
@@ -178,7 +180,7 @@ async def test_get_wps_file_info(httpx_mock: HTTPXMock):
             access_token=wp_token,
             package_id=wp_id,
         )
-        response = work_package_accessor.get_package_files()
+        response = await work_package_accessor.get_package_files()
         assert response == files
 
         httpx_mock.add_response(json={"files": files}, status_code=403)
@@ -189,9 +191,19 @@ async def test_get_wps_file_info(httpx_mock: HTTPXMock):
                 access_token=wp_token,
                 package_id=wp_id,
             )
-            response = work_package_accessor.get_package_files()
+            response = await work_package_accessor.get_package_files()
 
         httpx_mock.add_response(json={"files": files}, status_code=500)
+
+        with pytest.raises(RetryError):
+            wp_id, wp_token = mock_wps_token(1, None)
+            work_package_accessor = partial_accessor(
+                access_token=wp_token,
+                package_id=wp_id,
+            )
+            response = await work_package_accessor.get_package_files()
+
+        httpx_mock.add_response(json={"files": files}, status_code=501)
 
         with pytest.raises(InvalidWPSResponseError):
             wp_id, wp_token = mock_wps_token(1, None)
@@ -199,7 +211,7 @@ async def test_get_wps_file_info(httpx_mock: HTTPXMock):
                 access_token=wp_token,
                 package_id=wp_id,
             )
-            response = work_package_accessor.get_package_files()
+            response = await work_package_accessor.get_package_files()
 
 
 @pytest.mark.asyncio
@@ -226,5 +238,5 @@ async def test_wkvs_calls(httpx_mock: HTTPXMock):
             (wkvs_caller.get_wps_api_url, "wps_api_url"),
         ]:
             httpx_mock.add_response(json={value_name: "dummy-value"})
-            value = func()
+            value = await func()
             assert value == "dummy-value"

@@ -15,7 +15,6 @@
 #
 """CLI-specific wrappers around core functions."""
 
-import asyncio
 import os
 import sys
 from dataclasses import dataclass
@@ -195,9 +194,9 @@ async def upload(
     message_display = init_message_display(debug=debug)
     async with async_client() as client:
         parameters = await retrieve_upload_parameters(client)
-    asyncio.run(
-        core.upload(
+        await core.upload(
             api_url=parameters.ucs_api_url,
+            client=client,
             file_id=file_id,
             file_path=file_path,
             message_display=message_display,
@@ -206,7 +205,6 @@ async def upload(
             my_private_key_path=my_private_key_path,
             part_size=CONFIG.part_size,
         )
-    )
 
 
 if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
@@ -279,6 +277,7 @@ async def download(
                 message_display.display(f"Downloading file with id '{file_id}'...")
                 await core.download(
                     api_url=parameters.dcs_api_url,
+                    client=client,
                     file_id=file_id,
                     file_extension=parameters.file_ids_with_extension[file_id],
                     output_dir=output_dir,

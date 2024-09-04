@@ -18,9 +18,10 @@
 
 from pathlib import Path
 
+import httpx
+
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor, is_service_healthy
-from ghga_connector.core.client import async_client
 from ghga_connector.core.crypt import Crypt4GHDecryptor
 from ghga_connector.core.downloading import Downloader
 from ghga_connector.core.file_operations import is_file_encrypted
@@ -31,6 +32,7 @@ from ghga_connector.core.uploading import Uploader, run_upload
 async def upload(  # noqa: PLR0913
     *,
     api_url: str,
+    client: httpx.AsyncClient,
     file_id: str,
     file_path: Path,
     message_display: AbstractMessageDisplay,
@@ -57,39 +59,34 @@ async def upload(  # noqa: PLR0913
     if not is_service_healthy(api_url):
         raise exceptions.ApiNotReachableError(api_url=api_url)
 
-    async with async_client() as client:
-        uploader = Uploader(
-            api_url=api_url,
-            client=client,
+    uploader = Uploader(
+        api_url=api_url,
+        client=client,
+        file_id=file_id,
+        public_key_path=my_public_key_path,
+    )
+    try:
+        await run_upload(
             file_id=file_id,
-            public_key_path=my_public_key_path,
+            file_path=file_path,
+            my_private_key_path=my_private_key_path,
+            part_size=part_size,
+            server_public_key=server_public_key,
+            uploader=uploader,
         )
-        try:
-            await run_upload(
-                file_id=file_id,
-                file_path=file_path,
-                my_private_key_path=my_private_key_path,
-                part_size=part_size,
-                server_public_key=server_public_key,
-                uploader=uploader,
-            )
-        except exceptions.StartUploadError as error:
-            message_display.failure(
-                "The request to start a multipart upload has failed."
-            )
-            raise error
-        except exceptions.CantChangeUploadStatusError as error:
-            message_display.failure(
-                f"The file with id '{file_id}' was already uploaded."
-            )
-            raise error
-        except exceptions.ConnectionFailedError as error:
-            message_display.failure("The upload failed too many times and was aborted.")
-            raise error
-        except exceptions.FinalizeUploadError as error:
-            message_display.failure(
-                f"Finishing the upload with id '{file_id}' failed.\n{error.cause}"
-            )
+    except exceptions.StartUploadError as error:
+        message_display.failure("The request to start a multipart upload has failed.")
+        raise error
+    except exceptions.CantChangeUploadStatusError as error:
+        message_display.failure(f"The file with id '{file_id}' was already uploaded.")
+        raise error
+    except exceptions.ConnectionFailedError as error:
+        message_display.failure("The upload failed too many times and was aborted.")
+        raise error
+    except exceptions.FinalizeUploadError as error:
+        message_display.failure(
+            f"Finishing the upload with id '{file_id}' failed.\n{error.cause}"
+        )
 
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
@@ -97,6 +94,7 @@ async def upload(  # noqa: PLR0913
 async def download(  # noqa: PLR0913
     *,
     api_url: str,
+    client: httpx.AsyncClient,
     output_dir: Path,
     part_size: int,
     message_display: AbstractMessageDisplay,
@@ -124,25 +122,26 @@ async def download(  # noqa: PLR0913
     if output_file_ongoing.exists():
         output_file_ongoing.unlink()
 
-    async with async_client() as client:
-        downloader = Downloader(
-            client=client,
-            file_id=file_id,
-            max_concurrent_downloads=5,
-            max_wait_time=3600,
-            message_display=message_display,
-            work_package_accessor=work_package_accessor,
+    downloader = Downloader(
+        client=client,
+        file_id=file_id,
+        max_concurrent_downloads=5,
+        max_wait_time=max_wait_time,
+        message_display=message_display,
+        work_package_accessor=work_package_accessor,
+    )
+    try:
+        await downloader.download_file(
+            output_path=output_file_ongoing, part_size=part_size
         )
-        try:
-            await downloader.download_file(output_path=output_file, part_size=part_size)
-        except exceptions.GetEnvelopeError as error:
-            message_display.failure(
-                f"The request to get an envelope for file '{file_id}' failed."
-            )
-            raise error
-        except exceptions.DownloadError as error:
-            message_display.failure(f"Failed downloading with id '{file_id}'.")
-            raise error
+    except exceptions.GetEnvelopeError as error:
+        message_display.failure(
+            f"The request to get an envelope for file '{file_id}' failed."
+        )
+        raise error
+    except exceptions.DownloadError as error:
+        message_display.failure(f"Failed downloading with id '{file_id}'.")
+        raise error
 
     # rename fully downloaded file
     if output_file.exists():

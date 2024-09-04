@@ -205,7 +205,7 @@ class FileStager:
         If files cannot be staged for other reason, a BadResponseCodeError is raised.
         """
         try:
-            url_and_headers = get_file_authorization(
+            url_and_headers = await get_file_authorization(
                 file_id=file_id,
                 work_package_accessor=self.work_package_accessor,
             )

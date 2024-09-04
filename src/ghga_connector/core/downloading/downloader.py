@@ -17,7 +17,6 @@
 
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
-from collections.abc import AsyncGenerator
 from io import BufferedWriter
 from pathlib import Path
 from time import sleep
@@ -74,20 +73,11 @@ class Downloader(DownloaderBase):
             part_size=part_size, total_file_size=url_response.file_size
         )
 
-        # Get the download urls
-        download_urls = self.get_download_urls()
-
         tasks = set()
-
         # start async part download to intermediate queue
-        async for download_url in download_urls:
-            part_range = next(part_ranges)
+        for part_range in part_ranges:
             # no task groups in 3.9
-            task = create_task(
-                self.download_to_queue(
-                    download_url=download_url.download_url, part_range=part_range
-                )
-            )
+            task = create_task(self.download_to_queue(part_range=part_range))
             tasks.add(task)
             task.add_done_callback(tasks.discard)
 
@@ -114,8 +104,6 @@ class Downloader(DownloaderBase):
                 ),
                 name="Write queue to file",
             )
-            for task in tasks:
-                await task
             await write_to_file
 
     async def await_download_url(
@@ -130,7 +118,7 @@ class Downloader(DownloaderBase):
         wait_time = 0
         while wait_time < self._max_wait_time:
             try:
-                url_and_headers = get_file_authorization(
+                url_and_headers = await get_file_authorization(
                     file_id=self._file_id,
                     work_package_accessor=self._work_package_accessor,
                 )
@@ -158,22 +146,21 @@ class Downloader(DownloaderBase):
 
         raise exceptions.MaxWaitTimeExceededError(max_wait_time=self._max_wait_time)
 
-    async def get_download_urls(self) -> AsyncGenerator[URLResponse, None]:
+    async def get_download_url(self) -> URLResponse:
         """
         For a specific multi-part download identified by `file_id`, return an iterator to
         lazily obtain download URLs.
         """
-        while True:
-            url_and_headers = get_file_authorization(
-                file_id=self._file_id, work_package_accessor=self._work_package_accessor
-            )
-            url_response = await get_download_url(
-                client=self._client, url_and_headers=url_and_headers
-            )
-            if isinstance(url_response, RetryResponse):
-                # File should be staged at that point in time
-                raise exceptions.UnexpectedRetryResponseError()
-            yield url_response
+        url_and_headers = await get_file_authorization(
+            file_id=self._file_id, work_package_accessor=self._work_package_accessor
+        )
+        url_response = await get_download_url(
+            client=self._client, url_and_headers=url_and_headers
+        )
+        if isinstance(url_response, RetryResponse):
+            # File should be staged at that point in time
+            raise exceptions.UnexpectedRetryResponseError()
+        return url_response
 
     async def get_file_header_envelope(self) -> bytes:
         """
@@ -181,7 +168,7 @@ class Downloader(DownloaderBase):
         Returns:
             The file header envelope (bytes object)
         """
-        url_and_headers = get_envelope_authorization(
+        url_and_headers = await get_envelope_authorization(
             file_id=self._file_id, work_package_accessor=self._work_package_accessor
         )
         url = url_and_headers.endpoint_url
@@ -221,24 +208,25 @@ class Downloader(DownloaderBase):
         ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
-    async def download_to_queue(self, *, download_url: str, part_range: PartRange):
+    async def download_to_queue(self, *, part_range: PartRange):
         """TODO"""
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
             await self.download_content_range(
-                download_url=download_url, start=part_range.start, end=part_range.stop
+                start=part_range.start, end=part_range.stop
             )
 
     async def download_content_range(
         self,
         *,
-        download_url: str,
         start: int,
         end: int,
     ) -> None:
         """Download a specific range of a file's content using a presigned download url."""
         headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
 
+        url_response = await self.get_download_url()
+        download_url = url_response.download_url
         try:
             response = await self._client.get(download_url, headers=headers)
         except httpx.RequestError as request_error:

@@ -46,6 +46,7 @@ def configure_async_retries(
 ):
     """Initialize retry handler from config"""
     return AsyncRetrying(
+        reraise=True,
         retry=(
             retry_if_exception_type(
                 (
@@ -66,6 +67,7 @@ def configure_retries(
 ):
     """Initialize retry handler from config"""
     return Retrying(
+        reraise=True,
         retry=(
             retry_if_exception_type(
                 (

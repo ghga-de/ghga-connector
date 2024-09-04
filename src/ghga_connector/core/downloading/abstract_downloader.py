@@ -16,7 +16,7 @@
 """Contains base class for download functionality"""
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, Coroutine
+from collections.abc import Coroutine
 from typing import Any
 
 from ghga_connector.core.downloading.structs import URLResponse
@@ -34,7 +34,7 @@ class DownloaderBase(ABC):
         """
 
     @abstractmethod
-    def get_download_urls(self) -> AsyncGenerator[URLResponse, None]:
+    def get_download_url(self) -> Coroutine[Any, Any, URLResponse]:
         """For a specific multi-part download, return an iterator to lazily obtain download URLs."""
 
     @abstractmethod
@@ -49,7 +49,6 @@ class DownloaderBase(ABC):
     def download_content_range(
         self,
         *,
-        download_url: str,
         start: int,
         end: int,
     ) -> Coroutine[Any, Any, None]:

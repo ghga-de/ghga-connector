@@ -16,15 +16,15 @@
 
 """Test file operations"""
 
+from asyncio import create_task
 from collections.abc import Iterator
-from queue import Empty, Queue
-from typing import Any
 from unittest.mock import Mock
 
 import pytest
 
+from ghga_connector.cli import CLIMessageDisplay
 from ghga_connector.core.api_calls import WorkPackageAccessor
-from ghga_connector.core.client import httpx_client
+from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading import Downloader
 from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.file_operations import calc_part_ranges
@@ -62,22 +62,24 @@ async def test_download_content_range(
     )
     expected_bytes = big_object.content[start : end + 1]
 
-    queue: Queue = Queue(maxsize=10)
-
+    message_display = CLIMessageDisplay()
     # download content range with dedicated function:
-    with httpx_client() as client:
+    async with async_client() as client:
         # no work package accessor calls in download_content_range, just mock for correct type
         dummy_accessor = Mock(spec=WorkPackageAccessor)
         downloader = Downloader(
-            file_id=big_object.object_id,
-            work_package_accessor=dummy_accessor,
             client=client,
+            file_id=big_object.object_id,
+            max_concurrent_downloads=5,
+            max_wait_time=10,
+            work_package_accessor=dummy_accessor,
+            message_display=message_display,
         )
         await downloader.download_content_range(
-            download_url=download_url, start=start, end=end, queue=queue
+            download_url=download_url, start=start, end=end
         )
 
-    obtained_start, obtained_bytes = queue.get()
+    obtained_start, obtained_bytes = await downloader._queue.get()
 
     assert start == obtained_start
     assert expected_bytes == obtained_bytes
@@ -91,6 +93,7 @@ async def test_download_content_range(
 async def test_download_file_parts(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa: F811
+    tmp_path,
 ):
     """Test the `download_file_parts` function."""
     # prepare state and the expected result:
@@ -107,38 +110,36 @@ async def test_download_file_parts(
             yield URLResponse(download_url=download_url, file_size=0)
 
     url_responses = url_generator()
-
-    queue: Queue = Queue(maxsize=10)
-
     part_ranges = calc_part_ranges(part_size=part_size, total_file_size=total_file_size)
 
-    with httpx_client() as client:
-        # prepare kwargs:
-        kwargs: dict[str, Any] = {
-            "url_response": url_responses,
-            "queue": queue,
-            "part_ranges": part_ranges,
-            "max_concurrent_downloads": 5,
-        }
-
+    async with async_client() as client:
         # no work package accessor calls in download_file_parts, just mock for correct type
         dummy_accessor = Mock(spec=WorkPackageAccessor)
+        message_display = CLIMessageDisplay()
         downloader = Downloader(
-            file_id=big_object.object_id,
-            work_package_accessor=dummy_accessor,
             client=client,
+            file_id=big_object.object_id,
+            max_concurrent_downloads=5,
+            max_wait_time=10,
+            work_package_accessor=dummy_accessor,
+            message_display=message_display,
         )
-        # download file parts with dedicated function:
-        downloader.download_file_parts(**kwargs)
+        tasks = set()
 
-        obtained = 0
-        while obtained < len(expected_bytes):
-            try:
-                start, obtained_bytes = queue.get(block=False)
-            except Empty:
-                continue
-            obtained += len(obtained_bytes)
-            queue.task_done()
-            assert expected_bytes[start : start + part_size] == obtained_bytes
+        for part_range, url_response in zip(part_ranges, url_responses):
+            task = create_task(
+                downloader.download_to_queue(
+                    download_url=url_response.download_url, part_range=part_range
+                )
+            )
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
 
-        assert obtained == len(expected_bytes)
+            file_path = tmp_path / "test.file"
+            with file_path.open("wb") as file:
+                await downloader.drain_queue_to_file(
+                    file_name=file.name, file=file, file_size=total_file_size, offset=0
+                )
+
+            num_bytes_obtained = file_path.stat.st_size
+            assert num_bytes_obtained == len(expected_bytes)

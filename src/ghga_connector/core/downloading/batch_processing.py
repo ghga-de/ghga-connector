@@ -156,7 +156,11 @@ class FileStager:
         self.work_package_accessor = work_package_accessor
         self.max_wait_time = config.max_wait_time
         self.client = client
-        self.retry_handler = configure_async_retries(config)
+        self.retry_handler = configure_async_retries(
+            exponential_backoff_max=config.exponential_backoff_max,
+            max_retries=config.max_retries,
+            status_codes=config.retry_status_codes,
+        )
         self.time_started = now = time()
 
         # Successfully staged files with their download URLs and sizes

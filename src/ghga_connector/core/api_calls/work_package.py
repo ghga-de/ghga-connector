@@ -21,7 +21,8 @@ import httpx
 from ghga_service_commons.utils.crypt import decrypt
 
 from ghga_connector.config import Config
-from ghga_connector.core import configure_async_retries, exceptions
+from ghga_connector.core import exceptions
+from ghga_connector.core.client import configure_async_retries
 
 
 class WorkPackageAccessor:
@@ -45,15 +46,11 @@ class WorkPackageAccessor:
         self.package_id = package_id
         self.my_private_key = my_private_key
         self.my_public_key = my_public_key
-        self.retry_handler = configure_async_retries(config)
-
-    async def _get(self, headers: httpx.Headers, url: str) -> httpx.Response:
-        """GET request to be wrapped by retry handler."""
-        return await self.client.get(url=url, headers=headers)
-
-    async def _post(self, headers: httpx.Headers, url: str) -> httpx.Response:
-        """POST request to be wrapped by retry handler."""
-        return await self.client.post(url=url, headers=headers)
+        self.retry_handler = configure_async_retries(
+            exponential_backoff_max=config.exponential_backoff_max,
+            max_retries=config.max_retries,
+            status_codes=config.retry_status_codes,
+        )
 
     async def get_package_files(self) -> dict[str, str]:
         """Call WPS endpoint and retrieve work package information."""
@@ -62,8 +59,8 @@ class WorkPackageAccessor:
         # send authorization header as bearer token
         headers = httpx.Headers({"Authorization": f"Bearer {self.access_token}"})
         try:
-            response = await self.retry_handler(
-                fn=self._get,
+            response: httpx.Response = await self.retry_handler(
+                fn=self.client.get,
                 headers=headers,
                 url=url,
             )
@@ -90,7 +87,7 @@ class WorkPackageAccessor:
 
         try:
             response = await self.retry_handler(
-                fn=self._post,
+                fn=self.client.post,
                 headers=headers,
                 url=url,
             )

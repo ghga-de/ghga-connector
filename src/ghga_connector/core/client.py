@@ -26,7 +26,6 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from ghga_connector.config import Config
 from ghga_connector.core.constants import TIMEOUT
 
 
@@ -42,7 +41,9 @@ class HttpxClientConfigurator:
         cls.max_retries = max(0, max_retries)
 
 
-def configure_async_retries(config: Config):
+def configure_async_retries(
+    exponential_backoff_max: int, max_retries: int, status_codes: list[int]
+):
     """Initialize retry handler from config"""
     return AsyncRetrying(
         retry=(
@@ -53,16 +54,16 @@ def configure_async_retries(config: Config):
                     httpx.TimeoutException,
                 )
             )
-            | retry_if_result(
-                lambda response: response.status_code in config.retry_status_codes
-            )
+            | retry_if_result(lambda response: response.status_code in status_codes)
         ),
-        stop=stop_after_attempt(config.max_retries),
-        wait=wait_exponential_jitter(max=config.exponential_backoff_max),
+        stop=stop_after_attempt(max_retries),
+        wait=wait_exponential_jitter(max=exponential_backoff_max),
     )
 
 
-def configure_retries(config: Config):
+def configure_retries(
+    exponential_backoff_max: int, max_retries: int, status_codes: list[int]
+):
     """Initialize retry handler from config"""
     return Retrying(
         retry=(
@@ -73,28 +74,22 @@ def configure_retries(config: Config):
                     httpx.TimeoutException,
                 )
             )
-            | retry_if_result(
-                lambda response: response.status_code in config.retry_status_codes
-            )
+            | retry_if_result(lambda response: response.status_code in status_codes)
         ),
-        stop=stop_after_attempt(config.max_retries),
-        wait=wait_exponential_jitter(max=config.exponential_backoff_max),
+        stop=stop_after_attempt(max_retries),
+        wait=wait_exponential_jitter(max=exponential_backoff_max),
     )
 
 
 @contextmanager
 def httpx_client():
     """Yields a context manager httpx client and closes it afterward"""
-    transport = httpx.HTTPTransport(retries=HttpxClientConfigurator.max_retries)
-
-    with httpx.Client(transport=transport, timeout=TIMEOUT) as client:
+    with httpx.Client(timeout=TIMEOUT) as client:
         yield client
 
 
 @asynccontextmanager
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
-    transport = httpx.AsyncHTTPTransport(retries=HttpxClientConfigurator.max_retries)
-
-    async with httpx.AsyncClient(transport=transport, timeout=TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         yield client

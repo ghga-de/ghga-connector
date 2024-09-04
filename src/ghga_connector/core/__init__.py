@@ -20,13 +20,6 @@ It should not contain any service API-related code.
 
 from . import exceptions  # noqa: F401
 from .api_calls import WKVSCaller, WorkPackageAccessor  # noqa: F401
-from .client import (  # noqa: F401
-    HttpxClientConfigurator,
-    async_client,
-    configure_async_retries,
-    configure_retries,
-    httpx_client,
-)
 from .constants import (  # noqa: F401
     DEFAULT_PART_SIZE,
     MAX_PART_NUMBER,

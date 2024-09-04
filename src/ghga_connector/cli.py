@@ -31,7 +31,7 @@ from ghga_service_commons.utils import crypt
 
 from ghga_connector import core
 from ghga_connector.config import Config
-from ghga_connector.core.client import async_client
+from ghga_connector.core.client import HttpxClientConfigurator, async_client
 
 CONFIG = Config()
 
@@ -116,7 +116,7 @@ def init_message_display(debug: bool = False) -> CLIMessageDisplay:
 
 async def retrieve_upload_parameters(client: httpx.AsyncClient) -> UploadParameters:
     """Configure httpx client and retrieve necessary parameters from WKVS"""
-    core.HttpxClientConfigurator.configure(CONFIG.max_retries)
+    HttpxClientConfigurator.configure(CONFIG.max_retries)
     wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
     ucs_api_url = await wkvs_caller.get_ucs_api_url()
     server_pubkey = await wkvs_caller.get_server_pubkey()
@@ -132,7 +132,7 @@ async def retrieve_download_parameters(
     work_package_information: WorkPackageInformation,
 ) -> DownloadParameters:
     """Run necessary API calls to configure file download"""
-    core.HttpxClientConfigurator.configure(CONFIG.max_retries)
+    HttpxClientConfigurator.configure(CONFIG.max_retries)
     wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
     dcs_api_url = await wkvs_caller.get_dcs_api_url()
     wps_api_url = await wkvs_caller.get_wps_api_url()

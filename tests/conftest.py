@@ -16,7 +16,8 @@
 
 import pytest
 
-from ghga_connector.core import MAX_RETRIES, HttpxClientConfigurator
+from ghga_connector.core import MAX_RETRIES
+from ghga_connector.core.client import HttpxClientConfigurator
 
 
 @pytest.fixture(autouse=True)

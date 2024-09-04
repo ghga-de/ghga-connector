@@ -41,6 +41,7 @@ from ghga_connector.cli import (
     retrieve_upload_parameters,
 )
 from ghga_connector.core import exceptions, upload
+from ghga_connector.core.client import async_client
 from ghga_connector.core.constants import DEFAULT_PART_SIZE
 from ghga_connector.core.crypt import Crypt4GHEncryptor
 from tests.fixtures import state
@@ -385,37 +386,34 @@ async def test_upload(
         lambda x: api_url,
     )
 
-    with patch("ghga_connector.cli.CONFIG", get_test_config()):
-        with (
-            pytest.raises(
-                expected_exception  # type: ignore
-            )
-            if expected_exception
-            else nullcontext()
-        ):
-            message_display = init_message_display(debug=True)
-            parameters = await retrieve_upload_parameters()
-            await upload(
-                api_url=parameters.ucs_api_url,
-                file_id=uploadable_file.file_id,
-                file_path=file_path,
-                message_display=message_display,
-                server_public_key=parameters.server_pubkey,
-                my_public_key_path=Path(PUBLIC_KEY_FILE),
-                my_private_key_path=Path(PRIVATE_KEY_FILE),
-                part_size=DEFAULT_PART_SIZE,
-            )
+    with (
+        patch("ghga_connector.cli.CONFIG", get_test_config()),
+        pytest.raises(expected_exception) if expected_exception else nullcontext(),  # type: ignore
+    ):
+        message_display = init_message_display(debug=True)
+        async with async_client() as client:
+            parameters = await retrieve_upload_parameters(client=client)
+        await upload(
+            api_url=parameters.ucs_api_url,
+            file_id=uploadable_file.file_id,
+            file_path=file_path,
+            message_display=message_display,
+            server_public_key=parameters.server_pubkey,
+            my_public_key_path=Path(PUBLIC_KEY_FILE),
+            my_private_key_path=Path(PRIVATE_KEY_FILE),
+            part_size=DEFAULT_PART_SIZE,
+        )
 
-            await s3_fixture.storage.complete_multipart_upload(
-                upload_id=upload_id,
-                bucket_id=uploadable_file.grouping_label,
-                object_id=uploadable_file.file_id,
-            )
+        await s3_fixture.storage.complete_multipart_upload(
+            upload_id=upload_id,
+            bucket_id=uploadable_file.grouping_label,
+            object_id=uploadable_file.file_id,
+        )
 
-            assert await s3_fixture.storage.does_object_exist(
-                bucket_id=uploadable_file.grouping_label,
-                object_id=uploadable_file.file_id,
-            )
+        assert await s3_fixture.storage.does_object_exist(
+            bucket_id=uploadable_file.grouping_label,
+            object_id=uploadable_file.file_id,
+        )
 
 
 @pytest.mark.parametrize(
@@ -489,7 +487,8 @@ async def test_multipart_upload(
             get_test_config(),
         ):
             message_display = init_message_display(debug=True)
-            parameters = await retrieve_upload_parameters()
+            async with async_client() as client:
+                parameters = await retrieve_upload_parameters(client=client)
             await upload(
                 api_url=parameters.ucs_api_url,
                 file_id=file_id,

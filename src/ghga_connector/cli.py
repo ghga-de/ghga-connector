@@ -31,6 +31,7 @@ from ghga_service_commons.utils import crypt
 from ghga_connector import core
 from ghga_connector.config import Config
 from ghga_connector.core.client import HttpxClientConfigurator, async_client
+from ghga_connector.core.downloading.batch_processing import FileStager
 
 CONFIG = Config()
 
@@ -269,7 +270,7 @@ async def download(
             work_package_information=work_package_information,
         )
 
-        stager = core.FileStager(
+        stager = FileStager(
             wanted_file_ids=list(parameters.file_ids_with_extension),
             dcs_api_url=parameters.dcs_api_url,
             output_dir=output_dir,

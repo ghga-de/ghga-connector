@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from types import TracebackType
-from typing import Union
+from typing import Optional, Union
 
 import crypt4gh.keys
 import httpx
@@ -115,7 +115,6 @@ def init_message_display(debug: bool = False) -> CLIMessageDisplay:
 
 async def retrieve_upload_parameters(client: httpx.AsyncClient) -> UploadParameters:
     """Configure httpx client and retrieve necessary parameters from WKVS"""
-    HttpxClientConfigurator.configure(CONFIG.max_retries)
     wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
     ucs_api_url = await wkvs_caller.get_ucs_api_url()
     server_pubkey = await wkvs_caller.get_server_pubkey()
@@ -131,7 +130,6 @@ async def retrieve_download_parameters(
     work_package_information: WorkPackageInformation,
 ) -> DownloadParameters:
     """Run necessary API calls to configure file download"""
-    HttpxClientConfigurator.configure(CONFIG.max_retries)
     wkvs_caller = core.WKVSCaller(client=client, wkvs_url=CONFIG.wkvs_api_url)
     dcs_api_url = await wkvs_caller.get_dcs_api_url()
     wps_api_url = await wkvs_caller.get_wps_api_url()
@@ -140,7 +138,6 @@ async def retrieve_download_parameters(
         access_token=work_package_information.decrypted_token,
         api_url=wps_api_url,
         client=client,
-        config=CONFIG,
         dcs_api_url=dcs_api_url,
         package_id=work_package_information.package_id,
         my_private_key=my_private_key,
@@ -192,6 +189,11 @@ async def upload(
 ):
     """Command to upload a file"""
     message_display = init_message_display(debug=debug)
+    HttpxClientConfigurator.configure(
+        exponential_backoff_max=CONFIG.exponential_backoff_max,
+        max_retries=CONFIG.max_retries,
+        retry_status_codes=CONFIG.retry_status_codes,
+    )
     async with async_client() as client:
         parameters = await retrieve_upload_parameters(client)
         await core.upload(
@@ -248,6 +250,11 @@ async def download(
     )
 
     message_display = init_message_display(debug=debug)
+    HttpxClientConfigurator.configure(
+        exponential_backoff_max=CONFIG.exponential_backoff_max,
+        max_retries=CONFIG.max_retries,
+        retry_status_codes=CONFIG.retry_status_codes,
+    )
     message_display.display("\nFetching work package token...")
     work_package_information = get_work_package_information(
         my_private_key=my_private_key, message_display=message_display
@@ -281,6 +288,7 @@ async def download(
                     file_id=file_id,
                     file_extension=parameters.file_ids_with_extension[file_id],
                     output_dir=output_dir,
+                    max_concurrent_downloads=CONFIG.max_concurrent_downloads,
                     max_wait_time=CONFIG.max_wait_time,
                     part_size=CONFIG.part_size,
                     message_display=message_display,
@@ -297,7 +305,7 @@ def decrypt(  # noqa: PLR0912, C901
         help="Path to the directory containing files that should be decrypted using a "
         + "common decryption key.",
     ),
-    output_dir: Path = typer.Option(
+    output_dir: Optional[Path] = typer.Option(
         None,
         help="Optional path to a directory that the decrypted file should be written to. "
         + "Defaults to input dir.",

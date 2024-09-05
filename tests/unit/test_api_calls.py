@@ -24,7 +24,6 @@ from unittest.mock import Mock
 
 import pytest
 from pytest_httpx import HTTPXMock
-from tenacity import RetryError
 
 from ghga_connector.core import WKVSCaller
 from ghga_connector.core.api_calls import WorkPackageAccessor
@@ -40,7 +39,6 @@ from ghga_connector.core.exceptions import (
 )
 from ghga_connector.core.uploading import Uploader
 from ghga_connector.core.uploading.structs import UploadStatus
-from tests.fixtures.config import get_test_config
 from tests.fixtures.utils import mock_wps_token
 
 
@@ -160,7 +158,6 @@ async def test_get_part_upload_urls(
 @pytest.mark.asyncio
 async def test_get_wps_file_info(httpx_mock: HTTPXMock):
     """Test response handling with some mock - just make sure code paths work"""
-    config = get_test_config(max_retries=2)
     files = {"file_1": ".tar.gz"}
 
     async with async_client() as client:
@@ -168,7 +165,6 @@ async def test_get_wps_file_info(httpx_mock: HTTPXMock):
             WorkPackageAccessor,
             api_url="http://127.0.0.1",
             client=client,
-            config=config,
             dcs_api_url="",
             my_private_key=b"",
             my_public_key=b"",
@@ -195,7 +191,7 @@ async def test_get_wps_file_info(httpx_mock: HTTPXMock):
 
         httpx_mock.add_response(json={"files": files}, status_code=500)
 
-        with pytest.raises(RetryError):
+        with pytest.raises(InvalidWPSResponseError):
             wp_id, wp_token = mock_wps_token(1, None)
             work_package_accessor = partial_accessor(
                 access_token=wp_token,

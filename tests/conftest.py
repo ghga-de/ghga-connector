@@ -23,4 +23,8 @@ from ghga_connector.core.client import HttpxClientConfigurator
 @pytest.fixture(autouse=True)
 def default_session_configuration():
     """Configure httpx Client with default number of max_retries"""
-    HttpxClientConfigurator.configure(max_retries=MAX_RETRIES)
+    HttpxClientConfigurator.configure(
+        exponential_backoff_max=30,
+        max_retries=MAX_RETRIES,
+        retry_status_codes=[408, 500, 502, 504],
+    )

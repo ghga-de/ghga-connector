@@ -97,6 +97,7 @@ async def download(  # noqa: PLR0913
     client: httpx.AsyncClient,
     output_dir: Path,
     part_size: int,
+    max_concurrent_downloads: int,
     message_display: AbstractMessageDisplay,
     max_wait_time: int,
     work_package_accessor: WorkPackageAccessor,
@@ -125,7 +126,7 @@ async def download(  # noqa: PLR0913
     downloader = Downloader(
         client=client,
         file_id=file_id,
-        max_concurrent_downloads=5,
+        max_concurrent_downloads=max_concurrent_downloads,
         max_wait_time=max_wait_time,
         message_display=message_display,
         work_package_accessor=work_package_accessor,

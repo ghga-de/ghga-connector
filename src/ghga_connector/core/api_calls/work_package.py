@@ -19,10 +19,10 @@ import json
 
 import httpx
 from ghga_service_commons.utils.crypt import decrypt
+from tenacity import RetryError
 
-from ghga_connector.config import Config
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import configure_async_retries
+from ghga_connector.core.client import HttpxClientConfigurator
 
 
 class WorkPackageAccessor:
@@ -33,7 +33,6 @@ class WorkPackageAccessor:
         access_token: str,
         api_url: str,
         client: httpx.AsyncClient,
-        config: Config,
         dcs_api_url: str,
         package_id: str,
         my_private_key: bytes,
@@ -46,11 +45,7 @@ class WorkPackageAccessor:
         self.package_id = package_id
         self.my_private_key = my_private_key
         self.my_public_key = my_public_key
-        self.retry_handler = configure_async_retries(
-            exponential_backoff_max=config.exponential_backoff_max,
-            max_retries=config.max_retries,
-            status_codes=config.retry_status_codes,
-        )
+        self.retry_handler = HttpxClientConfigurator.retry_handler
 
     async def get_package_files(self) -> dict[str, str]:
         """Call WPS endpoint and retrieve work package information."""
@@ -64,8 +59,17 @@ class WorkPackageAccessor:
                 headers=headers,
                 url=url,
             )
-        except httpx.RequestError as request_error:
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            wrapped_exception = retry_error.last_attempt.exception()
+
+            if isinstance(wrapped_exception, httpx.RequestError):
+                raise exceptions.RequestFailedError(url=url) from retry_error
+            elif wrapped_exception:
+                raise wrapped_exception from retry_error
+            elif result := retry_error.last_attempt.result():
+                response = result
+            else:
+                raise
 
         status_code = response.status_code
         if status_code != 200:
@@ -86,13 +90,22 @@ class WorkPackageAccessor:
         headers = {"Authorization": f"Bearer {self.access_token}"}
 
         try:
-            response = await self.retry_handler(
+            response: httpx.Response = await self.retry_handler(
                 fn=self.client.post,
                 headers=headers,
                 url=url,
             )
-        except httpx.RequestError as request_error:
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            wrapped_exception = retry_error.last_attempt.exception()
+
+            if isinstance(wrapped_exception, httpx.RequestError):
+                raise exceptions.RequestFailedError(url=url) from retry_error
+            elif wrapped_exception:
+                raise wrapped_exception from retry_error
+            elif result := retry_error.last_attempt.result():
+                response = result
+            else:
+                raise
 
         status_code = response.status_code
         if status_code != 201:

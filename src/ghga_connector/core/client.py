@@ -19,7 +19,6 @@ from contextlib import asynccontextmanager, contextmanager
 import httpx
 from tenacity import (
     AsyncRetrying,
-    Retrying,
     retry_if_exception_type,
     retry_if_result,
     stop_after_attempt,
@@ -32,55 +31,36 @@ from ghga_connector.core.constants import TIMEOUT
 class HttpxClientConfigurator:
     """Helper class to make max_retries user configurable"""
 
-    max_retries: int
+    retry_handler: AsyncRetrying
 
     @classmethod
-    def configure(cls, max_retries: int):
-        """Configure client with exponential backoff retry (using httpx's 0.5 default)"""
-        # can't be negative - should we log this?
-        cls.max_retries = max(0, max_retries)
-
-
-def configure_async_retries(
-    exponential_backoff_max: int, max_retries: int, status_codes: list[int]
-):
-    """Initialize retry handler from config"""
-    return AsyncRetrying(
-        reraise=True,
-        retry=(
-            retry_if_exception_type(
-                (
-                    httpx.ConnectError,
-                    httpx.ConnectTimeout,
-                    httpx.TimeoutException,
+    def configure(
+        cls,
+        exponential_backoff_max: int,
+        max_retries: int,
+        retry_status_codes: list[int],
+    ):
+        """Configure client retry handler with exponential backoff"""
+        # clamp to client timeout, else large values might be bothersome on retries
+        if exponential_backoff_max > TIMEOUT:
+            exponential_backoff_max = int(TIMEOUT)
+        cls.retry_handler = AsyncRetrying(
+            reraise=True,
+            retry=(
+                retry_if_exception_type(
+                    (
+                        httpx.ConnectError,
+                        httpx.ConnectTimeout,
+                        httpx.TimeoutException,
+                    )
                 )
-            )
-            | retry_if_result(lambda response: response.status_code in status_codes)
-        ),
-        stop=stop_after_attempt(max_retries),
-        wait=wait_exponential_jitter(max=exponential_backoff_max),
-    )
-
-
-def configure_retries(
-    exponential_backoff_max: int, max_retries: int, status_codes: list[int]
-):
-    """Initialize retry handler from config"""
-    return Retrying(
-        reraise=True,
-        retry=(
-            retry_if_exception_type(
-                (
-                    httpx.ConnectError,
-                    httpx.ConnectTimeout,
-                    httpx.TimeoutException,
+                | retry_if_result(
+                    lambda response: response.status_code in retry_status_codes
                 )
-            )
-            | retry_if_result(lambda response: response.status_code in status_codes)
-        ),
-        stop=stop_after_attempt(max_retries),
-        wait=wait_exponential_jitter(max=exponential_backoff_max),
-    )
+            ),
+            stop=stop_after_attempt(max_retries),
+            wait=wait_exponential_jitter(max=exponential_backoff_max),
+        )
 
 
 @contextmanager

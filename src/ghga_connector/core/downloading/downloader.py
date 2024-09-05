@@ -22,9 +22,11 @@ from pathlib import Path
 from time import sleep
 
 import httpx
+from tenacity import RetryError
 
 from ghga_connector.core import exceptions
 from ghga_connector.core.api_calls import WorkPackageAccessor
+from ghga_connector.core.client import HttpxClientConfigurator
 from ghga_connector.core.downloading.abstract_downloader import DownloaderBase
 from ghga_connector.core.downloading.api_calls import (
     get_download_url,
@@ -43,7 +45,7 @@ from ghga_connector.core.structs import PartRange
 
 
 class Downloader(DownloaderBase):
-    """Groups download functionality together that is used in the higher level core modules"""
+    """Groups download functionality together that is used in the higher level core modules."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -62,9 +64,10 @@ class Downloader(DownloaderBase):
         self._work_package_accessor = work_package_accessor
         self._queue: Queue[tuple[int, bytes]] = Queue(maxsize=max_concurrent_downloads)
         self._semaphore = Semaphore(value=max_concurrent_downloads)
+        self._retry_handler = HttpxClientConfigurator.retry_handler
 
     async def download_file(self, *, output_path: Path, part_size: int):
-        """TODO"""
+        """Download file to the specified location and manage lower level details."""
         # stage download and get file size
         url_response = await self.await_download_url()
 
@@ -106,9 +109,7 @@ class Downloader(DownloaderBase):
             )
             await write_to_file
 
-    async def await_download_url(
-        self,
-    ) -> URLResponse:
+    async def await_download_url(self) -> URLResponse:
         """Wait until download URL can be generated.
         Returns a URLResponse containing two elements:
             1. the download url
@@ -147,10 +148,7 @@ class Downloader(DownloaderBase):
         raise exceptions.MaxWaitTimeExceededError(max_wait_time=self._max_wait_time)
 
     async def get_download_url(self) -> URLResponse:
-        """
-        For a specific multi-part download identified by `file_id`, return an iterator to
-        lazily obtain download URLs.
-        """
+        """Fetch a presigned URL from which file data can be downloaded."""
         url_and_headers = await get_file_authorization(
             file_id=self._file_id, work_package_accessor=self._work_package_accessor
         )
@@ -208,8 +206,12 @@ class Downloader(DownloaderBase):
         ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
-    async def download_to_queue(self, *, part_range: PartRange):
-        """TODO"""
+    async def download_to_queue(self, *, part_range: PartRange) -> None:
+        """
+        Start downloading file parts in parallel into a queue.
+        This should be wrapped into  asyncio.task and is guarded by a semaphore to limit
+        the amount of ongoing parallel downloads to max_concurrent_downloads.
+        """
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
             await self.download_content_range(
@@ -228,12 +230,23 @@ class Downloader(DownloaderBase):
         url_response = await self.get_download_url()
         download_url = url_response.download_url
         try:
-            response = await self._client.get(download_url, headers=headers)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(
-                request_error=request_error, url=download_url
+            response: httpx.Response = await self._retry_handler(
+                fn=self._client.get, url=download_url, headers=headers
             )
-            raise exceptions.RequestFailedError(url=download_url) from request_error
+        except RetryError as retry_error:
+            wrapped_exception = retry_error.last_attempt.exception()
+
+            if isinstance(wrapped_exception, httpx.RequestError):
+                exceptions.raise_if_connection_failed(
+                    request_error=wrapped_exception, url=download_url
+                )
+                raise exceptions.RequestFailedError(url=download_url) from retry_error
+            elif wrapped_exception:
+                raise wrapped_exception from retry_error
+            elif result := retry_error.last_attempt.result():
+                response = result
+            else:
+                raise
 
         status_code = response.status_code
 
@@ -248,8 +261,11 @@ class Downloader(DownloaderBase):
 
     async def drain_queue_to_file(
         self, *, file_name: str, file: BufferedWriter, file_size: int, offset: int
-    ):
-        """TODO"""
+    ) -> None:
+        """Write downloaded file bytes from queue.
+        This should be started as asyncio.Task and awaited after the download_to_queue
+        tasks have been created/started.
+        """
         # track and display actually written bytes
         downloaded_size = 0
         with ProgressBar(file_name=file_name, file_size=file_size) as progress:

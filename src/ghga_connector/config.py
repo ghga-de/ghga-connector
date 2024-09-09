@@ -35,7 +35,7 @@ class Config(BaseSettings):
     )
     max_wait_time: NonNegativeInt = Field(
         default=MAX_WAIT_TIME,
-        description="Maximal time in seconds to wait before quitting without a download.",
+        description="Maximum time in seconds to wait before quitting without a download.",
     )
     part_size: NonNegativeInt = Field(
         default=DEFAULT_PART_SIZE, description="The part size to use for download."

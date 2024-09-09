@@ -67,7 +67,7 @@ class DownloaderBase(ABC):
         start: int,
         end: int,
     ) -> None:
-        """Download a specific range of a file's content using a presigned download url."""
+        """Download a specific range of a file's content using a presigned url."""
 
     @abstractmethod
     async def drain_queue_to_file(

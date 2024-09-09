@@ -16,6 +16,7 @@
 
 import base64
 import json
+from collections.abc import Callable
 
 import httpx
 from ghga_service_commons.utils.crypt import decrypt
@@ -47,15 +48,13 @@ class WorkPackageAccessor:
         self.my_public_key = my_public_key
         self.retry_handler = HttpxClientConfigurator.retry_handler
 
-    async def get_package_files(self) -> dict[str, str]:
-        """Call WPS endpoint and retrieve work package information."""
-        url = f"{self.api_url}/work-packages/{self.package_id}"
-
-        # send authorization header as bearer token
-        headers = httpx.Headers({"Authorization": f"Bearer {self.access_token}"})
+    async def _call_url(
+        self, *, fn: Callable, headers: httpx.Headers, url: str
+    ) -> httpx.Response:
+        """Call url with provided headers and client method passed as callable."""
         try:
             response: httpx.Response = await self.retry_handler(
-                fn=self.client.get,
+                fn=fn,
                 headers=headers,
                 url=url,
             )
@@ -70,6 +69,16 @@ class WorkPackageAccessor:
                 response = result
             else:
                 raise
+
+        return response
+
+    async def get_package_files(self) -> dict[str, str]:
+        """Call WPS endpoint and retrieve work package information."""
+        url = f"{self.api_url}/work-packages/{self.package_id}"
+
+        # send authorization header as bearer token
+        headers = httpx.Headers({"Authorization": f"Bearer {self.access_token}"})
+        response = await self._call_url(fn=self.client.get, headers=headers, url=url)
 
         status_code = response.status_code
         if status_code != 200:
@@ -87,25 +96,8 @@ class WorkPackageAccessor:
         url = f"{self.api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-tokens"
 
         # send authorization header as bearer token
-        headers = {"Authorization": f"Bearer {self.access_token}"}
-
-        try:
-            response: httpx.Response = await self.retry_handler(
-                fn=self.client.post,
-                headers=headers,
-                url=url,
-            )
-        except RetryError as retry_error:
-            wrapped_exception = retry_error.last_attempt.exception()
-
-            if isinstance(wrapped_exception, httpx.RequestError):
-                raise exceptions.RequestFailedError(url=url) from retry_error
-            elif wrapped_exception:
-                raise wrapped_exception from retry_error
-            elif result := retry_error.last_attempt.result():
-                response = result
-            else:
-                raise
+        headers = httpx.Headers({"Authorization": f"Bearer {self.access_token}"})
+        response = await self._call_url(fn=self.client.post, headers=headers, url=url)
 
         status_code = response.status_code
         if status_code != 201:

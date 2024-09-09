@@ -18,7 +18,7 @@
     },
     "max_wait_time": {
       "default": 3600,
-      "description": "Maximal time in seconds to wait before quitting without a download.",
+      "description": "Maximum time in seconds to wait before quitting without a download.",
       "minimum": 0,
       "title": "Max Wait Time",
       "type": "integer"

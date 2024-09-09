@@ -61,7 +61,7 @@ The service requires the following configuration parameters:
 
 - **`max_retries`** *(integer)*: Number of times to retry failed API calls. Minimum: `0`. Default: `5`.
 
-- **`max_wait_time`** *(integer)*: Maximal time in seconds to wait before quitting without a download. Minimum: `0`. Default: `3600`.
+- **`max_wait_time`** *(integer)*: Maximum time in seconds to wait before quitting without a download. Minimum: `0`. Default: `3600`.
 
 - **`part_size`** *(integer)*: The part size to use for download. Minimum: `0`. Default: `16777216`.
 

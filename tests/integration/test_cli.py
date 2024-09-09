@@ -396,7 +396,8 @@ async def test_upload(
 
     with (
         patch("ghga_connector.cli.CONFIG", get_test_config()),
-        pytest.raises(expected_exception) if expected_exception else nullcontext(),  # type: ignore
+        # type: ignore
+        pytest.raises(expected_exception) if expected_exception else nullcontext(),
     ):
         message_display = init_message_display(debug=True)
         async with async_client() as client:
@@ -490,25 +491,27 @@ async def test_multipart_upload(
         "ghga_connector.core.api_calls.well_knowns.WKVSCaller.get_ucs_api_url",
         wkvs_method_mock(api_url),
     )
-    with big_temp_file(file_size) as file:
-        with patch(
+    with (
+        big_temp_file(file_size) as file,
+        patch(
             "ghga_connector.cli.CONFIG",
             get_test_config(),
-        ):
-            message_display = init_message_display(debug=True)
-            async with async_client() as client:
-                parameters = await retrieve_upload_parameters(client=client)
-                await upload(
-                    api_url=parameters.ucs_api_url,
-                    client=client,
-                    file_id=file_id,
-                    file_path=Path(file.name),
-                    message_display=message_display,
-                    server_public_key=parameters.server_pubkey,
-                    my_public_key_path=Path(PUBLIC_KEY_FILE),
-                    my_private_key_path=Path(PRIVATE_KEY_FILE),
-                    part_size=DEFAULT_PART_SIZE,
-                )
+        ),
+    ):
+        message_display = init_message_display(debug=True)
+        async with async_client() as client:
+            parameters = await retrieve_upload_parameters(client=client)
+            await upload(
+                api_url=parameters.ucs_api_url,
+                client=client,
+                file_id=file_id,
+                file_path=Path(file.name),
+                message_display=message_display,
+                server_public_key=parameters.server_pubkey,
+                my_public_key_path=Path(PUBLIC_KEY_FILE),
+                my_private_key_path=Path(PRIVATE_KEY_FILE),
+                part_size=DEFAULT_PART_SIZE,
+            )
 
     # confirm upload
     await s3_fixture.storage.complete_multipart_upload(

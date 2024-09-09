@@ -25,6 +25,7 @@ from ghga_connector.cli import CLIMessageDisplay
 from ghga_connector.core.api_calls import WorkPackageAccessor
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading import Downloader
+from ghga_connector.core.downloading.downloader import TaskHandler
 from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.file_operations import calc_part_ranges
 from tests.fixtures.s3 import (  # noqa: F401
@@ -135,12 +136,12 @@ async def test_download_file_parts(
             work_package_accessor=dummy_accessor,
             message_display=message_display,
         )
-        tasks = set()
+        task_handler = TaskHandler()
 
         for part_range in part_ranges:
-            task = create_task(downloader.download_to_queue(part_range=part_range))
-            tasks.add(task)
-            task.add_done_callback(tasks.discard)
+            await task_handler.schedule(
+                downloader.download_to_queue(part_range=part_range)
+            )
 
         file_path = tmp_path / "test.file"
         with file_path.open("wb") as file:
@@ -149,6 +150,7 @@ async def test_download_file_parts(
                     file_name=file.name, file=file, file_size=total_file_size, offset=0
                 )
             )
+            await task_handler.finish()
             await dl_task
 
         num_bytes_obtained = file_path.stat().st_size

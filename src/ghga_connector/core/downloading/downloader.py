@@ -17,9 +17,11 @@
 
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
+from collections.abc import Coroutine
 from io import BufferedWriter
 from pathlib import Path
 from time import sleep
+from typing import Any
 
 import httpx
 from tenacity import RetryError
@@ -42,6 +44,51 @@ from ghga_connector.core.file_operations import calc_part_ranges
 from ghga_connector.core.http_translation import ResponseExceptionTranslator
 from ghga_connector.core.message_display import AbstractMessageDisplay
 from ghga_connector.core.structs import PartRange
+
+
+class TaskHandler:
+    """Wraps task scheduling to properly deal with encountered exceptions"""
+
+    class InternalTaskException(RuntimeError):
+        """Marker exception raised when any of the tasks already scheduled encountered
+        an exception and further processing should be aborted
+        """
+
+    def __init__(self):
+        self.inner_exception = None
+        self._tasks: set[Task] = set()
+
+    async def schedule(self, fn: Coroutine[Any, Any, None]):
+        """Create a task and register its callback."""
+        if self.inner_exception:
+            raise self.InternalTaskException()
+        task = create_task(fn)
+        self._tasks.add(task)
+        task.add_done_callback(self.callback_handler)
+
+    def callback_handler(self, task: Task):
+        """Code to run after a task finished."""
+        # Callbacks are also scheduled on cancel
+        # There should only be canceled tasks from the code below
+        if task.cancelled():
+            return
+
+        exception = task.exception()
+        # Do not accept any new tasks on encountering an exception and cancel running ones
+        if exception:
+            self.inner_exception = exception
+            for scheduled_task in self._tasks:
+                scheduled_task.cancel()
+
+    async def finish(self):
+        """Await all tasks and raise on the first exception encountered"""
+        for task in self._tasks:
+            await task
+            if not task.cancelled() and (exception := task.exception()):
+                raise exceptions.DownloadError(reason=str(exception))
+
+        # remove task handles
+        self._tasks = set()
 
 
 class Downloader(DownloaderBase):
@@ -76,13 +123,17 @@ class Downloader(DownloaderBase):
             part_size=part_size, total_file_size=url_response.file_size
         )
 
-        tasks = set()
+        task_handler = TaskHandler()
+
         # start async part download to intermediate queue
         for part_range in part_ranges:
-            # no task groups in 3.9
-            task = create_task(self.download_to_queue(part_range=part_range))
-            tasks.add(task)
-            task.add_done_callback(tasks.discard)
+            try:
+                await task_handler.schedule(
+                    self.download_to_queue(part_range=part_range)
+                )
+            except TaskHandler.InternalTaskException as error:
+                reason = str(task_handler.inner_exception)
+                raise exceptions.DownloadError(reason=reason) from error
 
         # get file header envelope
         try:
@@ -98,6 +149,7 @@ class Downloader(DownloaderBase):
         with output_path.open("wb") as file:
             # put envelope in file
             file.write(envelope)
+            # start download task
             write_to_file = Task(
                 self.drain_queue_to_file(
                     file_name=file.name,
@@ -107,6 +159,7 @@ class Downloader(DownloaderBase):
                 ),
                 name="Write queue to file",
             )
+            await task_handler.finish()
             await write_to_file
 
     async def await_download_url(self) -> URLResponse:

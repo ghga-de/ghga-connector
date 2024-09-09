@@ -45,7 +45,7 @@ from ghga_connector.core.structs import PartRange
 
 
 class Downloader(DownloaderBase):
-    """Groups download functionality together that is used in the higher level core modules."""
+    """Centralized high-level interface for download functionality. Used in the core."""
 
     def __init__(  # noqa: PLR0913
         self,

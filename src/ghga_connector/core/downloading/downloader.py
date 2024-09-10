@@ -15,6 +15,7 @@
 #
 """Contains a concrete implementation of the abstract downloader"""
 
+import asyncio
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
@@ -83,9 +84,13 @@ class TaskHandler:
     async def finish(self):
         """Await all tasks and raise on the first exception encountered"""
         for task in self._tasks:
-            await task
-            if not task.cancelled() and (exception := task.exception()):
-                raise exceptions.DownloadError(reason=str(exception))
+            try:
+                await task
+            except asyncio.exceptions.CancelledError:
+                # these are expected, we want the actual exception instead
+                continue
+            except Exception as exception:
+                raise exceptions.DownloadError(reason=str(exception)) from exception
 
         # remove task handles
         self._tasks = set()

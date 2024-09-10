@@ -396,8 +396,7 @@ async def test_upload(
 
     with (
         patch("ghga_connector.cli.CONFIG", get_test_config()),
-        # type: ignore
-        pytest.raises(expected_exception) if expected_exception else nullcontext(),
+        pytest.raises(expected_exception) if expected_exception else nullcontext(),  # type: ignore
     ):
         message_display = init_message_display(debug=True)
         async with async_client() as client:

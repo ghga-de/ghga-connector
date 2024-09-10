@@ -15,14 +15,13 @@
 #
 """Contains a concrete implementation of the abstract downloader"""
 
-import asyncio
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
 from pathlib import Path
 from time import sleep
-from typing import Any
+from typing import Any, Union
 
 import httpx
 from tenacity import RetryError
@@ -48,56 +47,24 @@ from ghga_connector.core.structs import PartRange
 
 
 class TaskHandler:
-    """Wraps task scheduling to properly deal with encountered exceptions"""
-
-    class InternalTaskException(RuntimeError):
-        """Marker exception raised when any of the tasks already scheduled encountered
-        an exception and further processing should be aborted
-        """
+    """Wraps task scheduling to properly deal with encountered exceptions.
+    This is not meant to be reused, as internal state is not cleared.
+    """
 
     def __init__(self):
-        self.inner_exception = None
         self._tasks: set[Task] = set()
 
     async def schedule(self, fn: Coroutine[Any, Any, None]):
         """Create a task and register its callback."""
-        if self.inner_exception:
-            raise self.InternalTaskException()
         task = create_task(fn)
         self._tasks.add(task)
-        task.add_done_callback(self.callback_handler)
-
-    def callback_handler(self, task: Task):
-        """Code to run after a task finished."""
-        # Callbacks are also scheduled on cancel
-        # There should only be canceled tasks from the code below
-        if task.cancelled():
-            return
-
-        exception = task.exception()
-        # Do not accept any new tasks on encountering an exception and cancel running ones
-        if exception:
-            self.inner_exception = exception
-            for scheduled_task in self._tasks:
-                scheduled_task.cancel()
-
-    async def finish(self):
-        """Await all tasks and raise on the first exception encountered"""
-        for task in self._tasks:
-            try:
-                await task
-            except asyncio.exceptions.CancelledError:
-                # these are expected, we want the actual exception instead
-                continue
-            except Exception as exception:
-                raise exceptions.DownloadError(reason=str(exception)) from exception
-
-        # remove task handles
-        self._tasks = set()
+        task.add_done_callback(self._tasks.discard)
 
 
 class Downloader(DownloaderBase):
-    """Centralized high-level interface for download functionality. Used in the core."""
+    """Centralized high-level interface for download functionality. Used in the core.
+    This is not meant to be reused, as internal state is not cleared.
+    """
 
     def __init__(  # noqa: PLR0913
         self,
@@ -114,7 +81,7 @@ class Downloader(DownloaderBase):
         self._max_wait_time = max_wait_time
         self._message_display = message_display
         self._work_package_accessor = work_package_accessor
-        self._queue: Queue[tuple[int, bytes]] = Queue(maxsize=max_concurrent_downloads)
+        self._queue: Queue[Union[tuple[int, bytes], BaseException]] = Queue()
         self._semaphore = Semaphore(value=max_concurrent_downloads)
         self._retry_handler = HttpxClientConfigurator.retry_handler
 
@@ -132,13 +99,7 @@ class Downloader(DownloaderBase):
 
         # start async part download to intermediate queue
         for part_range in part_ranges:
-            try:
-                await task_handler.schedule(
-                    self.download_to_queue(part_range=part_range)
-                )
-            except TaskHandler.InternalTaskException as error:
-                reason = str(task_handler.inner_exception)
-                raise exceptions.DownloadError(reason=reason) from error
+            await task_handler.schedule(self.download_to_queue(part_range=part_range))
 
         # get file header envelope
         try:
@@ -164,7 +125,6 @@ class Downloader(DownloaderBase):
                 ),
                 name="Write queue to file",
             )
-            await task_handler.finish()
             await write_to_file
 
     async def await_download_url(self) -> URLResponse:
@@ -272,9 +232,12 @@ class Downloader(DownloaderBase):
         """
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
-            await self.download_content_range(
-                start=part_range.start, end=part_range.stop
-            )
+            try:
+                await self.download_content_range(
+                    start=part_range.start, end=part_range.stop
+                )
+            except BaseException as exception:
+                await self._queue.put(exception)
 
     async def download_content_range(
         self,
@@ -326,9 +289,14 @@ class Downloader(DownloaderBase):
         """
         # track and display actually written bytes
         downloaded_size = 0
+
         with ProgressBar(file_name=file_name, file_size=file_size) as progress:
             while downloaded_size < file_size:
-                start, part = await self._queue.get()
+                result = await self._queue.get()
+                if isinstance(result, BaseException):
+                    raise exceptions.DownloadError(reason=str(result))
+                else:
+                    start, part = result
                 file.seek(offset + start)
                 file.write(part)
                 # update tracking information

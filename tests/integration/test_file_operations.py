@@ -16,7 +16,6 @@
 
 """Test file operations"""
 
-import asyncio
 from asyncio import create_task
 from unittest.mock import Mock
 
@@ -30,6 +29,7 @@ from ghga_connector.core.downloading.downloader import TaskHandler
 from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.exceptions import DownloadError
 from ghga_connector.core.file_operations import calc_part_ranges
+from ghga_connector.core.structs import PartRange
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -90,7 +90,10 @@ async def test_download_content_range(
         )
         await downloader.download_content_range(start=start, end=end)
 
-    obtained_start, obtained_bytes = await downloader._queue.get()
+    result = await downloader._queue.get()
+    assert not isinstance(result, BaseException)
+
+    obtained_start, obtained_bytes = result
 
     assert start == obtained_start
     assert expected_bytes == obtained_bytes
@@ -98,7 +101,7 @@ async def test_download_content_range(
 
 @pytest.mark.parametrize(
     "part_size",
-    [5 * 1024 * 1024, 3 * 1024 * 1024, 1 * 1024 * 1024],
+    [1 * 1024 * 1024, 3 * 1024 * 1024, 5 * 1024 * 1024],
 )
 @pytest.mark.asyncio(scope="session")
 async def test_download_file_parts(
@@ -152,17 +155,12 @@ async def test_download_file_parts(
                     file_name=file.name, file=file, file_size=total_file_size, offset=0
                 )
             )
-            await task_handler.finish()
             await dl_task
 
         num_bytes_obtained = file_path.stat().st_size
         assert num_bytes_obtained == len(expected_bytes)
 
-        async def download_raise():
-            """Just raises an exception"""
-            raise ValueError("To be expected.")
-
-        # test exception handling in the beginning
+        # test exception in the beginning
         downloader = Downloader(
             client=client,
             file_id=big_object.object_id,
@@ -176,35 +174,12 @@ async def test_download_file_parts(
             part_size=part_size, total_file_size=total_file_size
         )
 
-        for idx, part_range in enumerate(part_ranges):
-            if idx == 0:
-                await task_handler.schedule(download_raise())
-                await asyncio.sleep(1)
-            if idx > 0:
-                with pytest.raises(task_handler.InternalTaskException):
-                    await task_handler.schedule(
-                        downloader.download_to_queue(part_range=part_range)
-                    )
-                break
-
-        # test exception handling at the end
-        downloader = Downloader(
-            client=client,
-            file_id=big_object.object_id,
-            max_concurrent_downloads=5,
-            max_wait_time=10,
-            work_package_accessor=dummy_accessor,
-            message_display=message_display,
+        await task_handler.schedule(
+            downloader.download_to_queue(part_range=PartRange(-10000, -1))
         )
-        task_handler = TaskHandler()
-        part_ranges = calc_part_ranges(
-            part_size=part_size, total_file_size=total_file_size
+        await task_handler.schedule(
+            downloader.download_to_queue(part_range=next(part_ranges))
         )
-        for part_range in part_ranges:
-            await task_handler.schedule(
-                downloader.download_to_queue(part_range=part_range)
-            )
-        await task_handler.schedule(download_raise())
 
         file_path = tmp_path / "test2.file"
         with file_path.open("wb") as file:
@@ -214,9 +189,38 @@ async def test_download_file_parts(
                 )
             )
             with pytest.raises(DownloadError):
-                await task_handler.finish()
                 await dl_task
-        # clear queue
-        while not downloader._queue.empty():
-            downloader._queue.get_nowait()
-            downloader._queue.task_done()
+
+        # test exception at the end
+        downloader = Downloader(
+            client=client,
+            file_id=big_object.object_id,
+            max_concurrent_downloads=5,
+            max_wait_time=10,
+            work_package_accessor=dummy_accessor,
+            message_display=message_display,
+        )
+        task_handler = TaskHandler()
+        part_ranges = calc_part_ranges(
+            part_size=part_size, total_file_size=total_file_size
+        )
+        part_ranges = list(part_ranges)  # type: ignore
+        for idx, part_range in enumerate(part_ranges):
+            if idx == len(part_ranges) - 1:  # type: ignore
+                await task_handler.schedule(
+                    downloader.download_to_queue(part_range=PartRange(-10000, -1))
+                )
+            else:
+                await task_handler.schedule(
+                    downloader.download_to_queue(part_range=part_range)
+                )
+
+        file_path = tmp_path / "test3.file"
+        with file_path.open("wb") as file:
+            dl_task = create_task(
+                downloader.drain_queue_to_file(
+                    file_name=file.name, file=file, file_size=total_file_size, offset=0
+                )
+            )
+            with pytest.raises(DownloadError):
+                await dl_task

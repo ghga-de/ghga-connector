@@ -47,9 +47,7 @@ from ghga_connector.core.structs import PartRange
 
 
 class TaskHandler:
-    """Wraps task scheduling to properly deal with encountered exceptions.
-    This is not meant to be reused, as internal state is not cleared.
-    """
+    """Wraps task scheduling details."""
 
     def __init__(self):
         self._tasks: set[Task] = set()

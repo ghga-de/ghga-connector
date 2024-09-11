@@ -57,13 +57,13 @@ ghga_connector --help
 ### Parameters
 
 The service requires the following configuration parameters:
-- **`max_concurrent_downloads`** *(integer)*: Number of parallel downloader tasks for file parts. Minimum: `0`. Default: `5`.
+- **`max_concurrent_downloads`** *(integer)*: Number of parallel downloader tasks for file parts. Exclusive minimum: `0`. Default: `5`.
 
 - **`max_retries`** *(integer)*: Number of times to retry failed API calls. Minimum: `0`. Default: `5`.
 
-- **`max_wait_time`** *(integer)*: Maximum time in seconds to wait before quitting without a download. Minimum: `0`. Default: `3600`.
+- **`max_wait_time`** *(integer)*: Maximum time in seconds to wait before quitting without a download. Exclusive minimum: `0`. Default: `3600`.
 
-- **`part_size`** *(integer)*: The part size to use for download. Minimum: `0`. Default: `16777216`.
+- **`part_size`** *(integer)*: The part size to use for download. Exclusive minimum: `0`. Default: `16777216`.
 
 - **`wkvs_api_url`** *(string)*: URL to the root of the WKVS API. Should start with https://. Default: `"https://data.ghga.de/.well-known"`.
 

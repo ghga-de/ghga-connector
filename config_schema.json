@@ -5,7 +5,7 @@
     "max_concurrent_downloads": {
       "default": 5,
       "description": "Number of parallel downloader tasks for file parts.",
-      "minimum": 0,
+      "exclusiveMinimum": 0,
       "title": "Max Concurrent Downloads",
       "type": "integer"
     },
@@ -19,14 +19,14 @@
     "max_wait_time": {
       "default": 3600,
       "description": "Maximum time in seconds to wait before quitting without a download.",
-      "minimum": 0,
+      "exclusiveMinimum": 0,
       "title": "Max Wait Time",
       "type": "integer"
     },
     "part_size": {
       "default": 16777216,
       "description": "The part size to use for download.",
-      "minimum": 0,
+      "exclusiveMinimum": 0,
       "title": "Part Size",
       "type": "integer"
     },

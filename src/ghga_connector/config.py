@@ -17,7 +17,7 @@
 """Global Config Parameters"""
 
 from hexkit.config import config_from_yaml
-from pydantic import Field, NonNegativeInt
+from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings
 
 from ghga_connector.core.constants import DEFAULT_PART_SIZE, MAX_RETRIES, MAX_WAIT_TIME
@@ -27,17 +27,17 @@ from ghga_connector.core.constants import DEFAULT_PART_SIZE, MAX_RETRIES, MAX_WA
 class Config(BaseSettings):
     """Global Config Parameters"""
 
-    max_concurrent_downloads: NonNegativeInt = Field(
+    max_concurrent_downloads: PositiveInt = Field(
         default=5, description="Number of parallel downloader tasks for file parts."
     )
     max_retries: NonNegativeInt = Field(
         default=MAX_RETRIES, description="Number of times to retry failed API calls."
     )
-    max_wait_time: NonNegativeInt = Field(
+    max_wait_time: PositiveInt = Field(
         default=MAX_WAIT_TIME,
         description="Maximum time in seconds to wait before quitting without a download.",
     )
-    part_size: NonNegativeInt = Field(
+    part_size: PositiveInt = Field(
         default=DEFAULT_PART_SIZE, description="The part size to use for download."
     )
     wkvs_api_url: str = Field(

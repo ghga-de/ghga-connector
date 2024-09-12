@@ -25,7 +25,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from ghga_connector.core.constants import TIMEOUT
+from ghga_connector.constants import TIMEOUT
 
 
 class HttpxClientConfigurator:

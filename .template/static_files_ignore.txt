@@ -5,6 +5,7 @@
 scripts/check_license.py
 scripts/script_utils/deps.py
 scripts/script_utils/lock_deps.py
+scripts/list_outdated_dependencies.py
 scripts/update_openapi_docs.py
 scripts/update_readme.py
 scripts/update_pyproject.py

@@ -104,7 +104,7 @@ async def test_download_content_range(
     "part_size",
     [1 * 1024 * 1024, 3 * 1024 * 1024, 5 * 1024 * 1024],
 )
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_download_file_parts(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa: F811

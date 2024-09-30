@@ -15,6 +15,7 @@
 #
 """CLI-specific wrappers around core functions."""
 
+import asyncio
 import os
 import sys
 from dataclasses import dataclass
@@ -226,7 +227,7 @@ if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
 
 
 @cli.command(no_args_is_help=True)
-async def download(
+def download(
     *,
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
@@ -247,7 +248,19 @@ async def download(
         False, help="Set this option in order to view traceback for errors."
     ),
 ):
-    """Command to download files"""
+    """Wrapper for the async download function"""
+    asyncio.run(
+        async_download(output_dir, my_public_key_path, my_private_key_path, debug)
+    )
+
+
+async def async_download(
+    output_dir: Path,
+    my_public_key_path: Path,
+    my_private_key_path: Path,
+    debug: bool = False,
+):
+    """Download files asynchronously"""
     if not my_public_key_path.is_file():
         raise exceptions.PubKeyFileDoesNotExistError(public_key_path=my_public_key_path)
 

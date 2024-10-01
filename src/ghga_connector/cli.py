@@ -182,7 +182,7 @@ def get_work_package_information(
 cli = typer.Typer(no_args_is_help=True)
 
 
-async def upload(
+def upload(
     *,
     file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
@@ -200,7 +200,20 @@ async def upload(
         False, help="Set this option in order to view traceback for errors."
     ),
 ):
-    """Command to upload a file"""
+    """Wrapper for the async upload function"""
+    asyncio.run(
+        async_upload(file_id, file_path, my_public_key_path, my_private_key_path, debug)
+    )
+
+
+async def async_upload(
+    file_id: str,
+    file_path: Path,
+    my_public_key_path: Path,
+    my_private_key_path: Path,
+    debug: bool = False,
+):
+    """Upload a file asynchronously"""
     message_display = init_message_display(debug=debug)
     HttpxClientConfigurator.configure(
         exponential_backoff_max=CONFIG.exponential_backoff_max,

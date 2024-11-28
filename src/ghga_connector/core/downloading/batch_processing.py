@@ -185,7 +185,7 @@ class FileStager:
         for file_id, retry_time in staging_items:
             if time() >= retry_time:
                 await self._check_file(file_id=file_id)
-            if self.staged_urls:
+            if len(self.staged_urls.items()) > 0:
                 break
         if not self.staged_urls and not self._handle_failures():
             sleep(1)

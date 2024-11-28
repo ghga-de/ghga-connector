@@ -117,8 +117,8 @@ async def download_files(  # noqa: PLR0913
 
     # check output file
     output_file = output_dir / f"{file_name}.c4gh"
-    if output_file.exists():
-        raise exceptions.FileAlreadyExistsError(output_file=str(output_file))
+    # if output_file.exists():
+    #    raise exceptions.FileAlreadyExistsError(output_file=str(output_file))
 
     # with_suffix() might overwrite existing suffixes, do this instead
     output_file_ongoing = output_file.parent / (output_file.name + ".part")

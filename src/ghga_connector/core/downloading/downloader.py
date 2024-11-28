@@ -132,41 +132,29 @@ class Downloader(DownloaderBase):
             2. the file size in bytes
         """
         # get the download_url, wait if needed
-        wait_time = 0
-        while wait_time < self._max_wait_time:
-            try:
-                self._message_display.display(
-                    f"Fetching file authorization for {self._file_id}"
-                )
-                url_and_headers = await get_file_authorization(
-                    file_id=self._file_id,
-                    work_package_accessor=self._work_package_accessor,
-                )
-                self._message_display.display(
-                    f"Fetching download URL for {self._file_id}"
-                )
-                response = await get_download_url(
-                    client=self._client, url_and_headers=url_and_headers
-                )
-            except exceptions.BadResponseCodeError as error:
-                self._message_display.failure(
-                    "The request was invalid and returned a bad HTTP status code."
-                )
-                raise error
-            except exceptions.RequestFailedError as error:
-                self._message_display.failure("The request failed.")
-                raise error
 
-            if isinstance(response, RetryResponse):
-                retry_time = response.retry_after
-                wait_time += retry_time
-                self._message_display.display(
-                    f"File staging, will try to download again in {retry_time} seconds"
-                )
-            else:
-                return response
+        try:
+            self._message_display.display(
+                f"Fetching file authorization for {self._file_id}"
+            )
+            url_and_headers = await get_file_authorization(
+                file_id=self._file_id,
+                work_package_accessor=self._work_package_accessor,
+            )
+            self._message_display.display(f"Fetching download URL for {self._file_id}")
+            response = await get_download_url(
+                client=self._client, url_and_headers=url_and_headers
+            )
+        except exceptions.BadResponseCodeError as error:
+            self._message_display.failure(
+                "The request was invalid and returned a bad HTTP status code."
+            )
+            raise error
+        except exceptions.RequestFailedError as error:
+            self._message_display.failure("The request failed.")
+            raise error
 
-        raise exceptions.MaxWaitTimeExceededError(max_wait_time=self._max_wait_time)
+        return response  # type: ignore
 
     async def get_download_url(self) -> URLResponse:
         """Fetch a presigned URL from which file data can be downloaded."""

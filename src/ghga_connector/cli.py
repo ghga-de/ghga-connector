@@ -305,6 +305,7 @@ async def async_download(
             work_package_information=work_package_information,
         )
 
+        message_display.display("Preparing files for download...")
         stager = FileStager(
             wanted_file_ids=list(parameters.file_ids_with_extension),
             dcs_api_url=parameters.dcs_api_url,

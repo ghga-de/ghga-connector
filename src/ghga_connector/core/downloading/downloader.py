@@ -15,12 +15,12 @@
 #
 """Contains a concrete implementation of the abstract downloader"""
 
+import asyncio
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
 from pathlib import Path
-from time import sleep
 from typing import Any, Union
 
 import httpx
@@ -135,9 +135,15 @@ class Downloader(DownloaderBase):
         wait_time = 0
         while wait_time < self._max_wait_time:
             try:
+                self._message_display.display(
+                    f"Fetching file authorization for {self._file_id}"
+                )
                 url_and_headers = await get_file_authorization(
                     file_id=self._file_id,
                     work_package_accessor=self._work_package_accessor,
+                )
+                self._message_display.display(
+                    f"Fetching download URL for {self._file_id}"
                 )
                 response = await get_download_url(
                     client=self._client, url_and_headers=url_and_headers
@@ -157,7 +163,6 @@ class Downloader(DownloaderBase):
                 self._message_display.display(
                     f"File staging, will try to download again in {retry_time} seconds"
                 )
-                sleep(retry_time)
             else:
                 return response
 
@@ -165,9 +170,13 @@ class Downloader(DownloaderBase):
 
     async def get_download_url(self) -> URLResponse:
         """Fetch a presigned URL from which file data can be downloaded."""
+        self._message_display.display(
+            f"Fetching file authorization for {self._file_id}"
+        )
         url_and_headers = await get_file_authorization(
             file_id=self._file_id, work_package_accessor=self._work_package_accessor
         )
+        self._message_display.display(f"Fetching download URL for {self._file_id}")
         url_response = await get_download_url(
             client=self._client, url_and_headers=url_and_headers
         )
@@ -302,3 +311,4 @@ class Downloader(DownloaderBase):
                 downloaded_size += chunk_size
                 self._queue.task_done()
                 progress.advance(chunk_size)
+                await asyncio.sleep(0)

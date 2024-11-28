@@ -147,8 +147,9 @@ async def download_files(  # noqa: PLR0913
         raise error
 
     # rename fully downloaded file
-    if output_file.exists():
-        raise exceptions.RenameDownloadedFileError(file_path=output_file)
+    # TODO: don't error here for now
+    # if output_file.exists():
+    #     raise exceptions.RenameDownloadedFileError(file_path=output_file)
     output_file_ongoing.rename(output_file)
 
     message_display.success(

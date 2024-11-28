@@ -105,6 +105,7 @@ async def download_files(  # noqa: PLR0913
     work_package_accessor: WorkPackageAccessor,
     file_id: str,
     file_extension: str = "",
+    overwrite: bool = False,
 ) -> None:
     """Core command to download a file. Can be called by CLI, GUI, etc."""
     if not is_service_healthy(api_url):
@@ -117,8 +118,16 @@ async def download_files(  # noqa: PLR0913
 
     # check output file
     output_file = output_dir / f"{file_name}.c4gh"
-    # if output_file.exists():
-    #    raise exceptions.FileAlreadyExistsError(output_file=str(output_file))
+    if output_file.exists():
+        if overwrite:
+            message_display.display(
+                f"A file with name '{output_file}' already exists and will be overwritten."
+            )
+        else:
+            message_display.failure(
+                f"A file with name '{output_file}' already exists. Skipping."
+            )
+        return
 
     # with_suffix() might overwrite existing suffixes, do this instead
     output_file_ongoing = output_file.parent / (output_file.name + ".part")
@@ -147,9 +156,6 @@ async def download_files(  # noqa: PLR0913
         raise error
 
     # rename fully downloaded file
-    # TODO: don't error here for now
-    # if output_file.exists():
-    #     raise exceptions.RenameDownloadedFileError(file_path=output_file)
     output_file_ongoing.rename(output_file)
 
     message_display.success(

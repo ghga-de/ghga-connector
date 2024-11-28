@@ -260,10 +260,16 @@ def download(
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."
     ),
+    overwrite: bool = typer.Option(
+        False,
+        help="Set to true to overwrite already existing files in the output directory.",
+    ),
 ):
     """Wrapper for the async download function"""
     asyncio.run(
-        async_download(output_dir, my_public_key_path, my_private_key_path, debug)
+        async_download(
+            output_dir, my_public_key_path, my_private_key_path, debug, overwrite
+        )
     )
 
 
@@ -272,6 +278,7 @@ async def async_download(
     my_public_key_path: Path,
     my_private_key_path: Path,
     debug: bool = False,
+    overwrite: bool = False,
 ):
     """Download files asynchronously"""
     if not my_public_key_path.is_file():
@@ -330,6 +337,7 @@ async def async_download(
                     part_size=CONFIG.part_size,
                     message_display=message_display,
                     work_package_accessor=parameters.work_package_accessor,
+                    overwrite=overwrite,
                 )
             staged_files.clear()
 

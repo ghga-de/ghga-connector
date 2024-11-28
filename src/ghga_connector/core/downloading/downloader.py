@@ -15,7 +15,6 @@
 #
 """Contains a concrete implementation of the abstract downloader"""
 
-import asyncio
 import base64
 from asyncio import Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
@@ -85,10 +84,8 @@ class Downloader(DownloaderBase):
 
     async def download_file(self, *, output_path: Path, part_size: int):
         """Download file to the specified location and manage lower level details."""
-        # stage download and get file size
-        url_response = await self.await_download_url()
-
         # Split the file into parts based on the part size
+        url_response = await self.fetch_download_url()
         part_ranges = calc_part_ranges(
             part_size=part_size, total_file_size=url_response.file_size
         )
@@ -97,7 +94,11 @@ class Downloader(DownloaderBase):
 
         # start async part download to intermediate queue
         for part_range in part_ranges:
-            await task_handler.schedule(self.download_to_queue(part_range=part_range))
+            await task_handler.schedule(
+                self.download_to_queue(
+                    url=url_response.download_url, part_range=part_range
+                )
+            )
 
         # get file header envelope
         try:
@@ -125,17 +126,16 @@ class Downloader(DownloaderBase):
             )
             await write_to_file
 
-    async def await_download_url(self) -> URLResponse:
-        """Wait until download URL can be generated.
+    async def fetch_download_url(self) -> URLResponse:
+        """Fetch a work order token and retrieve the download url.
+
         Returns a URLResponse containing two elements:
             1. the download url
             2. the file size in bytes
         """
-        # get the download_url, wait if needed
-
         try:
             self._message_display.display(
-                f"Fetching file authorization for {self._file_id}"
+                f"Fetching work order token for {self._file_id}"
             )
             url_and_headers = await get_file_authorization(
                 file_id=self._file_id,
@@ -147,31 +147,20 @@ class Downloader(DownloaderBase):
             )
         except exceptions.BadResponseCodeError as error:
             self._message_display.failure(
-                "The request was invalid and returned a bad HTTP status code."
+                f"The request for file {self._file_id} returned an unexpected HTTP status code: {error.response_code}."
             )
             raise error
         except exceptions.RequestFailedError as error:
-            self._message_display.failure("The request failed.")
+            self._message_display.failure(
+                f"The download request for file {self._file_id} failed."
+            )
             raise error
 
-        return response  # type: ignore
-
-    async def get_download_url(self) -> URLResponse:
-        """Fetch a presigned URL from which file data can be downloaded."""
-        self._message_display.display(
-            f"Fetching file authorization for {self._file_id}"
-        )
-        url_and_headers = await get_file_authorization(
-            file_id=self._file_id, work_package_accessor=self._work_package_accessor
-        )
-        self._message_display.display(f"Fetching download URL for {self._file_id}")
-        url_response = await get_download_url(
-            client=self._client, url_and_headers=url_and_headers
-        )
-        if isinstance(url_response, RetryResponse):
+        if isinstance(response, RetryResponse):
             # File should be staged at that point in time
             raise exceptions.UnexpectedRetryResponseError()
-        return url_response
+
+        return response
 
     async def get_file_header_envelope(self) -> bytes:
         """
@@ -219,7 +208,7 @@ class Downloader(DownloaderBase):
         ResponseExceptionTranslator(spec=spec).handle(response=response)
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
-    async def download_to_queue(self, *, part_range: PartRange) -> None:
+    async def download_to_queue(self, *, url: str, part_range: PartRange) -> None:
         """
         Start downloading file parts in parallel into a queue.
         This should be wrapped into  asyncio.task and is guarded by a semaphore to limit
@@ -229,7 +218,7 @@ class Downloader(DownloaderBase):
         async with self._semaphore:
             try:
                 await self.download_content_range(
-                    start=part_range.start, end=part_range.stop
+                    url=url, start=part_range.start, end=part_range.stop
                 )
             except BaseException as exception:
                 await self._queue.put(exception)
@@ -237,26 +226,25 @@ class Downloader(DownloaderBase):
     async def download_content_range(
         self,
         *,
+        url: str,
         start: int,
         end: int,
     ) -> None:
         """Download a specific range of a file's content using a presigned download url."""
         headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
 
-        url_response = await self.get_download_url()
-        download_url = url_response.download_url
         try:
             response: httpx.Response = await self._retry_handler(
-                fn=self._client.get, url=download_url, headers=headers
+                fn=self._client.get, url=url, headers=headers
             )
         except RetryError as retry_error:
             wrapped_exception = retry_error.last_attempt.exception()
 
             if isinstance(wrapped_exception, httpx.RequestError):
                 exceptions.raise_if_connection_failed(
-                    request_error=wrapped_exception, url=download_url
+                    request_error=wrapped_exception, url=url
                 )
-                raise exceptions.RequestFailedError(url=download_url) from retry_error
+                raise exceptions.RequestFailedError(url=url) from retry_error
             elif wrapped_exception:
                 raise wrapped_exception from retry_error
             elif result := retry_error.last_attempt.result():
@@ -271,9 +259,7 @@ class Downloader(DownloaderBase):
             await self._queue.put((start, response.content))
             return
 
-        raise exceptions.BadResponseCodeError(
-            url=download_url, response_code=status_code
-        )
+        raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     async def drain_queue_to_file(
         self, *, file_name: str, file: BufferedWriter, file_size: int, offset: int
@@ -299,4 +285,3 @@ class Downloader(DownloaderBase):
                 downloaded_size += chunk_size
                 self._queue.task_done()
                 progress.advance(chunk_size)
-                await asyncio.sleep(0)

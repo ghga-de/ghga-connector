@@ -34,16 +34,12 @@ class DownloaderBase(ABC):
         """Download file to the specified location and manage lower level details."""
 
     @abstractmethod
-    def await_download_url(self) -> Coroutine[URLResponse, Any, Any]:
+    def fetch_download_url(self) -> Coroutine[URLResponse, Any, Any]:
         """Wait until download URL can be generated.
         Returns a URLResponse containing two elements:
             1. the download url
             2. the file size in bytes
         """
-
-    @abstractmethod
-    def get_download_url(self) -> Coroutine[URLResponse, Any, Any]:
-        """Fetch a presigned URL from which file data can be downloaded."""
 
     @abstractmethod
     def get_file_header_envelope(self) -> Coroutine[bytes, Any, Any]:
@@ -54,7 +50,7 @@ class DownloaderBase(ABC):
         """
 
     @abstractmethod
-    async def download_to_queue(self, *, part_range: PartRange) -> None:
+    async def download_to_queue(self, *, url: str, part_range: PartRange) -> None:
         """
         Start downloading file parts in parallel into a queue.
         This should be wrapped into asyncio.task and is guarded by a semaphore to limit
@@ -65,6 +61,7 @@ class DownloaderBase(ABC):
     async def download_content_range(
         self,
         *,
+        url: str,
         start: int,
         end: int,
     ) -> None:

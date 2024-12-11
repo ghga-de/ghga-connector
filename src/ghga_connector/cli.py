@@ -41,7 +41,7 @@ from ghga_connector.core.api_calls import WKVSCaller
 from ghga_connector.core.downloading.batch_processing import FileStager
 from ghga_connector.core.main import (
     decrypt_file,
-    download_files,
+    download_file,
     get_wps_token,
     upload_file,
 )
@@ -315,7 +315,7 @@ async def async_download(
             staged_files = await stager.get_staged_files()
             for file_id in staged_files:
                 message_display.display(f"Downloading file with id '{file_id}'...")
-                await download_files(
+                await download_file(
                     api_url=parameters.dcs_api_url,
                     client=client,
                     file_id=file_id,

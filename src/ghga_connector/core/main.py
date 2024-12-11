@@ -93,7 +93,7 @@ async def upload_file(  # noqa: PLR0913
     message_display.success(f"File with id '{file_id}' has been successfully uploaded.")
 
 
-async def download_files(  # noqa: PLR0913
+async def download_file(  # noqa: PLR0913
     *,
     api_url: str,
     client: httpx.AsyncClient,

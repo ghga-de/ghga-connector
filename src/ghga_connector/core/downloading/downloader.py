@@ -27,12 +27,12 @@ from tenacity import RetryError
 
 from ghga_connector.core import (
     AbstractMessageDisplay,
-    HttpxClientConfigurator,
     PartRange,
     ResponseExceptionTranslator,
     WorkPackageAccessor,
     calc_part_ranges,
     exceptions,
+    retry_handler,
 )
 
 from .abstract_downloader import DownloaderBase
@@ -80,7 +80,6 @@ class Downloader(DownloaderBase):
         self._work_package_accessor = work_package_accessor
         self._queue: Queue[Union[tuple[int, bytes], BaseException]] = Queue()
         self._semaphore = Semaphore(value=max_concurrent_downloads)
-        self._retry_handler = HttpxClientConfigurator.retry_handler
 
     async def download_file(self, *, output_path: Path, part_size: int):
         """Download file to the specified location and manage lower level details."""
@@ -234,7 +233,7 @@ class Downloader(DownloaderBase):
         headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
 
         try:
-            response: httpx.Response = await self._retry_handler(
+            response: httpx.Response = await retry_handler(
                 fn=self._client.get, url=url, headers=headers
             )
         except RetryError as retry_error:

@@ -32,7 +32,6 @@ from ghga_service_commons.utils import crypt
 from ghga_connector.config import CONFIG
 from ghga_connector.core import (
     AbstractMessageDisplay,
-    HttpxClientConfigurator,
     MessageColors,
     WorkPackageAccessor,
     async_client,
@@ -112,7 +111,7 @@ def exception_hook(
     )
 
     if value.args:
-        message = value.args[0]
+        message += f"\n{value.args[0]}"
 
     message_display.failure(message)
 
@@ -215,11 +214,6 @@ async def async_upload(
 ):
     """Upload a file asynchronously"""
     message_display = init_message_display(debug=debug)
-    HttpxClientConfigurator.configure(
-        exponential_backoff_max=CONFIG.exponential_backoff_max,
-        max_retries=CONFIG.max_retries,
-        retry_status_codes=CONFIG.retry_status_codes,
-    )
     async with async_client() as client:
         parameters = await retrieve_upload_parameters(client)
         await upload_file(
@@ -293,11 +287,6 @@ async def async_download(
     )
 
     message_display = init_message_display(debug=debug)
-    HttpxClientConfigurator.configure(
-        exponential_backoff_max=CONFIG.exponential_backoff_max,
-        max_retries=CONFIG.max_retries,
-        retry_status_codes=CONFIG.retry_status_codes,
-    )
     message_display.display("\nFetching work package token...")
     work_package_information = get_work_package_information(
         my_private_key=my_private_key, message_display=message_display

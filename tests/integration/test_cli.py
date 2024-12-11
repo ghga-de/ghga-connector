@@ -72,6 +72,7 @@ pytestmark = [
     pytest.mark.asyncio,
     pytest.mark.httpx_mock(
         assert_all_responses_were_requested=False,
+        assert_all_requests_were_expected=False,
         can_send_already_matched_responses=True,
         should_mock=lambda request: request.url.host not in unintercepted_hosts,
     ),

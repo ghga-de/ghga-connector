@@ -85,7 +85,7 @@ class CliInputHandler(InputHandler):
 
     def handle_response(self, *, response: str):
         """Handle response from get_input."""
-        if not response.lower() == "yes":
+        if not (response.lower() == "yes" or response.lower() == "y"):
             raise exceptions.AbortBatchProcessError()
 
 
@@ -158,7 +158,7 @@ class FileStager:
         self.work_package_accessor = work_package_accessor
         self.max_wait_time = config.max_wait_time
         self.client = client
-        self.time_started = now = time()
+        self.started_waiting = now = time()
 
         # Successfully staged files with their download URLs and sizes
         # in the beginning, consider all files as staged with a retry time of 0
@@ -186,6 +186,7 @@ class FileStager:
             if time() >= retry_time:
                 await self._check_file(file_id=file_id)
             if len(self.staged_urls.items()) > 0:
+                self.started_waiting = time()  # reset wait timer
                 break
         if not self.staged_urls and not self._handle_failures():
             sleep(1)
@@ -232,7 +233,7 @@ class FileStager:
 
         In that cases, a MaxWaitTimeExceededError is raised.
         """
-        if time() - self.time_started >= self.max_wait_time:
+        if time() - self.started_waiting >= self.max_wait_time:
             raise exceptions.MaxWaitTimeExceededError(max_wait_time=self.max_wait_time)
 
     def _handle_failures(self) -> bool:
@@ -243,8 +244,8 @@ class FileStager:
         """
         if not self.missing_files or self.ignore_failed:
             return False
-        failed = ", ".join(self.missing_files)
-        message = f"No download exists for the following file IDs: {failed}"
+        missing = ", ".join(self.missing_files)
+        message = f"No download exists for the following file IDs: {missing}"
         self.message_display.failure(message)
         if self.finished:
             return False
@@ -255,5 +256,6 @@ class FileStager:
         response = self.io_handler.get_input(message=unknown_ids_present)
         self.io_handler.handle_response(response=response)
         self.message_display.display("Downloading remaining files")
-        self.time_started = time()  # reset the timer
+        self.started_waiting = time()  # reset the timer
+        self.missing_files = []  # reset list of missing files
         return True

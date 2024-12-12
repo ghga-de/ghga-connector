@@ -139,16 +139,21 @@ class Downloader(DownloaderBase):
             raise exceptions.GetEnvelopeError() from error
 
         # Write the downloaded parts to a file
-        with output_path.open("wb") as file:
+        with (
+            output_path.open("wb") as file,
+            ProgressBar(
+                file_name=file.name, file_size=url_response.file_size
+            ) as progress_bar,
+        ):
             # put envelope in file
             file.write(envelope)
             # start download task
             write_to_file = Task(
                 self.drain_queue_to_file(
-                    file_name=file.name,
                     file=file,
                     file_size=url_response.file_size,
                     offset=len(envelope),
+                    progress_bar=progress_bar,
                 ),
                 name="Write queue to file",
             )
@@ -291,7 +296,12 @@ class Downloader(DownloaderBase):
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
     async def drain_queue_to_file(
-        self, *, file_name: str, file: BufferedWriter, file_size: int, offset: int
+        self,
+        *,
+        file: BufferedWriter,
+        file_size: int,
+        offset: int,
+        progress_bar: ProgressBar,
     ) -> None:
         """Write downloaded file bytes from queue.
         This should be started as asyncio.Task and awaited after the download_to_queue
@@ -300,14 +310,13 @@ class Downloader(DownloaderBase):
         # track and display actually written bytes
         downloaded_size = 0
 
-        with ProgressBar(file_name=file_name, file_size=file_size) as progress:
-            while downloaded_size < file_size:
-                result = await self._queue.get()
-                start, part = result
-                file.seek(offset + start)
-                file.write(part)
-                # update tracking information
-                chunk_size = len(part)
-                downloaded_size += chunk_size
-                self._queue.task_done()
-                progress.advance(chunk_size)
+        while downloaded_size < file_size:
+            result = await self._queue.get()
+            start, part = result
+            file.seek(offset + start)
+            file.write(part)
+            # update tracking information
+            chunk_size = len(part)
+            downloaded_size += chunk_size
+            self._queue.task_done()
+            progress_bar.advance(chunk_size)

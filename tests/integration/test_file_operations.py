@@ -29,6 +29,7 @@ from ghga_connector.core import (
     calc_part_ranges,
 )
 from ghga_connector.core.downloading.downloader import Downloader, TaskHandler
+from ghga_connector.core.downloading.progress_bar import ProgressBar
 from ghga_connector.core.exceptions import DownloadError
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
@@ -129,12 +130,19 @@ async def test_download_file_parts(
             )
 
         file_path = tmp_path / "test.file"
-        with file_path.open("wb") as file:
+        with (
+            file_path.open("wb") as file,
+            ProgressBar(file_name=file.name, file_size=total_file_size) as progress_bar,
+        ):
             dl_task = create_task(
                 downloader.drain_queue_to_file(
-                    file_name=file.name, file=file, file_size=total_file_size, offset=0
+                    file=file,
+                    file_size=total_file_size,
+                    offset=0,
+                    progress_bar=progress_bar,
                 )
             )
+            await task_handler.gather()
             await dl_task
 
         num_bytes_obtained = file_path.stat().st_size
@@ -164,10 +172,16 @@ async def test_download_file_parts(
         )
 
         file_path = tmp_path / "test2.file"
-        with file_path.open("wb") as file:
+        with (
+            file_path.open("wb") as file,
+            ProgressBar(file_name=file.name, file_size=total_file_size) as progress_bar,
+        ):
             dl_task = create_task(
                 downloader.drain_queue_to_file(
-                    file_name=file.name, file=file, file_size=total_file_size, offset=0
+                    file=file,
+                    file_size=total_file_size,
+                    offset=0,
+                    progress_bar=progress_bar,
                 )
             )
             with pytest.raises(DownloadError):
@@ -203,10 +217,16 @@ async def test_download_file_parts(
                 )
 
         file_path = tmp_path / "test3.file"
-        with file_path.open("wb") as file:
+        with (
+            file_path.open("wb") as file,
+            ProgressBar(file_name=file.name, file_size=total_file_size) as progress_bar,
+        ):
             dl_task = create_task(
                 downloader.drain_queue_to_file(
-                    file_name=file.name, file=file, file_size=total_file_size, offset=0
+                    file=file,
+                    file_size=total_file_size,
+                    offset=0,
+                    progress_bar=progress_bar,
                 )
             )
             with pytest.raises(DownloadError):

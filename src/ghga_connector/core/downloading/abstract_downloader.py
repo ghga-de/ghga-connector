@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from ghga_connector.core import PartRange
+from ghga_connector.core.downloading.progress_bar import ProgressBar
 
 from .structs import URLResponse
 
@@ -69,7 +70,12 @@ class DownloaderBase(ABC):
 
     @abstractmethod
     async def drain_queue_to_file(
-        self, *, file_name: str, file: BufferedWriter, file_size: int, offset: int
+        self,
+        *,
+        file: BufferedWriter,
+        file_size: int,
+        offset: int,
+        progress_bar: ProgressBar,
     ) -> None:
         """Write downloaded file bytes from queue.
         This should be started as asyncio.Task and awaited after the download_to_queue

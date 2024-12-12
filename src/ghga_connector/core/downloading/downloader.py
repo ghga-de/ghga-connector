@@ -15,12 +15,13 @@
 #
 """Contains a concrete implementation of the abstract downloader"""
 
+import asyncio
 import base64
-from asyncio import Queue, Semaphore, Task, create_task
+from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import httpx
 from tenacity import RetryError
@@ -51,11 +52,37 @@ class TaskHandler:
     def __init__(self):
         self._tasks: set[Task] = set()
 
-    async def schedule(self, fn: Coroutine[Any, Any, None]):
+    def schedule(self, fn: Coroutine[Any, Any, None]):
         """Create a task and register its callback."""
         task = create_task(fn)
         self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+        task.add_done_callback(self.finalize)
+
+    def cancel_tasks(self):
+        """Cancel all running taks."""
+        for task in self._tasks:
+            if not task.done():
+                task.cancel()
+
+    def finalize(self, task: Task):
+        """Deal with potential errors when a task is done.
+
+        This is called as done callback, so there are three possibilites here:
+        1. A task encountered an exception: Cancel all remaining tasks and reraise
+        2. A task was cancelled: There's nothing to do, we are already propagating
+           the exception causing the cancellation
+        3. A task finished normally: Remove its handle
+        """
+        if not task.cancelled():
+            exception = task.exception()
+            if exception:
+                self.cancel_tasks()
+                raise exception
+        self._tasks.discard(task)
+
+    async def gather(self):
+        """Await all remaining tasks."""
+        await asyncio.gather(*self._tasks)
 
 
 class Downloader(DownloaderBase):
@@ -78,7 +105,7 @@ class Downloader(DownloaderBase):
         self._max_wait_time = max_wait_time
         self._message_display = message_display
         self._work_package_accessor = work_package_accessor
-        self._queue: Queue[Union[tuple[int, bytes], BaseException]] = Queue()
+        self._queue: Queue[tuple[int, bytes]] = PriorityQueue()
         self._semaphore = Semaphore(value=max_concurrent_downloads)
 
     async def download_file(self, *, output_path: Path, part_size: int):
@@ -93,7 +120,7 @@ class Downloader(DownloaderBase):
 
         # start async part download to intermediate queue
         for part_range in part_ranges:
-            await task_handler.schedule(
+            task_handler.schedule(
                 self.download_to_queue(
                     url=url_response.download_url, part_range=part_range
                 )
@@ -107,6 +134,8 @@ class Downloader(DownloaderBase):
             exceptions.EnvelopeNotFoundError,
             exceptions.ExternalApiError,
         ) as error:
+            # Cancel running tasks before raising
+            task_handler.cancel_tasks()
             raise exceptions.GetEnvelopeError() from error
 
         # Write the downloaded parts to a file
@@ -123,6 +152,7 @@ class Downloader(DownloaderBase):
                 ),
                 name="Write queue to file",
             )
+            await task_handler.gather()
             await write_to_file
 
     async def fetch_download_url(self) -> URLResponse:
@@ -219,8 +249,8 @@ class Downloader(DownloaderBase):
                 await self.download_content_range(
                     url=url, start=part_range.start, end=part_range.stop
                 )
-            except BaseException as exception:
-                await self._queue.put(exception)
+            except Exception as exception:
+                raise exceptions.DownloadError(reason=str(exception)) from exception
 
     async def download_content_range(
         self,
@@ -273,10 +303,7 @@ class Downloader(DownloaderBase):
         with ProgressBar(file_name=file_name, file_size=file_size) as progress:
             while downloaded_size < file_size:
                 result = await self._queue.get()
-                if isinstance(result, BaseException):
-                    raise exceptions.DownloadError(reason=str(result))
-                else:
-                    start, part = result
+                start, part = result
                 file.seek(offset + start)
                 file.write(part)
                 # update tracking information

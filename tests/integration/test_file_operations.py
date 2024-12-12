@@ -124,7 +124,7 @@ async def test_download_file_parts(
         task_handler = TaskHandler()
 
         for part_range in part_ranges:
-            await task_handler.schedule(
+            task_handler.schedule(
                 downloader.download_to_queue(url=download_url, part_range=part_range)
             )
 
@@ -154,12 +154,12 @@ async def test_download_file_parts(
             part_size=part_size, total_file_size=total_file_size
         )
 
-        await task_handler.schedule(
+        task_handler.schedule(
             downloader.download_to_queue(
                 url=download_url, part_range=PartRange(-10000, -1)
             )
         )
-        await task_handler.schedule(
+        task_handler.schedule(
             downloader.download_to_queue(url=download_url, part_range=next(part_ranges))
         )
 
@@ -171,6 +171,7 @@ async def test_download_file_parts(
                 )
             )
             with pytest.raises(DownloadError):
+                await task_handler.gather()
                 await dl_task
 
         # test exception at the end
@@ -189,13 +190,13 @@ async def test_download_file_parts(
         part_ranges = list(part_ranges)  # type: ignore
         for idx, part_range in enumerate(part_ranges):
             if idx == len(part_ranges) - 1:  # type: ignore
-                await task_handler.schedule(
+                task_handler.schedule(
                     downloader.download_to_queue(
                         url=download_url, part_range=PartRange(-10000, -1)
                     )
                 )
             else:
-                await task_handler.schedule(
+                task_handler.schedule(
                     downloader.download_to_queue(
                         url=download_url, part_range=part_range
                     )
@@ -209,4 +210,5 @@ async def test_download_file_parts(
                 )
             )
             with pytest.raises(DownloadError):
+                await task_handler.gather()
                 await dl_task

@@ -29,9 +29,6 @@ from unittest.mock import AsyncMock, patch
 import crypt4gh.keys
 import httpx
 import pytest
-from ghga_service_commons.api.mock_router import (  # noqa: F401
-    assert_all_responses_were_requested,
-)
 from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 

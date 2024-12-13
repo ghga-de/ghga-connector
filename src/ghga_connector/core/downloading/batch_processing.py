@@ -17,7 +17,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from time import sleep, time
+from time import perf_counter, sleep
 
 import httpx
 
@@ -158,7 +158,7 @@ class FileStager:
         self.work_package_accessor = work_package_accessor
         self.max_wait_time = config.max_wait_time
         self.client = client
-        self.started_waiting = now = time()
+        self.started_waiting = now = perf_counter()
 
         # Successfully staged files with their download URLs and sizes
         # in the beginning, consider all files as staged with a retry time of 0
@@ -183,10 +183,10 @@ class FileStager:
         self.message_display.display("Updating list of staged files...")
         staging_items = list(self.unstaged_retry_times.items())
         for file_id, retry_time in staging_items:
-            if time() >= retry_time:
+            if perf_counter() >= retry_time:
                 await self._check_file(file_id=file_id)
             if len(self.staged_urls.items()) > 0:
-                self.started_waiting = time()  # reset wait timer
+                self.started_waiting = perf_counter()  # reset wait timer
                 break
         if not self.staged_urls and not self._handle_failures():
             sleep(1)
@@ -223,7 +223,7 @@ class FileStager:
             self.staged_urls[file_id] = response
             self.message_display.display(f"File {file_id} is ready for download.")
         elif isinstance(response, RetryResponse):
-            self.unstaged_retry_times[file_id] = time() + response.retry_after
+            self.unstaged_retry_times[file_id] = perf_counter() + response.retry_after
             self.message_display.display(f"File {file_id} is (still) being staged.")
         else:
             self.missing_files.append(file_id)
@@ -233,7 +233,7 @@ class FileStager:
 
         In that cases, a MaxWaitTimeExceededError is raised.
         """
-        if time() - self.started_waiting >= self.max_wait_time:
+        if perf_counter() - self.started_waiting >= self.max_wait_time:
             raise exceptions.MaxWaitTimeExceededError(max_wait_time=self.max_wait_time)
 
     def _handle_failures(self) -> bool:
@@ -256,6 +256,6 @@ class FileStager:
         response = self.io_handler.get_input(message=unknown_ids_present)
         self.io_handler.handle_response(response=response)
         self.message_display.display("Downloading remaining files")
-        self.started_waiting = time()  # reset the timer
+        self.started_waiting = perf_counter()  # reset the timer
         self.missing_files = []  # reset list of missing files
         return True

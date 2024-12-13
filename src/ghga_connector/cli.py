@@ -262,12 +262,17 @@ def download(
     """Wrapper for the async download function"""
     asyncio.run(
         async_download(
-            output_dir, my_public_key_path, my_private_key_path, debug, overwrite
+            output_dir=output_dir,
+            my_public_key_path=my_public_key_path,
+            my_private_key_path=my_private_key_path,
+            debug=debug,
+            overwrite=overwrite,
         )
     )
 
 
 async def async_download(
+    *,
     output_dir: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,

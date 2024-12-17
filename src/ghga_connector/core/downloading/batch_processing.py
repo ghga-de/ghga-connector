@@ -180,10 +180,14 @@ class FileStager:
         These values contain the download URLs and file sizes.
         The dict should cleared after these files have been downloaded.
         """
+        self.message_display.display("Updating list of staged files...")
         staging_items = list(self.unstaged_retry_times.items())
         for file_id, retry_time in staging_items:
             if time() >= retry_time:
                 await self._check_file(file_id=file_id)
+            if len(self.staged_urls.items()) > 0:
+                self.started_waiting = time()  # reset wait timer
+                break
         if not self.staged_urls and not self._handle_failures():
             sleep(1)
         self._check_timeout()
@@ -217,8 +221,10 @@ class FileStager:
         if isinstance(response, URLResponse):
             del self.unstaged_retry_times[file_id]
             self.staged_urls[file_id] = response
+            self.message_display.display(f"File {file_id} is ready for download.")
         elif isinstance(response, RetryResponse):
             self.unstaged_retry_times[file_id] = time() + response.retry_after
+            self.message_display.display(f"File {file_id} is (still) being staged.")
         else:
             self.missing_files.append(file_id)
 
@@ -251,4 +257,5 @@ class FileStager:
         self.io_handler.handle_response(response=response)
         self.message_display.display("Downloading remaining files")
         self.time_started = time()  # reset the timer
+        self.missing_files = []  # reset list of missing files
         return True

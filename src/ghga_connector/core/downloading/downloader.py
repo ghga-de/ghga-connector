@@ -16,7 +16,8 @@
 """Contains a concrete implementation of the abstract downloader"""
 
 import base64
-from asyncio import Queue, Semaphore, Task, create_task
+import gc
+from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
 from pathlib import Path
@@ -79,7 +80,7 @@ class Downloader(DownloaderBase):
         self._max_wait_time = max_wait_time
         self._message_display = message_display
         self._work_package_accessor = work_package_accessor
-        self._queue: Queue[Union[tuple[int, bytes], BaseException]] = Queue()
+        self._queue: Queue[Union[tuple[int, bytes], BaseException]] = PriorityQueue()
         self._semaphore = Semaphore(value=max_concurrent_downloads)
         self._retry_handler = HttpxClientConfigurator.retry_handler
 
@@ -135,9 +136,15 @@ class Downloader(DownloaderBase):
         wait_time = 0
         while wait_time < self._max_wait_time:
             try:
+                self._message_display.display(
+                    f"Fetching work order token for {self._file_id}"
+                )
                 url_and_headers = await get_file_authorization(
                     file_id=self._file_id,
                     work_package_accessor=self._work_package_accessor,
+                )
+                self._message_display.display(
+                    f"Fetching download URL for {self._file_id}"
                 )
                 response = await get_download_url(
                     client=self._client, url_and_headers=url_and_headers
@@ -302,3 +309,4 @@ class Downloader(DownloaderBase):
                 downloaded_size += chunk_size
                 self._queue.task_done()
                 progress.advance(chunk_size)
+                gc.collect()

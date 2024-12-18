@@ -143,13 +143,13 @@ def apply_common_download_mocks(monkeypatch):
         (1024, 1024),
         (2048, 1024),
         (20 * 1024, 1024),
-        # # then test with larger files sizes
-        # (6 * 1024 * 1024, 5 * 1024 * 1024),
-        # (12 * 1024 * 1024, 5 * 1024 * 1024),
-        # (20 * 1024 * 1024, 1 * 1024 * 1024),
-        # (20 * 1024 * 1024, 64 * 1024),
-        # (1 * 1024 * 1024, DEFAULT_PART_SIZE),
-        # (50 * 1024 * 1024, 1 * 1024 * 1024),
+        # then test with larger files sizes
+        (6 * 1024 * 1024, 5 * 1024 * 1024),
+        (12 * 1024 * 1024, 5 * 1024 * 1024),
+        (20 * 1024 * 1024, 1 * 1024 * 1024),
+        (20 * 1024 * 1024, 64 * 1024),
+        (1 * 1024 * 1024, DEFAULT_PART_SIZE),
+        (50 * 1024 * 1024, 1 * 1024 * 1024),
     ],
 )
 async def test_multipart_download(
@@ -212,13 +212,13 @@ async def test_multipart_download(
 @pytest.mark.parametrize(
     "bad_outdir,file_name,expected_exception",
     [
-        # (False, "file_downloadable", nullcontext()),
-        # (False, "file_retry", pytest.raises(exceptions.MaxWaitTimeExceededError)),
-        # (
-        #     True,
-        #     "file_downloadable",
-        #     pytest.raises(exceptions.DirectoryDoesNotExistError),
-        # ),
+        (False, "file_downloadable", nullcontext()),
+        (False, "file_retry", pytest.raises(exceptions.MaxWaitTimeExceededError)),
+        (
+            True,
+            "file_downloadable",
+            pytest.raises(exceptions.DirectoryDoesNotExistError),
+        ),
         (False, "file_envelope_missing", pytest.raises(exceptions.GetEnvelopeError)),
     ],
 )

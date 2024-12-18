@@ -41,7 +41,7 @@ from ghga_connector.cli import (
 from ghga_connector.config import CONFIG
 from ghga_connector.constants import DEFAULT_PART_SIZE, TIMEOUT
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import get_transport
+from ghga_connector.core.client import get_cache_transport
 from ghga_connector.core.crypt import Crypt4GHEncryptor
 from ghga_connector.core.main import upload_file
 from tests.fixtures import state
@@ -87,7 +87,7 @@ async def mock_async_client():
 
     Lets other traffic go out as usual, e.g. to the S3 testcontainer.
     """
-    transport = get_transport(httpx.ASGITransport(app=mock_external_app))
+    cache_transport = get_cache_transport(httpx.ASGITransport(app=mock_external_app))
 
     async with httpx.AsyncClient(
         timeout=TIMEOUT,
@@ -95,7 +95,7 @@ async def mock_async_client():
             max_connections=CONFIG.max_concurrent_downloads,
             max_keepalive_connections=CONFIG.max_concurrent_downloads,
         ),
-        mounts={"all://127.0.0.1": transport},
+        mounts={"all://127.0.0.1": cache_transport},
     ) as client:
         attach_correlation_id_to_requests(client)
         yield client

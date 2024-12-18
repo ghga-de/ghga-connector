@@ -16,8 +16,10 @@
 
 from contextlib import asynccontextmanager, contextmanager
 from functools import cached_property
+from typing import Union
 
 import httpx
+from ghga_service_commons.http.correlation import attach_correlation_id_to_requests
 from tenacity import (
     AsyncRetrying,
     retry_if_exception_type,
@@ -71,14 +73,29 @@ def httpx_client():
         yield client
 
 
+def get_transport(
+    transport_override: Union[httpx.AsyncBaseTransport, None] = None,
+) -> httpx.AsyncBaseTransport:
+    """Produce the async transport to use with the async client.
+
+    The `transport_override` parameter can be used for testing to inject, for example,
+    an httpx.ASGITransport pointing to a FastAPI app.
+    """
+    return transport_override or httpx.AsyncHTTPTransport()
+
+
 @asynccontextmanager
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
+    transport = get_transport()
+
     async with httpx.AsyncClient(
         timeout=TIMEOUT,
+        transport=transport,
         limits=httpx.Limits(
             max_connections=CONFIG.max_concurrent_downloads,
             max_keepalive_connections=CONFIG.max_concurrent_downloads,
         ),
     ) as client:
+        attach_correlation_id_to_requests(client)
         yield client

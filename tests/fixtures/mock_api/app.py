@@ -25,12 +25,14 @@ import base64
 import json
 import os
 from datetime import datetime
+from email.utils import format_datetime
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from ghga_service_commons.api.api import ApiConfigBase, configure_app
+from ghga_service_commons.api.di import DependencyDummy
 from ghga_service_commons.httpyexpect.server.exceptions import HttpException
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from pydantic import BaseModel
@@ -129,7 +131,27 @@ class HttpEnvelopeResponse(Response):
         super().__init__(content=envelope, status_code=status_code)
 
 
+def create_caching_headers(expires_after: int = 60):
+    """Return headers used in responses for caching by `hishel`"""
+    cache_control_header = ("Cache-Control", f"max-age={expires_after}")
+    date_header = ("date", format_datetime(now_as_utc()))
+    return {k: v for k, v in [cache_control_header, date_header]}
+
+
 mock_external_app = FastAPI()
+url_expires_after = DependencyDummy("url_expires_after")
+UrlLifespan = Annotated[int, Depends(url_expires_after)]
+
+
+async def update_presigned_url_placeholder():
+    """Placeholder function to generate a new S3 download URL.
+
+    Patch this function only via `set_presigned_url_update_endpoint`.
+
+    This is stand-in logic for how the download controller creates a pre-signed
+    S3 download URL when its `/objects/{file_id}` endpoint is called.
+    """
+    raise NotImplementedError()
 
 
 @mock_external_app.get("/")
@@ -147,8 +169,12 @@ async def health():
 
 
 @mock_external_app.get("/objects/{file_id}")
-async def drs3_objects(file_id: str, request: Request):
-    """Mock for the drs3 /objects/{file_id} call"""
+async def drs3_objects(file_id: str, request: Request, url_expires_after: UrlLifespan):
+    """Mock for the drs3 /objects/{file_id} call.
+
+    The `url_expires_after` parameter is an app dependency that is overridden by tests
+    that use this mock api.
+    """
     # get authorization header
     authorization = request.headers["authorization"]
 
@@ -174,8 +200,10 @@ async def drs3_objects(file_id: str, request: Request):
         )
 
     if file_id in ("downloadable", "big-downloadable", "envelope-missing"):
+        await update_presigned_url_placeholder()
         return Response(
             status_code=200,
+            headers=create_caching_headers(expires_after=url_expires_after),
             content=DrsObjectServe(
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",

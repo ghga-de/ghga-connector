@@ -46,7 +46,7 @@ from ghga_connector.core.crypt import Crypt4GHEncryptor
 from ghga_connector.core.main import upload_file
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import mock_external_app
+from tests.fixtures.mock_api.app import mock_external_app, url_expires_after
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -69,6 +69,7 @@ ENVIRON_DEFAULTS = {
     "FAKE_ENVELOPE": "Fake_envelope",
 }
 FAKE_ENVELOPE = "Thisisafakeenvelope"
+SHORT_LIFESPAN = 10
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -132,6 +133,47 @@ def apply_common_download_mocks(monkeypatch):
     monkeypatch.setenv("FAKE_ENVELOPE", FAKE_ENVELOPE)
 
 
+def set_presigned_url_update_endpoint(
+    monkeypatch,
+    s3_fixture: S3Fixture,  # noqa: F811
+    *,
+    bucket_id: str,
+    object_id: str,
+    expires_after: int,
+    validity_buffer: int = 3,
+):
+    """Temporarily assign the S3 download URL update endpoint in the mock app.
+
+    Since creating the URL requires access to the S3 fixture, this behavior is
+    defined here instead of with the rest of the mock api.
+    """
+
+    async def update_presigned_url_actual():
+        """Create a new presigned download URL for S3."""
+        download_url = await s3_fixture.storage.get_object_download_url(
+            bucket_id=bucket_id,
+            object_id=object_id,
+            expires_after=expires_after,
+        )
+
+        monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
+
+    # Monkeypatch the placeholder endpoint function with the above
+    monkeypatch.setattr(
+        "tests.fixtures.mock_api.app.update_presigned_url_placeholder",
+        update_presigned_url_actual,
+    )
+
+    # Pretend we're in the DCS:
+    #  For the response we'll send to the Connector, make the caching header expire a
+    #  few seconds prior to the hard S3 expiration so we proactively retrieve a fresh
+    #  download URL without dealing with expired URLs.
+    cache_lifespan = max(2, expires_after - validity_buffer)
+
+    # Override the app dependency so it uses the new cache lifespan
+    mock_external_app.dependency_overrides[url_expires_after] = lambda: cache_lifespan
+
+
 @pytest.mark.parametrize(
     "file_size, part_size",
     [
@@ -149,7 +191,7 @@ def apply_common_download_mocks(monkeypatch):
         (20 * 1024 * 1024, 1 * 1024 * 1024),
         (20 * 1024 * 1024, 64 * 1024),
         (1 * 1024 * 1024, DEFAULT_PART_SIZE),
-        (50 * 1024 * 1024, 1 * 1024 * 1024),
+        (75 * 1024 * 1024, 1 * 1024 * 1024),
     ],
 )
 async def test_multipart_download(
@@ -182,16 +224,15 @@ async def test_multipart_download(
     # right now the desired file size is only
     # approximately met by the provided big file:
     actual_file_size = len(big_object.content)
+    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(actual_file_size))
 
-    # get s3 download url
-    download_url = await s3_fixture.storage.get_object_download_url(
+    set_presigned_url_update_endpoint(
+        monkeypatch,
+        s3_fixture,
         bucket_id=big_object.bucket_id,
         object_id=big_object.object_id,
-        expires_after=180,
+        expires_after=SHORT_LIFESPAN,
     )
-
-    monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
-    monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(actual_file_size))
 
     big_file_content = str.encode(FAKE_ENVELOPE)
     big_file_content += big_object.content
@@ -244,16 +285,16 @@ async def test_download(
     )
 
     if file.populate_storage:
-        download_url = await s3_fixture.storage.get_object_download_url(
+        set_presigned_url_update_endpoint(
+            monkeypatch,
+            s3_fixture,
             bucket_id=file.grouping_label,
             object_id=file.file_id,
-            expires_after=60,
+            expires_after=SHORT_LIFESPAN,
         )
-
     else:
-        download_url = ""
+        monkeypatch.setenv("S3_DOWNLOAD_URL", "")
 
-    monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
     monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(os.path.getsize(file.file_path)))
 
     # The intercepted health check API calls will return the following mock response
@@ -305,20 +346,9 @@ async def test_file_not_downloadable(
         AsyncMock(return_value={file.file_id: ""}),
     )
 
-    if file.populate_storage:
-        download_url = await s3_fixture.storage.get_object_download_url(
-            bucket_id=file.grouping_label,
-            object_id=file.file_id,
-            expires_after=60,
-        )
-
-    else:
-        download_url = ""
-
-    monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
     monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(os.path.getsize(file.file_path)))
 
-    # check both 403 scenarios
+    # 403 caused by an invalid auth token
     with (
         patch(
             "ghga_connector.core.work_package._decrypt",
@@ -335,6 +365,7 @@ async def test_file_not_downloadable(
             my_private_key_path=Path(PRIVATE_KEY_FILE),
         )
 
+    # 403 caused by requesting file ID that's not part of the work order token
     with (
         patch(
             "ghga_connector.core.work_package._decrypt",
@@ -352,6 +383,8 @@ async def test_file_not_downloadable(
             my_private_key_path=Path(PRIVATE_KEY_FILE),
         )
 
+    # Exception arising when the file ID is valid, but not found in the DCS (and the
+    #  user inputs 'no' instead of 'yes' when prompted if they want to continue anyway)
     with (
         patch(
             "ghga_connector.core.downloading.batch_processing.CliInputHandler.get_input",

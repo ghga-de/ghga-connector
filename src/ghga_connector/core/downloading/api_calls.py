@@ -30,8 +30,8 @@ from .structs import (
 
 
 async def _get_authorization(
-    file_id: str, work_package_accessor: WorkPackageAccessor, url: str
-) -> UrlAndHeaders:
+    file_id: str, work_package_accessor: WorkPackageAccessor
+) -> httpx.Headers:
     """
     Fetch work order token using accessor and prepare DCS endpoint URL and headers for a
     given endpoint identified by the `url` passed
@@ -44,10 +44,11 @@ async def _get_authorization(
             "Accept": "application/json",
             "Authorization": f"Bearer {decrypted_token}",
             "Content-Type": "application/json",
+            "Cache-Control": "min-fresh=3",  #  make configurable?
         }
     )
 
-    return UrlAndHeaders(endpoint_url=url, headers=headers)
+    return headers
 
 
 async def get_envelope_authorization(
@@ -59,9 +60,10 @@ async def get_envelope_authorization(
     """
     # build url
     url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}/envelopes"
-    return await _get_authorization(
-        file_id=file_id, work_package_accessor=work_package_accessor, url=url
+    headers = await _get_authorization(
+        file_id=file_id, work_package_accessor=work_package_accessor
     )
+    return UrlAndHeaders(url, headers)
 
 
 async def get_file_authorization(
@@ -73,9 +75,10 @@ async def get_file_authorization(
     """
     # build URL
     url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}"
-    return await _get_authorization(
-        file_id=file_id, work_package_accessor=work_package_accessor, url=url
+    headers = await _get_authorization(
+        file_id=file_id, work_package_accessor=work_package_accessor
     )
+    return UrlAndHeaders(url, headers)
 
 
 async def get_download_url(

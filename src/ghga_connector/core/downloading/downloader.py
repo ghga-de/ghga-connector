@@ -17,6 +17,7 @@
 
 import asyncio
 import base64
+import gc
 from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
@@ -320,3 +321,4 @@ class Downloader(DownloaderBase):
             downloaded_size += chunk_size
             self._queue.task_done()
             progress_bar.advance(chunk_size)
+            gc.collect()

@@ -157,8 +157,13 @@ class Downloader(DownloaderBase):
                 ),
                 name="Write queue to file",
             )
-            await task_handler.gather()
-            await write_to_file
+            try:
+                await task_handler.gather()
+            except:
+                write_to_file.cancel()
+                raise
+            else:
+                await write_to_file
 
     async def fetch_download_url(self) -> URLResponse:
         """Fetch a work order token and retrieve the download url.

@@ -17,7 +17,7 @@
 """Test file operations"""
 
 from asyncio import create_task
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -30,6 +30,7 @@ from ghga_connector.core import (
 )
 from ghga_connector.core.downloading.downloader import Downloader, TaskHandler
 from ghga_connector.core.downloading.progress_bar import ProgressBar
+from ghga_connector.core.downloading.structs import URLResponse
 from ghga_connector.core.exceptions import DownloadError
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
@@ -109,6 +110,7 @@ async def test_download_file_parts(
     download_url = await s3_fixture.storage.get_object_download_url(
         object_id=big_object.object_id, bucket_id=big_object.bucket_id
     )
+    url_response = URLResponse(download_url, total_file_size)
 
     async with async_client() as client:
         # no work package accessor calls in download_file_parts, just mock for correct type
@@ -122,12 +124,11 @@ async def test_download_file_parts(
             work_package_accessor=dummy_accessor,
             message_display=message_display,
         )
+        downloader.fetch_download_url = AsyncMock(return_value=url_response)
         task_handler = TaskHandler()
 
         for part_range in part_ranges:
-            task_handler.schedule(
-                downloader.download_to_queue(url=download_url, part_range=part_range)
-            )
+            task_handler.schedule(downloader.download_to_queue(part_range=part_range))
 
         file_path = tmp_path / "test.file"
         with (
@@ -157,18 +158,17 @@ async def test_download_file_parts(
             work_package_accessor=dummy_accessor,
             message_display=message_display,
         )
+        downloader.fetch_download_url = AsyncMock(return_value=url_response)
         task_handler = TaskHandler()
         part_ranges = calc_part_ranges(
             part_size=part_size, total_file_size=total_file_size
         )
 
         task_handler.schedule(
-            downloader.download_to_queue(
-                url=download_url, part_range=PartRange(-10000, -1)
-            )
+            downloader.download_to_queue(part_range=PartRange(-10000, -1))
         )
         task_handler.schedule(
-            downloader.download_to_queue(url=download_url, part_range=next(part_ranges))
+            downloader.download_to_queue(part_range=next(part_ranges))
         )
 
         file_path = tmp_path / "test2.file"
@@ -197,6 +197,7 @@ async def test_download_file_parts(
             work_package_accessor=dummy_accessor,
             message_display=message_display,
         )
+        downloader.fetch_download_url = AsyncMock(return_value=url_response)
         task_handler = TaskHandler()
         part_ranges = calc_part_ranges(
             part_size=part_size, total_file_size=total_file_size
@@ -205,15 +206,11 @@ async def test_download_file_parts(
         for idx, part_range in enumerate(part_ranges):
             if idx == len(part_ranges) - 1:  # type: ignore
                 task_handler.schedule(
-                    downloader.download_to_queue(
-                        url=download_url, part_range=PartRange(-10000, -1)
-                    )
+                    downloader.download_to_queue(part_range=PartRange(-10000, -1))
                 )
             else:
                 task_handler.schedule(
-                    downloader.download_to_queue(
-                        url=download_url, part_range=part_range
-                    )
+                    downloader.download_to_queue(part_range=part_range)
                 )
 
         file_path = tmp_path / "test3.file"

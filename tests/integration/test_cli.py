@@ -19,7 +19,7 @@
 import base64
 import os
 import pathlib
-from contextlib import asynccontextmanager, nullcontext
+from contextlib import nullcontext
 from filecmp import cmp
 from pathlib import Path
 from typing import Any
@@ -28,7 +28,6 @@ from unittest.mock import AsyncMock, patch
 import crypt4gh.keys
 import httpx
 import pytest
-from ghga_service_commons.http.correlation import attach_correlation_id_to_requests
 from ghga_service_commons.utils.temp_files import big_temp_file
 from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
@@ -37,10 +36,9 @@ from ghga_connector.cli import (
     init_message_display,
     retrieve_upload_parameters,
 )
-from ghga_connector.config import CONFIG
-from ghga_connector.constants import DEFAULT_PART_SIZE, TIMEOUT
+from ghga_connector.constants import DEFAULT_PART_SIZE
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import get_cache_transport
+from ghga_connector.core.client import async_client, get_cache_transport
 from ghga_connector.core.crypt import Crypt4GHEncryptor
 from ghga_connector.core.main import upload_file
 from tests.fixtures import state
@@ -79,30 +77,24 @@ pytestmark = [
 ]
 
 
-@asynccontextmanager
-async def mock_async_client():
+def get_test_mounts():
     """Test-only version of `async_client` to route traffic to the specified app.
 
-    Lets other traffic go out as usual, e.g. to the S3 testcontainer.
+    Lets other traffic go out as usual, e.g. to the S3 testcontainer, while still using
+    the same caching logic as the real client.
     """
-    cache_transport = get_cache_transport(httpx.ASGITransport(app=mock_external_app))
-
-    async with httpx.AsyncClient(
-        timeout=TIMEOUT,
-        limits=httpx.Limits(
-            max_connections=CONFIG.max_concurrent_downloads,
-            max_keepalive_connections=CONFIG.max_concurrent_downloads,
-        ),
-        mounts={"all://127.0.0.1": cache_transport},
-    ) as client:
-        attach_correlation_id_to_requests(client)
-        yield client
+    mock_app_transport = get_cache_transport(httpx.ASGITransport(app=mock_external_app))
+    mounts = {
+        "all://127.0.0.1": mock_app_transport,  # route traffic to the mock app
+        "all://host.docker.internal": get_cache_transport(),  # let S3 traffic go out
+    }
+    return mounts
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", autouse=True)
 def mock_external_calls(monkeypatch):
     """Monkeypatch the async_client so it only intercepts calls to the mock app"""
-    monkeypatch.setattr("ghga_connector.cli.async_client", mock_async_client)
+    monkeypatch.setattr("ghga_connector.core.client.get_mounts", get_test_mounts)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -198,7 +190,6 @@ async def test_multipart_download(
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,
     apply_common_download_mocks,
 ):
     """Test the multipart download of a file"""
@@ -268,7 +259,6 @@ async def test_download(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,
     apply_common_download_mocks,
 ):
     """Test the download of a file"""
@@ -322,7 +312,6 @@ async def test_file_not_downloadable(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,
     apply_common_download_mocks,
 ):
     """Test to try downloading a file that isn't in storage.
@@ -456,7 +445,7 @@ async def test_upload(
 
     with expected_exception:
         message_display = init_message_display(debug=True)
-        async with mock_async_client() as client:
+        async with async_client() as client:
             parameters = await retrieve_upload_parameters(client=client)
             await upload_file(
                 api_url=parameters.ucs_api_url,
@@ -538,7 +527,7 @@ async def test_multipart_upload(
     # create big temp file
     with big_temp_file(file_size) as file:
         message_display = init_message_display(debug=True)
-        async with mock_async_client() as client:
+        async with async_client() as client:
             parameters = await retrieve_upload_parameters(client=client)
             await upload_file(
                 api_url=parameters.ucs_api_url,
@@ -576,7 +565,7 @@ async def test_upload_bad_url(httpx_mock: HTTPXMock):  # noqa: F811
 
     with pytest.raises(exceptions.ApiNotReachableError):
         message_display = init_message_display(debug=True)
-        async with mock_async_client() as client:
+        async with async_client() as client:
             parameters = await retrieve_upload_parameters(client=client)
             await upload_file(
                 api_url=parameters.ucs_api_url,
@@ -594,7 +583,6 @@ async def test_upload_bad_url(httpx_mock: HTTPXMock):  # noqa: F811
 async def test_download_bad_url(
     httpx_mock: HTTPXMock,  # noqa: F811
     tmp_path: pathlib.Path,
-    mock_external_calls,
     monkeypatch,
     apply_common_download_mocks,
 ):

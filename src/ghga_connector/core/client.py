@@ -84,27 +84,32 @@ def get_cache_transport(
     """
     cache_transport = hishel.AsyncCacheTransport(
         transport=wrapped_transport or httpx.AsyncHTTPTransport(),
-        storage=hishel.AsyncInMemoryStorage(capacity=50),
+        storage=hishel.AsyncInMemoryStorage(ttl=86400),  # persist for 24 hours
         controller=hishel.Controller(
             cacheable_methods=["POST", "GET"],
-            cacheable_status_codes=[200, 201, 301, 308],
+            cacheable_status_codes=[200, 201],
         ),
     )
     return cache_transport
 
 
+def get_mounts() -> dict[str, httpx.AsyncBaseTransport]:
+    """Return a dict of mounts for the cache transport."""
+    return {
+        "all://": get_cache_transport(),
+    }
+
+
 @asynccontextmanager
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
-    cache_transport = get_cache_transport()
-
     async with httpx.AsyncClient(
         timeout=TIMEOUT,
-        transport=cache_transport,
         limits=httpx.Limits(
             max_connections=CONFIG.max_concurrent_downloads,
             max_keepalive_connections=CONFIG.max_concurrent_downloads,
         ),
+        mounts=get_mounts(),
     ) as client:
         attach_correlation_id_to_requests(client)
         yield client

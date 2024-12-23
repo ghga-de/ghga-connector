@@ -268,7 +268,12 @@ class Downloader(DownloaderBase):
         end: int,
     ) -> None:
         """Download a specific range of a file's content using a presigned download url."""
-        headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
+        headers = httpx.Headers(
+            {
+                "Range": f"bytes={start}-{end}",
+                "Cache-Control": "no-store",  # don't cache part downloads
+            }
+        )
 
         try:
             response: httpx.Response = await retry_handler(

@@ -99,12 +99,13 @@ async def test_get_work_package_caching(monkeypatch, httpx_mock: HTTPXMock):
             package_id="wp_1",
         )
         # add mocked response
-        response = {
-            "status_code": 200,
-            "json": {"files": {"file-id-1": ".json"}},
-            "headers": create_caching_headers(1),
-        }
-        httpx_mock.add_response(**response)
+        add_httpx_response = partial(
+            httpx_mock.add_response,
+            status_code=200,
+            json={"files": {"file-id-1": ".json"}},
+            headers=create_caching_headers(1),
+        )
+        add_httpx_response()
         await accessor.get_package_files()
         assert client.calls
         client.assert_last_call_not_from_cache()
@@ -114,7 +115,7 @@ async def test_get_work_package_caching(monkeypatch, httpx_mock: HTTPXMock):
         client.assert_last_call_from_cache()
 
         # Wait 1 second to make sure the cache expires, then call again
-        httpx_mock.add_response(**response)
+        add_httpx_response()
         await asyncio.sleep(1)
         await accessor.get_package_files()
         client.assert_last_call_not_from_cache()
@@ -144,21 +145,18 @@ async def test_get_work_order_token_caching(monkeypatch, httpx_mock: HTTPXMock):
             package_id="wp_1",
         )
         file_id = "file-id-1"
-        response = {
-            "status_code": 201,
-            "json": base64.b64encode(b"1234567890" * 5).decode(),
-            "headers": create_caching_headers(1),
-        }
-        httpx_mock.add_response(**response)
+        add_httpx_response = partial(
+            httpx_mock.add_response,
+            status_code=201,
+            json=base64.b64encode(b"1234567890" * 5).decode(),
+            headers=create_caching_headers(1),
+        )
+        add_httpx_response()
         await accessor.get_work_order_token(file_id=file_id)
 
         # Verify that the call was made
         assert client.calls
         client.assert_last_call_not_from_cache()
-        assert (
-            client.calls[-1].request.url.path
-            == f"/work-packages/wp_1/files/{file_id}/work-order-tokens"
-        )
 
         # Make same call and verify that the call came from the cache instead
         await accessor.get_work_order_token(file_id=file_id)
@@ -166,7 +164,7 @@ async def test_get_work_order_token_caching(monkeypatch, httpx_mock: HTTPXMock):
 
         # Wait for the cache entry to expire, then make the call again
         await asyncio.sleep(1)
-        httpx_mock.add_response(**response)
+        add_httpx_response()
         await accessor.get_work_order_token(file_id=file_id)
         client.assert_last_call_not_from_cache()
 

@@ -38,12 +38,16 @@ from ghga_connector.cli import (
 )
 from ghga_connector.constants import DEFAULT_PART_SIZE
 from ghga_connector.core import exceptions
-from ghga_connector.core.client import async_client, get_cache_transport
+from ghga_connector.core.client import async_client
 from ghga_connector.core.crypt import Crypt4GHEncryptor
 from ghga_connector.core.main import upload_file
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import mock_external_app, url_expires_after
+from tests.fixtures.mock_api.app import (
+    mock_external_app,
+    mock_external_calls,  # noqa: F401
+    url_expires_after,
+)
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -75,26 +79,6 @@ pytestmark = [
         should_mock=lambda request: str(request.url).endswith("/health"),
     ),
 ]
-
-
-def get_test_mounts():
-    """Test-only version of `async_client` to route traffic to the specified app.
-
-    Lets other traffic go out as usual, e.g. to the S3 testcontainer, while still using
-    the same caching logic as the real client.
-    """
-    mock_app_transport = get_cache_transport(httpx.ASGITransport(app=mock_external_app))
-    mounts = {
-        "all://127.0.0.1": mock_app_transport,  # route traffic to the mock app
-        "all://host.docker.internal": get_cache_transport(),  # let S3 traffic go out
-    }
-    return mounts
-
-
-@pytest.fixture(scope="function", autouse=True)
-def mock_external_calls(monkeypatch):
-    """Monkeypatch the async_client so it only intercepts calls to the mock app"""
-    monkeypatch.setattr("ghga_connector.core.client.get_mounts", get_test_mounts)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -180,7 +164,7 @@ def set_presigned_url_update_endpoint(
         (20 * 1024 * 1024, 1 * 1024 * 1024),
         (20 * 1024 * 1024, 64 * 1024),
         (1 * 1024 * 1024, DEFAULT_PART_SIZE),
-        (75 * 1024 * 1024, 1 * 1024 * 1024),
+        (75 * 1024 * 1024, 10 * 1024 * 1024),
     ],
 )
 async def test_multipart_download(
@@ -190,6 +174,7 @@ async def test_multipart_download(
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
     monkeypatch,
+    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test the multipart download of a file"""
@@ -259,6 +244,7 @@ async def test_download(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
+    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test the download of a file"""
@@ -312,6 +298,7 @@ async def test_file_not_downloadable(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
+    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test to try downloading a file that isn't in storage.
@@ -400,6 +387,7 @@ async def test_upload(
     httpx_mock: HTTPXMock,  # noqa: F811
     s3_fixture: S3Fixture,  # noqa F811
     monkeypatch,
+    mock_external_calls,  # noqa: F811
     tmpdir,
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
@@ -484,6 +472,7 @@ async def test_multipart_upload(
     httpx_mock: HTTPXMock,  # noqa: F811
     s3_fixture: S3Fixture,  # noqa F811
     monkeypatch,
+    mock_external_calls,  # noqa: F811
 ):
     """Test the upload of a file, expects Abort, if the file was not found"""
     bucket_id = s3_fixture.existing_buckets[0]
@@ -555,7 +544,7 @@ async def test_multipart_upload(
     )
 
 
-async def test_upload_bad_url(httpx_mock: HTTPXMock):  # noqa: F811
+async def test_upload_bad_url(httpx_mock: HTTPXMock, mock_external_calls):  # noqa: F811
     """Check that the right error is raised for a bad URL in the upload logic."""
     # The intercepted health check API call will return the following mock response
     httpx_mock.add_exception(httpx.RequestError(""))

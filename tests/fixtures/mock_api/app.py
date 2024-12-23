@@ -29,6 +29,8 @@ from email.utils import format_datetime
 from enum import Enum
 from typing import Annotated, Literal
 
+import httpx
+import pytest
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from ghga_service_commons.api.api import ApiConfigBase, configure_app
@@ -36,6 +38,8 @@ from ghga_service_commons.api.di import DependencyDummy
 from ghga_service_commons.httpyexpect.server.exceptions import HttpException
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from pydantic import BaseModel
+
+from ghga_connector.core.client import get_cache_transport
 
 
 class UploadStatus(str, Enum):
@@ -435,3 +439,23 @@ async def mock_wkvs(value_name: str):
 
 config = ApiConfigBase()
 configure_app(mock_external_app, config)
+
+
+def get_test_mounts():
+    """Test-only version of `async_client` to route traffic to the specified app.
+
+    Lets other traffic go out as usual, e.g. to the S3 testcontainer, while still using
+    the same caching logic as the real client.
+    """
+    mock_app_transport = get_cache_transport(httpx.ASGITransport(app=mock_external_app))
+    mounts = {
+        "all://127.0.0.1": mock_app_transport,  # route traffic to the mock app
+        "all://host.docker.internal": get_cache_transport(),  # let S3 traffic go out
+    }
+    return mounts
+
+
+@pytest.fixture(scope="function")
+def mock_external_calls(monkeypatch):
+    """Monkeypatch the async_client so it only intercepts calls to the mock app"""
+    monkeypatch.setattr("ghga_connector.core.client.get_mounts", get_test_mounts)

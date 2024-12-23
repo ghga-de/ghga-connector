@@ -19,7 +19,6 @@
 import base64
 import os
 import pathlib
-import re
 from contextlib import asynccontextmanager, nullcontext
 from filecmp import cmp
 from pathlib import Path
@@ -58,8 +57,6 @@ from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, mock_wps_tok
 GET_PACKAGE_FILES_ATTR = (
     "ghga_connector.core.work_package.WorkPackageAccessor.get_package_files"
 )
-URL_PATTERN = re.compile(r"^https?://127\.0\.0\.1.*")
-API_URL = "http://127.0.0.1"
 ENVIRON_DEFAULTS = {
     "DEFAULT_PART_SIZE": str(16 * 1024 * 1024),
     "S3_DOWNLOAD_URL": "test://download.url",

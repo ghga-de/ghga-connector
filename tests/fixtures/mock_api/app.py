@@ -135,7 +135,7 @@ class HttpEnvelopeResponse(Response):
         super().__init__(content=envelope, status_code=status_code)
 
 
-def create_caching_headers(expires_after: int = 60):
+def create_caching_headers(expires_after: int = 60) -> dict[str, str]:
     """Return headers used in responses for caching by `hishel`"""
     cache_control_header = ("Cache-Control", f"max-age={expires_after}")
     date_header = ("date", format_datetime(now_as_utc()))
@@ -408,10 +408,16 @@ async def ulc_patch_uploads(upload_id: str, request: Request):
 
 @mock_external_app.post("/work-packages/{package_id}/files/{file_id}/work-order-tokens")
 async def create_work_order_token(package_id: str, file_id: str):
-    """Mock Work Order Token endpoint"""
+    """Mock Work Order Token endpoint.
+
+    Cached response will be valid for 3 seconds for testing purposes.
+    """
     # has to be at least 48 chars long
+    headers = create_caching_headers(expires_after=3)
     return JSONResponse(
-        status_code=201, content=base64.b64encode(b"1234567890" * 5).decode()
+        status_code=201,
+        content=base64.b64encode(b"1234567890" * 5).decode(),
+        headers=headers,
     )
 
 

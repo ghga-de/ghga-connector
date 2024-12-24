@@ -573,6 +573,7 @@ async def test_download_bad_url(
     httpx_mock: HTTPXMock,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
+    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Check that the right error is raised for a bad URL in the download logic."""

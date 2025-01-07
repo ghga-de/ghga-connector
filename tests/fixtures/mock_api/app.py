@@ -137,7 +137,7 @@ class HttpEnvelopeResponse(Response):
 
 def create_caching_headers(expires_after: int = 60) -> dict[str, str]:
     """Return headers used in responses for caching by `hishel`"""
-    cache_control_header = ("Cache-Control", f"max-age={expires_after}")
+    cache_control_header = ("Cache-Control", f"max-age={expires_after}, private")
     date_header = ("date", format_datetime(now_as_utc()))
     return {k: v for k, v in [cache_control_header, date_header]}
 
@@ -200,7 +200,8 @@ async def drs3_objects(file_id: str, request: Request, expires_after: UrlLifespa
 
     if file_id == "retry":
         return Response(
-            status_code=status.HTTP_202_ACCEPTED, headers={"Retry-After": "10"}
+            status_code=status.HTTP_202_ACCEPTED,
+            headers={"Retry-After": "10", "Cache-Control": "no-store"},
         )
 
     if file_id in ("downloadable", "big-downloadable", "envelope-missing"):
@@ -236,7 +237,9 @@ async def drs3_objects_envelopes(file_id: str):
     if file_id in ("downloadable", "big-downloadable"):
         response_str = str.encode(os.environ["FAKE_ENVELOPE"])
         envelope = base64.b64encode(response_str).decode("utf-8")
-        return HttpEnvelopeResponse(envelope=envelope)
+        response = HttpEnvelopeResponse(envelope=envelope)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     raise HttpException(
         status_code=404,

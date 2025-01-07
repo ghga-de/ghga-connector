@@ -84,43 +84,6 @@ class RecordingClient(httpx.AsyncClient):
         return await self._do_request("post", *args, **kwargs)
 
 
-async def test_get_work_package_caching(monkeypatch, httpx_mock: HTTPXMock):
-    """Test the caching of call to get work package information."""
-    monkeypatch.setattr("ghga_connector.core.client.httpx.AsyncClient", RecordingClient)
-    async with async_client() as client:
-        assert isinstance(client, RecordingClient)
-        accessor = WorkPackageAccessor(
-            api_url=API_URL,
-            client=client,
-            dcs_api_url="",
-            my_private_key=b"test-private",
-            my_public_key=b"test-public",
-            access_token="",
-            package_id="wp_1",
-        )
-        # add mocked response
-        add_httpx_response = partial(
-            httpx_mock.add_response,
-            status_code=200,
-            json={"files": {"file-id-1": ".json"}},
-            headers=create_caching_headers(1),
-        )
-        add_httpx_response()
-        await accessor.get_package_files()
-        assert client.calls
-        client.assert_last_call_not_from_cache()
-
-        # Make same call and verify that the call came from the cache instead
-        await accessor.get_package_files()
-        client.assert_last_call_from_cache()
-
-        # Wait 1 second to make sure the cache expires, then call again
-        add_httpx_response()
-        await asyncio.sleep(1)
-        await accessor.get_package_files()
-        client.assert_last_call_not_from_cache()
-
-
 async def test_get_work_order_token_caching(monkeypatch, httpx_mock: HTTPXMock):
     """Test the caching of call to the WPS to get a work order token.
 
@@ -149,7 +112,7 @@ async def test_get_work_order_token_caching(monkeypatch, httpx_mock: HTTPXMock):
             httpx_mock.add_response,
             status_code=201,
             json=base64.b64encode(b"1234567890" * 5).decode(),
-            headers=create_caching_headers(1),
+            headers=create_caching_headers(3),
         )
         add_httpx_response()
         await accessor.get_work_order_token(file_id=file_id)

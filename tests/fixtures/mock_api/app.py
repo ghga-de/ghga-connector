@@ -173,7 +173,7 @@ async def health():
 
 
 @mock_external_app.get("/objects/{file_id}")
-async def drs3_objects(file_id: str, request: Request, url_expires_after: UrlLifespan):
+async def drs3_objects(file_id: str, request: Request, expires_after: UrlLifespan):
     """Mock for the drs3 /objects/{file_id} call.
 
     The `url_expires_after` parameter is an app dependency that is overridden by tests
@@ -207,7 +207,7 @@ async def drs3_objects(file_id: str, request: Request, url_expires_after: UrlLif
         await update_presigned_url_placeholder()
         return Response(
             status_code=200,
-            headers=create_caching_headers(expires_after=url_expires_after),
+            headers=create_caching_headers(expires_after=expires_after),
             content=DrsObjectServe(
                 file_id=file_id,
                 self_uri=f"drs://localhost:8080//{file_id}",
@@ -410,10 +410,12 @@ async def ulc_patch_uploads(upload_id: str, request: Request):
 async def create_work_order_token(package_id: str, file_id: str):
     """Mock Work Order Token endpoint.
 
-    Cached response will be valid for 3 seconds for testing purposes.
+    Cached response will be valid for 5 seconds for testing purposes.
+    Since client requests (should) use the min-fresh cache-control header value of 3
+    seconds, the cached responses will be used for 2 seconds before making new requests.
     """
     # has to be at least 48 chars long
-    headers = create_caching_headers(expires_after=3)
+    headers = create_caching_headers(expires_after=5)
     return JSONResponse(
         status_code=201,
         content=base64.b64encode(b"1234567890" * 5).decode(),

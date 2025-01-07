@@ -113,7 +113,6 @@ def set_presigned_url_update_endpoint(
     bucket_id: str,
     object_id: str,
     expires_after: int,
-    validity_buffer: int = 3,
 ):
     """Temporarily assign the S3 download URL update endpoint in the mock app.
 
@@ -137,14 +136,8 @@ def set_presigned_url_update_endpoint(
         update_presigned_url_actual,
     )
 
-    # Pretend we're in the DCS:
-    #  For the response we'll send to the Connector, make the caching header expire a
-    #  few seconds prior to the hard S3 expiration so we proactively retrieve a fresh
-    #  download URL without dealing with expired URLs.
-    cache_lifespan = max(2, expires_after - validity_buffer)
-
     # Override the app dependency so it uses the new cache lifespan
-    mock_external_app.dependency_overrides[url_expires_after] = lambda: cache_lifespan
+    mock_external_app.dependency_overrides[url_expires_after] = lambda: expires_after
 
 
 @pytest.mark.parametrize(

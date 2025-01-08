@@ -4,6 +4,12 @@ annotated-types==0.7.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   pydantic
+anyio==4.7.0 \
+    --hash=sha256:2f834749c602966b7d456a7567cafcb309f96482b5081d14ac93ccd457f9dd48 \
+    --hash=sha256:ea60c3723ab42ba6fff7e8ccb0488c898ec538ff4df1f1d5e642c3601d07e352
+    # via
+    #   -c lock/requirements-dev.txt
+    #   httpx
 bcrypt==4.2.1 \
     --hash=sha256:041fa0155c9004eb98a232d54da05c0b41d4b8e66b6fc3cb71b4b3f6144ba837 \
     --hash=sha256:04e56e3fe8308a88b77e0afd20bec516f74aecf391cdd6e374f15cbed32783d6 \
@@ -33,20 +39,27 @@ bcrypt==4.2.1 \
     # via
     #   -c lock/requirements-dev.txt
     #   crypt4gh
-boto3==1.35.79 \
-    --hash=sha256:1fa26217cd33ded82e55aed4460cd55f7223fa647916aa0d3c5d6828e6ec7135 \
-    --hash=sha256:a673b0b6378c9ccbf045a31a43195b175e12aa5c37fb7635fcbfc8f48fb857b3
+boto3==1.35.83 \
+    --hash=sha256:a4828d67b12892cb11fe9e6d86f40975a06db470676e61194968e3a32ec4c536 \
+    --hash=sha256:df2e0d57241de0f9c31b62e73093c2126e4fd73b87b1897ecf280a1b87a2b825
     # via
     #   -c lock/requirements-dev.txt
     #   hexkit
-botocore==1.35.79 \
-    --hash=sha256:245bfdda1b1508539ddd1819c67a8a2cc81780adf0715d3de418d64c4247f346 \
-    --hash=sha256:e6b10bb9a357e3f5ca2e60f6dd15a85d311b9a476eb21b3c0c2a3b364a2897c8
+botocore==1.35.83 \
+    --hash=sha256:ba363183e4df79fbcfd5f3600fd473bd45a1de03d0d0b5e78abd59f276971d27 \
+    --hash=sha256:df5e4384838e50bbafd47e9b5fefb995e83cbb9412e7cd7c0db9555174d91bba
     # via
     #   -c lock/requirements-dev.txt
     #   boto3
     #   hexkit
     #   s3transfer
+certifi==2024.12.14 \
+    --hash=sha256:1275f7a45be9464efc1173084eaa30f866fe2e47d389406136d332ed4967ec56 \
+    --hash=sha256:b650d30f370c2b724812bee08008be0c4163b163ddaec3f2546c1caf65f191db
+    # via
+    #   -c lock/requirements-dev.txt
+    #   httpcore
+    #   httpx
 cffi==1.17.1 \
     --hash=sha256:045d61c734659cc045141be4bae381a41d89b741f795af1dd018bfb532fd0df8 \
     --hash=sha256:0984a4925a435b1da406122d4d7968dd861c1385afe3b45ba82b750f229811e2 \
@@ -168,18 +181,55 @@ docopt==0.6.2 \
     # via
     #   -c lock/requirements-dev.txt
     #   crypt4gh
+exceptiongroup==1.2.2 \
+    --hash=sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b \
+    --hash=sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc
+    # via
+    #   -c lock/requirements-dev.txt
+    #   anyio
 ghga-service-commons==3.2.0 \
     --hash=sha256:05f2fd0b31f282aaacccdbaddde9a7b2a56f5c5bac418961217b2738ed60e662 \
     --hash=sha256:0849fde66b8e0ad546d5e76d9be01ae0429cab21703afc342b0d3f53a9d17c04
     # via
     #   -c lock/requirements-dev.txt
     #   ghga-connector (pyproject.toml)
+h11==0.14.0 \
+    --hash=sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d \
+    --hash=sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761
+    # via
+    #   -c lock/requirements-dev.txt
+    #   httpcore
 hexkit==3.8.1 \
     --hash=sha256:51c9f00003f5ed8dfe0585617031c530f2d08f704955f5c5e3340e6f947d597a \
     --hash=sha256:d33b390e861e41deb54217ce85d0a5f3c8fe6ddc3656514d45cc173fe2775553
     # via
     #   -c lock/requirements-dev.txt
     #   ghga-connector (pyproject.toml)
+hishel==0.1.1 \
+    --hash=sha256:1f6421b78cc23fc43c610f651b7848c9b8eee2d29551d64a2ab0d45b319b6559 \
+    --hash=sha256:5b51acc340303faeef2f5cfc1658acb1db1fdc3e3ad76406265a485f9707c5d6
+    # via
+    #   -c lock/requirements-dev.txt
+    #   ghga-connector (pyproject.toml)
+httpcore==1.0.7 \
+    --hash=sha256:8551cb62a169ec7162ac7be8d4817d561f60e08eaa485234898414bb5a8a0b4c \
+    --hash=sha256:a3fff8f43dc260d5bd363d9f9cf1830fa3a458b332856f34282de498ed420edd
+    # via
+    #   -c lock/requirements-dev.txt
+    #   httpx
+httpx==0.27.2 \
+    --hash=sha256:7bb2708e112d8fdd7829cd4243970f0c223274051cb35ee80c03301ee29a3df0 \
+    --hash=sha256:f7c2be1d2f3c3c3160d441802406b206c2b76f5947b11115e6df10c6c65e66c2
+    # via
+    #   -c lock/requirements-dev.txt
+    #   hishel
+idna==3.10 \
+    --hash=sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9 \
+    --hash=sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3
+    # via
+    #   -c lock/requirements-dev.txt
+    #   anyio
+    #   httpx
 jmespath==1.0.1 \
     --hash=sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980 \
     --hash=sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe
@@ -317,9 +367,9 @@ pydantic-core==2.27.1 \
     # via
     #   -c lock/requirements-dev.txt
     #   pydantic
-pydantic-settings==2.6.1 \
-    --hash=sha256:7fb0637c786a558d3103436278a7c4f1cfd29ba8973238a50c5bb9a55387da87 \
-    --hash=sha256:e0f92546d8a9923cb8941689abf85d6601a8c19a23e97a34b2964a2e3f813ca0
+pydantic-settings==2.7.0 \
+    --hash=sha256:ac4bfd4a36831a48dbf8b2d9325425b549a0a6f18cea118436d728eb4f1c4d66 \
+    --hash=sha256:e00c05d5fa6cbbb227c84bd7487c5c1065084119b750df7c8c1a554aed236eb5
     # via
     #   -c lock/requirements-dev.txt
     #   hexkit
@@ -439,6 +489,13 @@ six==1.17.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   python-dateutil
+sniffio==1.3.1 \
+    --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
+    --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
+    # via
+    #   -c lock/requirements-dev.txt
+    #   anyio
+    #   httpx
 tenacity==9.0.0 \
     --hash=sha256:807f37ca97d62aa361264d497b0e31e92b8027044942bfa756160d908320d73b \
     --hash=sha256:93de0c98785b27fcf659856aa9f54bfbd399e29969b0621bc7f762bd441b4539
@@ -456,6 +513,7 @@ typing-extensions==4.12.2 \
     --hash=sha256:1a7ead55c7e559dd4dee8856e3a88b41225abfe1ce8df57b7c13915fe121ffb8
     # via
     #   -c lock/requirements-dev.txt
+    #   anyio
     #   pydantic
     #   pydantic-core
     #   rich

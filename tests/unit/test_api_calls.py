@@ -62,8 +62,6 @@ class RecordingClient(httpx.AsyncClient):
         """Wrap actual client calls so we can see which calls were cached vs not."""
         method_func = getattr(super(), method)
         response = await method_func(*args, **kwargs)
-        if not self.calls:
-            self.calls = []
         self.calls.append(response)
         return response
 
@@ -121,7 +119,7 @@ async def test_get_work_order_token_caching(monkeypatch, httpx_mock: HTTPXMock):
         assert client.calls
         client.assert_last_call_not_from_cache()
 
-        # Make same call and verify that the call came from the cache instead
+        # Make same call and verify that the response came from the cache instead
         await accessor.get_work_order_token(file_id=file_id)
         client.assert_last_call_from_cache()
 

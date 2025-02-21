@@ -31,6 +31,7 @@ from .structs import (
 )
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 async def _get_authorization(

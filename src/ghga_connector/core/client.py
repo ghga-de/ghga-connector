@@ -14,6 +14,7 @@
 # limitations under the License.
 """Handling session initialization for httpx"""
 
+import logging
 from contextlib import asynccontextmanager, contextmanager
 from functools import cached_property
 from typing import Union
@@ -31,6 +32,12 @@ from tenacity import (
 
 from ghga_connector.config import CONFIG
 from ghga_connector.constants import TIMEOUT
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logging.getLogger("hishel.controller").setLevel(logging.DEBUG)
 
 
 class HttpxClientConfigurator:

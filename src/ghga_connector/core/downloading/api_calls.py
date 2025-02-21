@@ -15,6 +15,8 @@
 
 """This module provides all API calls related to downloading files."""
 
+import email.utils
+import logging
 from typing import Union
 
 import httpx
@@ -27,6 +29,8 @@ from .structs import (
     UrlAndHeaders,
     URLResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 async def _get_authorization(
@@ -138,6 +142,15 @@ async def get_download_url(
             break
     else:
         raise exceptions.NoS3AccessMethodError(url=url)
+
+    # logging for debugging
+    response_date = int(
+        email.utils.parsedate_to_datetime(response.headers["Date"]).timestamp()
+    )
+    expiry_date = int(download_url.rpartition("&Expires=")[2])
+    difference = expiry_date - response_date
+
+    logger.debug(f"Difference between response and expiry date: {difference}")
 
     return URLResponse(
         download_url=download_url,

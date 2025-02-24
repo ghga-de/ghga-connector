@@ -17,7 +17,9 @@
 
 import asyncio
 import base64
+import datetime
 import gc
+import logging
 from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
@@ -45,6 +47,8 @@ from .api_calls import (
 )
 from .progress_bar import ProgressBar
 from .structs import RetryResponse, URLResponse
+
+logger = logging.getLogger(__name__)
 
 
 class TaskHandler:
@@ -270,6 +274,15 @@ class Downloader(DownloaderBase):
     ) -> None:
         """Download a specific range of a file's content using a presigned download url."""
         headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
+
+        local_date = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+
+        expiry_date = int(url.rpartition("&Expires=")[2])
+        difference_local = expiry_date - local_date
+
+        logger.debug(
+            f"Difference between local and expiry date before s3 call: {difference_local}"
+        )
 
         try:
             response: httpx.Response = await retry_handler(

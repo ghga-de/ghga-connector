@@ -15,6 +15,7 @@
 
 """This module provides all API calls related to downloading files."""
 
+import datetime
 import email.utils
 import logging
 from typing import Union
@@ -145,13 +146,16 @@ async def get_download_url(
         raise exceptions.NoS3AccessMethodError(url=url)
 
     # logging for debugging
+    local_date = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
     response_date = int(
         email.utils.parsedate_to_datetime(response.headers["Date"]).timestamp()
     )
     expiry_date = int(download_url.rpartition("&Expires=")[2])
     difference = expiry_date - response_date
+    difference_local = expiry_date - local_date
 
     logger.debug(f"Difference between response and expiry date: {difference}")
+    logger.debug(f"Difference between local and expiry date: {difference_local}")
 
     return URLResponse(
         download_url=download_url,

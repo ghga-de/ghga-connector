@@ -43,6 +43,7 @@ async def upload_file(  # noqa: PLR0913
     my_public_key_path: Path,
     my_private_key_path: Path,
     part_size: int,
+    passphrase: Optional[str] = None,
 ) -> None:
     """Core command to upload a file. Can be called by CLI, GUI, etc."""
     if not my_public_key_path.is_file():
@@ -74,6 +75,7 @@ async def upload_file(  # noqa: PLR0913
             file_path=file_path,
             my_private_key_path=my_private_key_path,
             part_size=part_size,
+            passphrase=passphrase,
             server_public_key=server_public_key,
             uploader=uploader,
         )

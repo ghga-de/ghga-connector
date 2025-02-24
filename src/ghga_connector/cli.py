@@ -181,7 +181,7 @@ def get_work_package_information(
 cli = typer.Typer(no_args_is_help=True)
 
 
-def upload(
+def upload(  # noqa: PLR0913
     *,
     file_id: str = typer.Option(..., help="The id of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
@@ -195,6 +195,11 @@ def upload(
         help="The path to a private key from the key pair that will be used to encrypt the "
         + "crypt4gh envelope. Defaults to key.sec in the current folder.",
     ),
+    passphrase: Optional[str] = typer.Option(
+        None,
+        help="Passphrasse for the encrypted private key. "
+        + "Only needs to be provided if the key is actually encrypted.",
+    ),
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."
     ),
@@ -206,16 +211,18 @@ def upload(
             file_path=file_path,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
+            passphrase=passphrase,
             debug=debug,
         )
     )
 
 
-async def async_upload(
+async def async_upload(  # noqa: PLR0913
     file_id: str,
     file_path: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
+    passphrase: Optional[str] = None,
     debug: bool = False,
 ):
     """Upload a file asynchronously"""
@@ -231,6 +238,7 @@ async def async_upload(
             server_public_key=parameters.server_pubkey,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
+            passphrase=passphrase,
             part_size=CONFIG.part_size,
         )
 
@@ -288,7 +296,7 @@ async def async_download(  # noqa: PLR0913
     output_dir: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
-    passphrase: Optional[str],
+    passphrase: Optional[str] = None,
     debug: bool = False,
     overwrite: bool = False,
 ):

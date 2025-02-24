@@ -17,6 +17,7 @@
 """Main domain logic."""
 
 from pathlib import Path
+from typing import Optional
 
 import httpx
 
@@ -190,8 +191,13 @@ def get_wps_token(max_tries: int, message_display: AbstractMessageDisplay) -> li
 
 
 def decrypt_file(
-    input_file: Path, output_file: Path, decryption_private_key_path: Path
+    input_file: Path,
+    output_file: Path,
+    decryption_private_key_path: Path,
+    passphrase: Optional[str],
 ):
     """Delegate decryption of a file Crypt4GH"""
-    decryptor = Crypt4GHDecryptor(decryption_key_path=decryption_private_key_path)
+    decryptor = Crypt4GHDecryptor(
+        decryption_key_path=decryption_private_key_path, passphrase=passphrase
+    )
     decryptor.decrypt_file(input_path=input_file, output_path=output_file)

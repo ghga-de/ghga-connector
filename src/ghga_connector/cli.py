@@ -201,7 +201,13 @@ def upload(
 ):
     """Wrapper for the async upload function"""
     asyncio.run(
-        async_upload(file_id, file_path, my_public_key_path, my_private_key_path, debug)
+        async_upload(
+            file_id=file_id,
+            file_path=file_path,
+            my_public_key_path=my_public_key_path,
+            my_private_key_path=my_private_key_path,
+            debug=debug,
+        )
     )
 
 
@@ -234,7 +240,7 @@ if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):
 
 
 @cli.command(no_args_is_help=True)
-def download(
+def download(  # noqa: PLR0913
     *,
     output_dir: Path = typer.Option(
         ..., help="The directory to put the downloaded files into."
@@ -251,6 +257,11 @@ def download(
         + "that was announced when the download token was created. "
         + "Defaults to key.sec in the current folder.",
     ),
+    passphrase: Optional[str] = typer.Option(
+        None,
+        help="Passphrasse for the encrypted private key. "
+        + "Only needs to be provided if the key is actually encrypted.",
+    ),
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."
     ),
@@ -265,17 +276,19 @@ def download(
             output_dir=output_dir,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
+            passphrase=passphrase,
             debug=debug,
             overwrite=overwrite,
         )
     )
 
 
-async def async_download(
+async def async_download(  # noqa: PLR0913
     *,
     output_dir: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
+    passphrase: Optional[str],
     debug: bool = False,
     overwrite: bool = False,
 ):
@@ -287,9 +300,15 @@ async def async_download(
         raise exceptions.DirectoryDoesNotExistError(directory=output_dir)
 
     my_public_key = crypt4gh.keys.get_public_key(filepath=my_public_key_path)
-    my_private_key = crypt4gh.keys.get_private_key(
-        filepath=my_private_key_path, callback=None
-    )
+
+    if passphrase:
+        my_private_key = crypt4gh.keys.get_private_key(
+            filepath=my_private_key_path, callback=lambda: passphrase
+        )
+    else:
+        my_private_key = crypt4gh.keys.get_private_key(
+            filepath=my_private_key_path, callback=None
+        )
 
     message_display = init_message_display(debug=debug)
     message_display.display("\nFetching work package token...")
@@ -355,6 +374,11 @@ def decrypt(  # noqa: PLR0912, C901
         + "that was announced when the download token was created. "
         + "Defaults to key.sec in the current folder.",
     ),
+    passphrase: Optional[str] = typer.Option(
+        None,
+        help="Passphrasse for the encrypted private key. "
+        + "Only needs to be provided if the key is actually encrypted.",
+    ),
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."
     ),
@@ -400,6 +424,7 @@ def decrypt(  # noqa: PLR0912, C901
                 input_file=input_file,
                 output_file=output_file,
                 decryption_private_key_path=my_private_key_path,
+                passphrase=passphrase,
             )
         except ValueError as error:
             errors[str(input_file)] = (

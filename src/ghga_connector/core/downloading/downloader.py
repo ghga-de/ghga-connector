@@ -253,6 +253,7 @@ class Downloader(DownloaderBase):
         async with self._semaphore:
             url_and_headers = await self.fetch_download_url()
             url = url_and_headers.download_url
+
             try:
                 await self.download_content_range(
                     url=url, start=part_range.start, end=part_range.stop
@@ -268,12 +269,7 @@ class Downloader(DownloaderBase):
         end: int,
     ) -> None:
         """Download a specific range of a file's content using a presigned download url."""
-        headers = httpx.Headers(
-            {
-                "Range": f"bytes={start}-{end}",
-                "Cache-Control": "no-store",  # don't cache part downloads
-            }
-        )
+        headers = httpx.Headers({"Range": f"bytes={start}-{end}"})
 
         try:
             response: httpx.Response = await retry_handler(

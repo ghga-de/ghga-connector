@@ -90,11 +90,12 @@ def test_encryption_decryption(pk_name: str, sk_name: str):
         for chunk in encryptor.process_file(file=in_file):  # type: ignore
             encrypted_file.write(chunk)
 
+        # rewind file and check if file is recognized as encrypted
         in_file.seek(0)
         encrypted_file_loc = Path(encrypted_file.name)
-
         assert is_file_encrypted(encrypted_file_loc)
 
+        # decrypt file and verifies it matches initial input
         decryptor = Crypt4GHDecryptor(
             decryption_key_path=private_key_path, passphrase=passphrase
         )

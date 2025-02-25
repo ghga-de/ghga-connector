@@ -80,21 +80,13 @@ def test_encryption_decryption(pk_name: str, sk_name: str):
         in_file.seek(0)
 
         # produce encrypted file
-        if sk_name.startswith("encrypted"):
-            encryptor = Crypt4GHEncryptor(
-                part_size=8 * 1024**3,
-                server_public_key=pubkey,
-                private_key_path=private_key_path,
-                passphrase="test",
-            )
-        else:
-            encryptor = Crypt4GHEncryptor(
-                part_size=8 * 1024**3,
-                server_public_key=pubkey,
-                private_key_path=private_key_path,
-                passphrase=None,
-            )
-
+        passphrase = "test" if sk_name.startswith("encrypted") else None
+        encryptor = Crypt4GHEncryptor(
+            part_size=8 * 1024**3,
+            server_public_key=pubkey,
+            private_key_path=private_key_path,
+            passphrase=passphrase,
+        )
         for chunk in encryptor.process_file(file=in_file):  # type: ignore
             encrypted_file.write(chunk)
 

@@ -384,7 +384,7 @@ def decrypt(  # noqa: PLR0912, C901
     ),
     passphrase: Optional[str] = typer.Option(
         None,
-        help="Passphrasse for the encrypted private key. "
+        help="Passphrase for the encrypted private key. "
         + "Only needs to be provided if the key is actually encrypted.",
     ),
     debug: bool = typer.Option(

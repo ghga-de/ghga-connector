@@ -95,14 +95,9 @@ def test_encryption_decryption(pk_name: str, sk_name: str):
 
         assert is_file_encrypted(encrypted_file_loc)
 
-        if sk_name.startswith("encrypted"):
-            decryptor = Crypt4GHDecryptor(
-                decryption_key_path=private_key_path, passphrase="test"
-            )
-        else:
-            decryptor = Crypt4GHDecryptor(
-                decryption_key_path=private_key_path, passphrase=None
-            )
+        decryptor = Crypt4GHDecryptor(
+            decryption_key_path=private_key_path, passphrase=passphrase
+        )
         decryptor.decrypt_file(
             input_path=encrypted_file_loc,
             output_path=Path(out_file.name),

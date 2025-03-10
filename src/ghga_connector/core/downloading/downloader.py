@@ -271,7 +271,8 @@ class Downloader(DownloaderBase):
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
             # add some jitter
-            wait_time = random.randint(20, 500) / 1000  # noqa: S311
+            wait_time = random.randint(20, 200) / 1000  # noqa: S311
+            logger.debug("Adding jitter to request: %.2f seconds", wait_time)
             await asyncio.sleep(wait_time)
 
             url_and_headers = await self.fetch_download_url()

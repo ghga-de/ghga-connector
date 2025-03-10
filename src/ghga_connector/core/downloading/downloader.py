@@ -18,6 +18,7 @@
 import asyncio
 import base64
 import gc
+import logging
 import random
 from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
@@ -46,6 +47,8 @@ from .api_calls import (
 )
 from .progress_bar import ProgressBar
 from .structs import RetryResponse, URLResponse
+
+logger = logging.getLogger(__name__)
 
 
 class TaskHandler:
@@ -81,6 +84,10 @@ class TaskHandler:
                 self.cancel_tasks()
                 raise exception
         self._tasks.discard(task)
+        logger.debug(
+            "Finished download task. Remaining: %i",
+            len([task for task in asyncio.all_tasks() if not task.done()]),
+        )
 
     async def gather(self):
         """Await all remaining tasks."""
@@ -116,6 +123,8 @@ class Downloader(DownloaderBase):
         self._message_display.display(
             f"Fetching work order token and download URL for {self._file_id}"
         )
+
+        logger.debug("Initial fetch of download URL for file %s", self._file_id)
         url_response = await self.fetch_download_url()
         part_ranges = calc_part_ranges(
             part_size=part_size, total_file_size=url_response.file_size
@@ -124,10 +133,17 @@ class Downloader(DownloaderBase):
         task_handler = TaskHandler()
 
         # start async part download to intermediate queue
+        logger.debug("Scheduling download for file %s", self._file_id)
         for part_range in part_ranges:
             task_handler.schedule(self.download_to_queue(part_range=part_range))
 
+        logger.debug(
+            "Current amount of download tasks after scheduling: %i",
+            len([task for task in asyncio.all_tasks() if not task.done()]),
+        )
+
         # get file header envelope
+        logger.debug("Fetching Crypt4GH envelope for file %s", self._file_id)
         try:
             envelope = await self.get_file_header_envelope()
         except (
@@ -147,8 +163,10 @@ class Downloader(DownloaderBase):
             ) as progress_bar,
         ):
             # put envelope in file
+            logger.debug("Writing Crypt4GH envelope for file %s", self._file_id)
             file.write(envelope)
             # start download task
+            logger.debug("Starting to write file parts to disk for  %s", self._file_id)
             write_to_file = Task(
                 self.drain_queue_to_file(
                     file=file,

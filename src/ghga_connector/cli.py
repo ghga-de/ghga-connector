@@ -304,8 +304,7 @@ async def async_download(  # noqa: PLR0913
     """Download files asynchronously"""
     # enable debug logging
     if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-        logging.getLogger("hishel.controller").setLevel(logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
 
     if not my_public_key_path.is_file():
         raise exceptions.PubKeyFileDoesNotExistError(public_key_path=my_public_key_path)

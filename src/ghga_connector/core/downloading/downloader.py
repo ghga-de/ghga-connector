@@ -19,6 +19,7 @@ import asyncio
 import base64
 import gc
 import logging
+import random
 from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
@@ -269,6 +270,10 @@ class Downloader(DownloaderBase):
         """
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
+            # add some jitter
+            wait_time = random.randint(10, 100) / 1000  # noqa: S311
+            await asyncio.sleep(wait_time)
+
             url_and_headers = await self.fetch_download_url()
             url = url_and_headers.download_url
             try:

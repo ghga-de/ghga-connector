@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handling session initialization for httpx"""
 
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from functools import cached_property
 from typing import Union
 
@@ -61,19 +61,6 @@ class HttpxClientConfigurator:
 retry_handler = HttpxClientConfigurator().retry_handler
 
 
-@contextmanager
-def httpx_client():
-    """Yields a context manager httpx client and closes it afterward"""
-    with httpx.Client(
-        timeout=TIMEOUT,
-        limits=httpx.Limits(
-            max_connections=CONFIG.max_concurrent_downloads,
-            max_keepalive_connections=CONFIG.max_concurrent_downloads,
-        ),
-    ) as client:
-        yield client
-
-
 def get_cache_transport(
     wrapped_transport: Union[httpx.AsyncBaseTransport, None] = None,
 ) -> hishel.AsyncCacheTransport:
@@ -84,7 +71,9 @@ def get_cache_transport(
     """
     cache_transport = hishel.AsyncCacheTransport(
         transport=wrapped_transport or httpx.AsyncHTTPTransport(),
-        storage=hishel.AsyncInMemoryStorage(ttl=1800),  # persist for 30 minutes
+        storage=hishel.AsyncInMemoryStorage(
+            ttl=300, capacity=256
+        ),  # persist for 5 minutes
         controller=hishel.Controller(
             cacheable_methods=["POST", "GET"],
             cacheable_status_codes=[200, 201],

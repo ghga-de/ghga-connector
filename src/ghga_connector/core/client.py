@@ -14,6 +14,7 @@
 # limitations under the License.
 """Handling session initialization for httpx"""
 
+import logging
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Union
@@ -32,6 +33,8 @@ from tenacity import (
 
 from ghga_connector.config import CONFIG
 from ghga_connector.constants import TIMEOUT
+
+logger = logging.getLogger(__name__)
 
 
 class RetryHandler:
@@ -98,10 +101,18 @@ async def force_update_on_status_code(retry_state: RetryCallState, status_code: 
     Cannot be used directly as the type signature of hishel's callbacks only expects
     the `RetryCallState`-
     """
+    attempt_number = retry_state.attempt_number
+    if attempt_number > 1:
+        logger.debug("Attempt number %i for %s .", attempt_number, retry_state.kwargs)
     outcome = retry_state.outcome
     if outcome and outcome.done() and not outcome.cancelled():
         result = outcome.result()
+        logger.debug("Checking for faillure condition in callback.")
         if isinstance(result, httpx.Response) and result.status_code == status_code:
+            logger.debug(
+                "Attempt returned status code %i. Caller should update arguments and retry.",
+                status_code,
+            )
             raise ShouldUpdateWrappedFunctionException()
 
 

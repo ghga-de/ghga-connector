@@ -293,8 +293,10 @@ class Downloader(DownloaderBase):
                         url=url, start=part_range.start, end=part_range.stop
                     )
                 except ShouldUpdateWrappedFunctionException:
+                    logger.debug("Encountered 403 for URL: %s", url)
                     url_and_headers = await self.fetch_download_url()
                     url = url_and_headers.download_url
+                    logger.debug("Trying again with new URL: %s", url)
                     await self.download_content_range(
                         url=url, start=part_range.start, end=part_range.stop
                     )

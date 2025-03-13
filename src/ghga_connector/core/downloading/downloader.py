@@ -237,8 +237,13 @@ class Downloader(DownloaderBase):
         )
         url = url_and_headers.endpoint_url
         # Make function call to get download url
+        retry_handler = RetryHandler.basic()
         try:
-            response = await self._client.get(url=url, headers=url_and_headers.headers)
+            response: httpx.Response = await retry_handler(
+                fn=self._client.get,
+                headers=url_and_headers.headers,
+                url=url,
+            )
         except httpx.RequestError as request_error:
             raise exceptions.RequestFailedError(url=url) from request_error
 

@@ -21,7 +21,12 @@ import httpx
 from tenacity import RetryError
 
 from ghga_connector.constants import CACHE_MIN_FRESH, TIMEOUT_LONG
-from ghga_connector.core import WorkPackageAccessor, exceptions, retry_handler
+from ghga_connector.core import (
+    RetryHandler,
+    WorkPackageAccessor,
+    exceptions,
+    force_update_on_forbidden,
+)
 
 from .structs import (
     RetryResponse,
@@ -102,6 +107,9 @@ async def get_download_url(  # noqa: C901, PLR0912
     url = url_and_headers.endpoint_url
 
     try:
+        retry_handler = RetryHandler.with_custom_before_callback(
+            callback=force_update_on_forbidden
+        )
         response: httpx.Response = await retry_handler(
             fn=client.get,
             url=url,

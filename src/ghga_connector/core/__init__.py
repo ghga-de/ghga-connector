@@ -18,7 +18,12 @@ This sub-package contains the main business functionality of this service.
 It should not contain any service API-related code.
 """
 
-from .client import async_client, retry_handler  # noqa: F401
+from .client import (  # noqa: F401
+    RetryHandler,
+    ShouldUpdateWrappedFunctionException,
+    async_client,
+    force_update_on_forbidden,
+)
 from .file_operations import (  # noqa: F401
     calc_part_ranges,
     get_segments,

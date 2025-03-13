@@ -14,8 +14,8 @@
 # limitations under the License.
 """Handling session initialization for httpx"""
 
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
-from functools import cached_property
 from typing import Union
 
 import hishel
@@ -23,6 +23,7 @@ import httpx
 from ghga_service_commons.http.correlation import attach_correlation_id_to_requests
 from tenacity import (
     AsyncRetrying,
+    RetryCallState,
     retry_if_exception_type,
     retry_if_result,
     stop_after_attempt,
@@ -33,11 +34,35 @@ from ghga_connector.config import CONFIG
 from ghga_connector.constants import TIMEOUT
 
 
-class HttpxClientConfigurator:
+class RetryHandler:
     """Helper class to make max_retries user configurable"""
 
-    @cached_property
-    def retry_handler(self):
+    @classmethod
+    def with_custom_before_callback(
+        cls, callback: Callable[[RetryCallState], Awaitable[None]]
+    ):
+        """Specialized version of the retry handler allowing to plug in a custom before retry callback."""
+        return AsyncRetrying(
+            reraise=True,
+            retry=(
+                retry_if_exception_type(
+                    (
+                        httpx.ConnectError,
+                        httpx.ConnectTimeout,
+                        httpx.TimeoutException,
+                    )
+                )
+                | retry_if_result(
+                    lambda response: response.status_code in CONFIG.retry_status_codes
+                )
+            ),
+            stop=stop_after_attempt(CONFIG.max_retries),
+            wait=wait_exponential_jitter(max=CONFIG.exponential_backoff_max),
+            before=callback,
+        )
+
+    @classmethod
+    def basic(cls):
         """Configure client retry handler with exponential backoff"""
         return AsyncRetrying(
             reraise=True,
@@ -58,7 +83,26 @@ class HttpxClientConfigurator:
         )
 
 
-retry_handler = HttpxClientConfigurator().retry_handler
+class ShouldUpdateWrappedFunctionException(RuntimeError):
+    """Signal to break out of retry logic and try again with an updated URL and/or headers."""
+
+
+async def force_update_on_forbidden(retry_state: RetryCallState):
+    """Callback to break out of retry loop on specific status code."""
+    await force_update_on_status_code(retry_state=retry_state, status_code=403)
+
+
+async def force_update_on_status_code(retry_state: RetryCallState, status_code: int):
+    """Shared code for pluggable hishel callback to abort on specific status code.
+
+    Cannot be used directly as the type signature of hishel's callbacks only expects
+    the `RetryCallState`-
+    """
+    outcome = retry_state.outcome
+    if outcome and outcome.done() and not outcome.cancelled():
+        result = outcome.result()
+        if isinstance(result, httpx.Response) and result.status_code == status_code:
+            raise ShouldUpdateWrappedFunctionException()
 
 
 def get_cache_transport(

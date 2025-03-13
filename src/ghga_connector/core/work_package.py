@@ -24,7 +24,7 @@ from tenacity import RetryError
 
 from ghga_connector.constants import CACHE_MIN_FRESH
 
-from . import exceptions, retry_handler
+from . import RetryHandler, exceptions
 
 
 class WorkPackageAccessor:
@@ -53,6 +53,7 @@ class WorkPackageAccessor:
     ) -> httpx.Response:
         """Call url with provided headers and client method passed as callable."""
         try:
+            retry_handler = RetryHandler.basic()
             response: httpx.Response = await retry_handler(
                 fn=fn,
                 headers=headers,

@@ -33,10 +33,12 @@ from ghga_connector.core import (
     AbstractMessageDisplay,
     PartRange,
     ResponseExceptionTranslator,
+    RetryHandler,
+    ShouldUpdateWrappedFunctionException,
     WorkPackageAccessor,
     calc_part_ranges,
     exceptions,
-    retry_handler,
+    force_update_on_forbidden,
 )
 
 from .abstract_downloader import DownloaderBase
@@ -196,9 +198,18 @@ class Downloader(DownloaderBase):
                 file_id=self._file_id,
                 work_package_accessor=self._work_package_accessor,
             )
-            response = await get_download_url(
-                client=self._client, url_and_headers=url_and_headers
-            )
+            try:
+                response = await get_download_url(
+                    client=self._client, url_and_headers=url_and_headers
+                )
+            except ShouldUpdateWrappedFunctionException:
+                url_and_headers = await get_file_authorization(
+                    file_id=self._file_id,
+                    work_package_accessor=self._work_package_accessor,
+                )
+                response = await get_download_url(
+                    client=self._client, url_and_headers=url_and_headers
+                )
         except exceptions.BadResponseCodeError as error:
             self._message_display.failure(
                 f"The request for file {self._file_id} returned an unexpected HTTP status code: {error.response_code}."
@@ -277,9 +288,16 @@ class Downloader(DownloaderBase):
             url_and_headers = await self.fetch_download_url()
             url = url_and_headers.download_url
             try:
-                await self.download_content_range(
-                    url=url, start=part_range.start, end=part_range.stop
-                )
+                try:
+                    await self.download_content_range(
+                        url=url, start=part_range.start, end=part_range.stop
+                    )
+                except ShouldUpdateWrappedFunctionException:
+                    url_and_headers = await self.fetch_download_url()
+                    url = url_and_headers.download_url
+                    await self.download_content_range(
+                        url=url, start=part_range.start, end=part_range.stop
+                    )
             except Exception as exception:
                 raise exceptions.DownloadError(reason=str(exception)) from exception
 
@@ -299,6 +317,9 @@ class Downloader(DownloaderBase):
         )
 
         try:
+            retry_handler = RetryHandler.with_custom_before_callback(
+                callback=force_update_on_forbidden
+            )
             response: httpx.Response = await retry_handler(
                 fn=self._client.get, url=url, headers=headers
             )

@@ -319,7 +319,7 @@ class Downloader(DownloaderBase):
         )
 
         try:
-            retry_handler = RetryHandler.with_custom_before_callback(
+            retry_handler = RetryHandler.with_custom_after_callback(
                 callback=force_update_on_forbidden
             )
             response: httpx.Response = await retry_handler(

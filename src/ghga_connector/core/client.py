@@ -41,7 +41,7 @@ class RetryHandler:
     """Helper class to make max_retries user configurable"""
 
     @classmethod
-    def with_custom_before_callback(
+    def with_custom_after_callback(
         cls, callback: Callable[[RetryCallState], Awaitable[None]]
     ):
         """Specialized version of the retry handler allowing to plug in a custom before retry callback."""
@@ -61,7 +61,7 @@ class RetryHandler:
             ),
             stop=stop_after_attempt(CONFIG.max_retries),
             wait=wait_exponential_jitter(max=CONFIG.exponential_backoff_max),
-            before=callback,
+            after=callback,
         )
 
     @classmethod

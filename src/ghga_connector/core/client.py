@@ -70,7 +70,9 @@ def get_cache_transport(
     """
     cache_transport = hishel.AsyncCacheTransport(
         transport=wrapped_transport or httpx.AsyncHTTPTransport(),
-        storage=hishel.AsyncFileStorage(ttl=300),  # persist for 5 minutes
+        storage=hishel.AsyncInMemoryStorage(
+            ttl=300, capacity=512
+        ),  # persist for 5 minutes
         controller=hishel.Controller(
             cacheable_methods=["POST", "GET"],
             cacheable_status_codes=[200, 201],

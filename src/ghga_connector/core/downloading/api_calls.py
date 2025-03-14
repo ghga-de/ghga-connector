@@ -25,7 +25,6 @@ from ghga_connector.core import (
     RetryHandler,
     WorkPackageAccessor,
     exceptions,
-    force_update_on_forbidden,
 )
 
 from .structs import (
@@ -107,9 +106,7 @@ async def get_download_url(  # noqa: C901, PLR0912
     url = url_and_headers.endpoint_url
 
     try:
-        retry_handler = RetryHandler.with_custom_after_callback(
-            callback=force_update_on_forbidden
-        )
+        retry_handler = RetryHandler.basic()
         response: httpx.Response = await retry_handler(
             fn=client.get,
             url=url,

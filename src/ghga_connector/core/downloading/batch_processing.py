@@ -24,7 +24,6 @@ import httpx
 from ghga_connector.config import Config
 from ghga_connector.core import (
     AbstractMessageDisplay,
-    ShouldUpdateWrappedFunctionException,
     WorkPackageAccessor,
     exceptions,
 )
@@ -215,7 +214,7 @@ class FileStager:
                 response = await get_download_url(
                     client=self.client, url_and_headers=url_and_headers
                 )
-            except ShouldUpdateWrappedFunctionException:
+            except exceptions.UnauthorizedAPICallError:
                 url_and_headers = await get_file_authorization(
                     file_id=file_id,
                     work_package_accessor=self.work_package_accessor,

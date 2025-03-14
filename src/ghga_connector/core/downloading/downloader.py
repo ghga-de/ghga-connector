@@ -33,11 +33,9 @@ from ghga_connector.core import (
     PartRange,
     ResponseExceptionTranslator,
     RetryHandler,
-    ShouldUpdateWrappedFunctionException,
     WorkPackageAccessor,
     calc_part_ranges,
     exceptions,
-    force_update_on_forbidden,
 )
 
 from .abstract_downloader import DownloaderBase
@@ -201,7 +199,7 @@ class Downloader(DownloaderBase):
                 response = await get_download_url(
                     client=self._client, url_and_headers=url_and_headers
                 )
-            except ShouldUpdateWrappedFunctionException:
+            except exceptions.UnauthorizedAPICallError:
                 url_and_headers = await get_file_authorization(
                     file_id=self._file_id,
                     work_package_accessor=self._work_package_accessor,
@@ -292,7 +290,7 @@ class Downloader(DownloaderBase):
                     await self.download_content_range(
                         url=url, start=part_range.start, end=part_range.stop
                     )
-                except ShouldUpdateWrappedFunctionException:
+                except exceptions.UnauthorizedAPICallError:
                     logger.debug("Encountered 403 for URL: %s", url)
                     url_and_headers = await self.fetch_download_url()
                     url = url_and_headers.download_url
@@ -319,9 +317,7 @@ class Downloader(DownloaderBase):
         )
 
         try:
-            retry_handler = RetryHandler.with_custom_after_callback(
-                callback=force_update_on_forbidden
-            )
+            retry_handler = RetryHandler.basic()
             response: httpx.Response = await retry_handler(
                 fn=self._client.get, url=url, headers=headers
             )
@@ -346,6 +342,11 @@ class Downloader(DownloaderBase):
         if status_code in (200, 206):
             await self._queue.put((start, response.content))
             return
+
+        if status_code == 403:
+            raise exceptions.UnauthorizedAPICallError(
+                url=url, cause="Presigned URL is likely expired."
+            )
 
         raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 

@@ -20,9 +20,7 @@ It should not contain any service API-related code.
 
 from .client import (  # noqa: F401
     RetryHandler,
-    ShouldUpdateWrappedFunctionException,
     async_client,
-    force_update_on_forbidden,
 )
 from .file_operations import (  # noqa: F401
     calc_part_ranges,

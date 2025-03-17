@@ -183,7 +183,7 @@ class Downloader(DownloaderBase):
             else:
                 await write_to_file
 
-    async def fetch_download_url(self) -> URLResponse:
+    async def fetch_download_url(self, bust_cache: bool = False) -> URLResponse:
         """Fetch a work order token and retrieve the download url.
 
         Returns a URLResponse containing two elements:
@@ -197,7 +197,9 @@ class Downloader(DownloaderBase):
             )
             try:
                 response = await get_download_url(
-                    client=self._client, url_and_headers=url_and_headers
+                    client=self._client,
+                    url_and_headers=url_and_headers,
+                    bust_cache=bust_cache,
                 )
             except exceptions.UnauthorizedAPICallError:
                 url_and_headers = await get_file_authorization(
@@ -294,7 +296,7 @@ class Downloader(DownloaderBase):
                     )
                 except exceptions.UnauthorizedAPICallError:
                     logger.debug("Encountered 403 for URL: %s", url)
-                    url_and_headers = await self.fetch_download_url()
+                    url_and_headers = await self.fetch_download_url(bust_cache=True)
                     url = url_and_headers.download_url
                     logger.debug("Trying again with new URL: %s", url)
                     await self.download_content_range(

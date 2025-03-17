@@ -19,6 +19,7 @@ import asyncio
 import base64
 import gc
 import logging
+import time
 from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
 from collections.abc import Coroutine
 from io import BufferedWriter
@@ -288,11 +289,30 @@ class Downloader(DownloaderBase):
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
             url_and_headers = await self.fetch_download_url()
+            range_hash = f"{part_range.start.__hash__}{part_range.stop.__hash__}"
+            fetch_time = int(time.time())
+            logger.debug(
+                "%s:\nFetched download url for part range (%i - %i) at %i",
+                range_hash,
+                part_range.start,
+                part_range.stop,
+                fetch_time,
+            )
             url = url_and_headers.download_url
             try:
                 try:
                     await self.download_content_range(
                         url=url, start=part_range.start, end=part_range.stop
+                    )
+                    get_time = int(time.time())
+                    logger.debug(
+                        "%s:\nFetched content for url %s for part range (%i - %i) at %i.\n(%i seconds since fetching url)",
+                        range_hash,
+                        url,
+                        part_range.start,
+                        part_range.stop,
+                        get_time,
+                        get_time - fetch_time,
                     )
                 except exceptions.UnauthorizedAPICallError:
                     logger.debug("Encountered 403 for URL: %s", url)

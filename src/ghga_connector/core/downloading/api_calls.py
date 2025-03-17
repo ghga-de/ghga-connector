@@ -105,24 +105,25 @@ async def get_download_url(  # noqa: C901, PLR0912
         is returned.
     """
     url = url_and_headers.endpoint_url
+    headers = url_and_headers.headers
+
+    if bust_cache:
+        # update cache-control headers to get fresh response from source
+        cache_control_headers = headers.get("Cache-Control")
+        if not cache_control_headers:
+            cache_control_headers = ["max-age=0"]
+        else:
+            cache_control_headers = [cache_control_headers, "max-age=0"]
+        headers["Cache-Control"] = ",".join(cache_control_headers)
 
     try:
         retry_handler = RetryHandler.basic()
-        if bust_cache:
-            response: httpx.Response = await retry_handler(
-                fn=client.get,
-                url=url,
-                headers=url_and_headers.headers,
-                timeout=TIMEOUT_LONG,
-                extensions={"cache_disabled": True},
-            )
-        else:
-            response: httpx.Response = await retry_handler(  # type: ignore[no-redef]
-                fn=client.get,
-                url=url,
-                headers=url_and_headers.headers,
-                timeout=TIMEOUT_LONG,
-            )
+        response: httpx.Response = await retry_handler(
+            fn=client.get,
+            url=url,
+            headers=headers,
+            timeout=TIMEOUT_LONG,
+        )
 
     except RetryError as retry_error:
         wrapped_exception = retry_error.last_attempt.exception()

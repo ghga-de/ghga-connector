@@ -220,7 +220,7 @@ class FileStager:
                     work_package_accessor=self.work_package_accessor,
                 )
                 response = await get_download_url(
-                    client=self.client, url_and_headers=url_and_headers
+                    client=self.client, url_and_headers=url_and_headers, bust_cache=True
                 )
         except exceptions.BadResponseCodeError as error:
             if error.response_code != 404:

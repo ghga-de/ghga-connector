@@ -289,16 +289,17 @@ class Downloader(DownloaderBase):
         # Guard with semaphore to ensure only a set amount of downloads runs in parallel
         async with self._semaphore:
             url_and_headers = await self.fetch_download_url()
+            url = url_and_headers.download_url
             range_hash = f"{part_range.start.__hash__}{part_range.stop.__hash__}"
             fetch_time = int(time.time())
             logger.debug(
-                "%s:\nFetched download url for part range (%i - %i) at %i",
+                "%s:\nFetched download url %s for part range (%i - %i) at %i",
+                url,
                 range_hash,
                 part_range.start,
                 part_range.stop,
                 fetch_time,
             )
-            url = url_and_headers.download_url
             try:
                 try:
                     await self.download_content_range(

@@ -93,6 +93,7 @@ async def get_download_url(  # noqa: C901, PLR0912
     *,
     client: httpx.AsyncClient,
     url_and_headers: UrlAndHeaders,
+    bust_cache: bool = False,
 ) -> Union[RetryResponse, URLResponse]:
     """
     Perform a RESTful API call to retrieve a presigned download URL.
@@ -107,12 +108,21 @@ async def get_download_url(  # noqa: C901, PLR0912
 
     try:
         retry_handler = RetryHandler.basic()
-        response: httpx.Response = await retry_handler(
-            fn=client.get,
-            url=url,
-            headers=url_and_headers.headers,
-            timeout=TIMEOUT_LONG,
-        )
+        if bust_cache:
+            response: httpx.Response = await retry_handler(
+                fn=client.get,
+                url=url,
+                headers=url_and_headers.headers,
+                timeout=TIMEOUT_LONG,
+                extensions={"cache_disabled": True},
+            )
+        else:
+            response: httpx.Response = await retry_handler(  # type: ignore[no-redef]
+                fn=client.get,
+                url=url,
+                headers=url_and_headers.headers,
+                timeout=TIMEOUT_LONG,
+            )
 
     except RetryError as retry_error:
         wrapped_exception = retry_error.last_attempt.exception()

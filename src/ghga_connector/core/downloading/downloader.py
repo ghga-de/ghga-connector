@@ -205,7 +205,9 @@ class Downloader(DownloaderBase):
                     work_package_accessor=self._work_package_accessor,
                 )
                 response = await get_download_url(
-                    client=self._client, url_and_headers=url_and_headers
+                    client=self._client,
+                    url_and_headers=url_and_headers,
+                    bust_cache=True,
                 )
         except exceptions.BadResponseCodeError as error:
             self._message_display.failure(

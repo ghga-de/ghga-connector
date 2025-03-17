@@ -290,7 +290,9 @@ class Downloader(DownloaderBase):
         async with self._semaphore:
             url_and_headers = await self.fetch_download_url()
             url = url_and_headers.download_url
-            range_hash = f"{part_range.start.__hash__}{part_range.stop.__hash__}"
+            range_hash = (
+                f"{str(part_range.start).__hash__()}{str(part_range.stop).__hash__()}"
+            )
             fetch_time = int(time.time())
             logger.debug(
                 "%s:\nFetched download url %s for part range (%i - %i) at %i",

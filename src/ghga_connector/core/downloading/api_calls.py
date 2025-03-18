@@ -52,7 +52,7 @@ async def _get_authorization(
             "Accept": "application/json",
             "Authorization": f"Bearer {decrypted_token}",
             "Content-Type": "application/json",
-            "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
+            # "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
         }
     )
 

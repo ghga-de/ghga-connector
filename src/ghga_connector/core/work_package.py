@@ -100,7 +100,7 @@ class WorkPackageAccessor:
         headers = httpx.Headers(
             {
                 "Authorization": f"Bearer {self.access_token}",
-                "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
+                # "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
             }
         )
         response = await self._call_url(fn=self.client.post, headers=headers, url=url)

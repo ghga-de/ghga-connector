@@ -21,7 +21,7 @@ import httpx
 from tenacity import RetryError
 
 from ghga_connector.constants import CACHE_MIN_FRESH, TIMEOUT_LONG
-from ghga_connector.core import WorkPackageAccessor, exceptions, retry_handler
+from ghga_connector.core import RetryHandler, WorkPackageAccessor, exceptions
 
 from .structs import (
     RetryResponse,
@@ -89,6 +89,7 @@ async def get_download_url(  # noqa: C901, PLR0912
     *,
     client: httpx.AsyncClient,
     url_and_headers: UrlAndHeaders,
+    bust_cache: bool = False,
 ) -> Union[RetryResponse, URLResponse]:
     """
     Perform a RESTful API call to retrieve a presigned download URL.
@@ -100,12 +101,23 @@ async def get_download_url(  # noqa: C901, PLR0912
         is returned.
     """
     url = url_and_headers.endpoint_url
+    headers = url_and_headers.headers
+
+    if bust_cache:
+        # update cache-control headers to get fresh response from source
+        cache_control_headers = headers.get("Cache-Control")
+        if not cache_control_headers:
+            cache_control_headers = ["max-age=0"]
+        else:
+            cache_control_headers = [cache_control_headers, "max-age=0"]
+        headers["Cache-Control"] = ",".join(cache_control_headers)
 
     try:
+        retry_handler = RetryHandler.basic()
         response: httpx.Response = await retry_handler(
             fn=client.get,
             url=url,
-            headers=url_and_headers.headers,
+            headers=headers,
             timeout=TIMEOUT_LONG,
         )
 

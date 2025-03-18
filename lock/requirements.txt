@@ -4,9 +4,9 @@ annotated-types==0.7.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   pydantic
-anyio==4.8.0 \
-    --hash=sha256:1d9fe889df5212298c0c0723fa20479d1b94883a2df44bd3897aa91083316f7a \
-    --hash=sha256:b5011f270ab5eb0abf13385f851315585cc37ef330dd88e27ec3d34d651fd47a
+anyio==4.9.0 \
+    --hash=sha256:673c0c244e15788651a4ff38710fea9675823028a6f08a5eda409e0c9840a028 \
+    --hash=sha256:9f76d541cad6e36af7beb62e978876f3b41e3e04f2c1fbf0884604c0a9c4d93c
     # via
     #   -c lock/requirements-dev.txt
     #   httpx
@@ -65,14 +65,15 @@ bcrypt==4.3.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   crypt4gh
-boto3==1.37.6 \
-    --hash=sha256:4c661389e68437a3fbc1f63decea24b88f7175e022c68622848d47fdf6e0144f
+boto3==1.37.14 \
+    --hash=sha256:56b4d1e084dbca43d5fdd070f633a84de61a6ce592655b4d239d263d1a0097fc \
+    --hash=sha256:cf2e5e6d56efd5850db8ce3d9094132e4759cf2d4b5fd8200d69456bf61a20f3
     # via
     #   -c lock/requirements-dev.txt
     #   hexkit
-botocore==1.37.6 \
-    --hash=sha256:2cb121a403cbec047d76e2401a402a6b2efd3309169037fbac588e8f7125aec4 \
-    --hash=sha256:cd282fe9c8adbb55a08c7290982a98ac6cc4507fa1c493f48bc43fd6c8376a57
+botocore==1.37.14 \
+    --hash=sha256:709a1796f436f8e378e52170e58501c1f3b5f2d1308238cf1d6a3bdba2e32851 \
+    --hash=sha256:b0adce3f0fb42b914eb05079f50cf368cb9cf9745fdd206bd91fe6ac67b29aca
     # via
     #   -c lock/requirements-dev.txt
     #   boto3
@@ -220,9 +221,9 @@ exceptiongroup==1.2.2 \
     # via
     #   -c lock/requirements-dev.txt
     #   anyio
-ghga-service-commons==3.4.0 \
-    --hash=sha256:4301e60d5aff771bee6d9851a5cd5989ddef9bceab95bda108dd20a21d64c469 \
-    --hash=sha256:f525693b66fad3e779d8c873252f21fedf480a255ebc557ce6bbeba09e718d14
+ghga-service-commons==3.4.1 \
+    --hash=sha256:2ced19b2b0e07d7471b68a73eacb3272473eae74b7e74b7b101b0c90ea4a0170 \
+    --hash=sha256:37d9cf122e776a70fd15d3dfa355dd386d5b3426514a3b3245207875fcbce9eb
     # via
     #   -c lock/requirements-dev.txt
     #   ghga-connector (pyproject.toml)

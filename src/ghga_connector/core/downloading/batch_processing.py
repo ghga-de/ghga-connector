@@ -218,6 +218,7 @@ class FileStager:
                 url_and_headers = await get_file_authorization(
                     file_id=file_id,
                     work_package_accessor=self.work_package_accessor,
+                    bust_cache=True,
                 )
                 response = await get_download_url(
                     client=self.client, url_and_headers=url_and_headers, bust_cache=True

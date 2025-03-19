@@ -92,7 +92,9 @@ class WorkPackageAccessor:
         work_package = response.json()
         return work_package["files"]
 
-    async def get_work_order_token(self, *, file_id: str) -> str:
+    async def get_work_order_token(
+        self, *, file_id: str, bust_cache: bool = False
+    ) -> str:
         """Call WPS endpoint to retrieve and decrypt work order token."""
         url = f"{self.api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-tokens"
 
@@ -103,6 +105,12 @@ class WorkPackageAccessor:
                 "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
             }
         )
+        if bust_cache:
+            # update cache-control headers to get fresh response from source
+            cache_control_headers = headers.get("Cache-Control")
+            cache_control_headers = [cache_control_headers, "max-age=0"]
+            headers["Cache-Control"] = ",".join(cache_control_headers)
+
         response = await self._call_url(fn=self.client.post, headers=headers, url=url)
 
         status_code = response.status_code

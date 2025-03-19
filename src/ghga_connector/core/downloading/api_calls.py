@@ -31,7 +31,7 @@ from .structs import (
 
 
 async def _get_authorization(
-    file_id: str, work_package_accessor: WorkPackageAccessor
+    file_id: str, work_package_accessor: WorkPackageAccessor, bust_cache: bool = False
 ) -> httpx.Headers:
     """
     Fetch work order token using accessor and prepare DCS endpoint URL and headers for a
@@ -41,7 +41,9 @@ async def _get_authorization(
     for at least another `CACHE_MIN_FRESH` seconds.
     """
     # fetch a work order token
-    decrypted_token = await work_package_accessor.get_work_order_token(file_id=file_id)
+    decrypted_token = await work_package_accessor.get_work_order_token(
+        file_id=file_id, bust_cache=bust_cache
+    )
     # build headers
     headers = httpx.Headers(
         {
@@ -71,7 +73,7 @@ async def get_envelope_authorization(
 
 
 async def get_file_authorization(
-    file_id: str, work_package_accessor: WorkPackageAccessor
+    file_id: str, work_package_accessor: WorkPackageAccessor, bust_cache: bool = False
 ) -> UrlAndHeaders:
     """
     Fetch work order token using accessor and prepare DCS endpoint URL and headers to get
@@ -80,7 +82,9 @@ async def get_file_authorization(
     # build URL
     url = f"{work_package_accessor.dcs_api_url}/objects/{file_id}"
     headers = await _get_authorization(
-        file_id=file_id, work_package_accessor=work_package_accessor
+        file_id=file_id,
+        work_package_accessor=work_package_accessor,
+        bust_cache=bust_cache,
     )
     return UrlAndHeaders(url, headers)
 

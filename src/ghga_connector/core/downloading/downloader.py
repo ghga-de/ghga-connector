@@ -204,6 +204,7 @@ class Downloader(DownloaderBase):
                 url_and_headers = await get_file_authorization(
                     file_id=self._file_id,
                     work_package_accessor=self._work_package_accessor,
+                    bust_cache=True,
                 )
                 response = await get_download_url(
                     client=self._client,

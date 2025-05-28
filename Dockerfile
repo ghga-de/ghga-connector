@@ -46,7 +46,7 @@ RUN apk add build-base gcc g++ libffi-dev zlib-dev
 RUN apk upgrade --available
 WORKDIR /service
 COPY --from=builder /service/lock/requirements.txt /service
-RUN pip install --no-deps -r requirements.txt
+RUN pip install -U "setuptools>=80.3" && pip install --no-deps -r requirements.txt
 
 # RUNNER: a container to run the service
 FROM base AS runner

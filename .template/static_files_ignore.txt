@@ -13,3 +13,6 @@ scripts/update_pyproject.py
 .github/workflows/tests.yaml
 .pyproject_generation/pyproject_template.toml
 .devcontainer/Dockerfile
+
+# ignore for now due to some python 3.9 incompatibilities with required urrlib and botocore
+lock/requirements-dev-template.in

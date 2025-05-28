@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2021 - 2024 Universität Tübingen, DKFZ, EMBL, and Universität zu Köln
+# Copyright 2021 - 2025 Universität Tübingen, DKFZ, EMBL, and Universität zu Köln
 # for the German Human Genome-Phenome Archive (GHGA)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 # root directory of the package:
 ROOT_DIR = Path(__file__).parent.parent.resolve()
@@ -140,11 +140,11 @@ class GlobalCopyrightNotice:
     """
 
     def __init__(self):
-        self._text: Union[str, None] = None
-        self._n_lines: Union[int, None] = None
+        self._text: Optional[str] = None
+        self._n_lines: Optional[int] = None
 
     @property
-    def text(self) -> Union[str, None]:
+    def text(self) -> Optional[str]:
         return self._text
 
     @text.setter
@@ -292,7 +292,7 @@ def validate_year_string(year_string: str, min_year: int = MIN_YEAR) -> bool:
     if year_string.isnumeric():
         return int(year_string) == current_year
 
-    # Otherwise, a range (e.g. 2021 - 2024) is expected:
+    # Otherwise, a range (e.g. 2021 - 2025) is expected:
     match = re.match(r"(\d+) - (\d+)", year_string)
 
     if not match:

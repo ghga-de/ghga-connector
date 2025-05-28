@@ -19,7 +19,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-import stringcase
+import casefy
 import tomli
 
 
@@ -44,7 +44,7 @@ def remove_self_dependencies(pyproject: dict) -> dict:
 
     project_metadata = modified_pyproject["project"]
 
-    package_name = stringcase.spinalcase(project_metadata.get("name"))
+    package_name = casefy.kebabcase(project_metadata.get("name"))
 
     if not package_name:
         raise ValueError("The provided project metadata does not contain a name.")

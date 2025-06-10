@@ -10,6 +10,8 @@ scripts/update_openapi_docs.py
 scripts/update_readme.py
 scripts/update_pyproject.py
 .github/workflows/check_openapi_spec.yaml
+.github/workflows/ci_release.yaml
+.github/workflows/ci_workflow_dispatch.yaml
 .github/workflows/tests.yaml
 .pyproject_generation/pyproject_template.toml
 .devcontainer/Dockerfile

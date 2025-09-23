@@ -322,7 +322,7 @@ async def test_file_not_downloadable(
         ),
         pytest.raises(
             exceptions.UnauthorizedAPICallError,
-            match="This is not the token you're looking for.",
+            match=r"This is not the token you're looking for\.",
         ),
     ):
         await async_download(

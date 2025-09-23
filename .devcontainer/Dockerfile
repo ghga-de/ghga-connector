@@ -1,6 +1,6 @@
-FROM mcr.microsoft.com/vscode/devcontainers/python:3.9-bullseye
+FROM mcr.microsoft.com/devcontainers/python:2.0.2-3.13-trixie
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 # Update args in docker-compose.yaml to set the UID/GID of the "vscode" user.
 ARG USER_UID=1000

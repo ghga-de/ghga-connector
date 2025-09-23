@@ -20,19 +20,19 @@ Repository = "https://github.com/ghga-de/ghga-connector"
 ghga-connector = "ghga_connector.__main__:run"
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 
 [tool.tox]
 legacy_tox_ini = """
     [tox]
-    env_list = py3{9,12}
+    env_list = py3{10,13}
 
     [gh-actions]
     python =
-        3.9: py39
         3.10: py310
         3.11: py311
         3.12: py312
+        3.13: py313
 
     [testenv]
     pass_env =

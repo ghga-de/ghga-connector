@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Checkout repository
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Common steps
         id: common
@@ -39,7 +39,7 @@ jobs:
 
       - name: Run tests with Python ${{ matrix.python-version }} measuring coverage
         id: pytest-coverage
-        if: ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.13' }}
         run: |
           export ${{ steps.common.outputs.CONFIG_YAML_ENV_VAR_NAME }}="${{ steps.common.outputs.CONFIG_YAML }}"
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload coverage to coveralls
         id: coveralls
-        if: ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.13' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

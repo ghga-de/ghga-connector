@@ -37,13 +37,13 @@ from ghga_connector.core import (
 )
 from ghga_connector.core.tasks import TaskHandler
 
+from ..progress_bar import DownloadProgressBar
 from .abstract_downloader import DownloaderBase
 from .api_calls import (
     get_download_url,
     get_envelope_authorization,
     get_file_authorization,
 )
-from .progress_bar import ProgressBar
 from .structs import RetryResponse, URLResponse
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ class Downloader(DownloaderBase):
         # Write the downloaded parts to a file
         with (
             output_path.open("wb") as file,
-            ProgressBar(
+            DownloadProgressBar(
                 file_name=file.name, file_size=url_response.file_size
             ) as progress_bar,
         ):
@@ -315,7 +315,7 @@ class Downloader(DownloaderBase):
         file: BufferedWriter,
         file_size: int,
         offset: int,
-        progress_bar: ProgressBar,
+        progress_bar: DownloadProgressBar,
     ) -> None:
         """Write downloaded file bytes from queue.
         This should be started as asyncio.Task and awaited after the download_to_queue

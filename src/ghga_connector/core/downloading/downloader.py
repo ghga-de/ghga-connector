@@ -19,11 +19,9 @@ import asyncio
 import base64
 import gc
 import logging
-from asyncio import PriorityQueue, Queue, Semaphore, Task, create_task
-from collections.abc import Coroutine
+from asyncio import PriorityQueue, Queue, Semaphore, Task
 from io import BufferedWriter
 from pathlib import Path
-from typing import Any
 
 import httpx
 from tenacity import RetryError
@@ -37,6 +35,7 @@ from ghga_connector.core import (
     calc_part_ranges,
     exceptions,
 )
+from ghga_connector.core.tasks import TaskHandler
 
 from .abstract_downloader import DownloaderBase
 from .api_calls import (
@@ -48,49 +47,6 @@ from .progress_bar import ProgressBar
 from .structs import RetryResponse, URLResponse
 
 logger = logging.getLogger(__name__)
-
-
-class TaskHandler:
-    """Wraps task scheduling details."""
-
-    def __init__(self):
-        self._tasks: set[Task] = set()
-
-    def schedule(self, fn: Coroutine[Any, Any, None]):
-        """Create a task and register its callback."""
-        task = create_task(fn)
-        self._tasks.add(task)
-        task.add_done_callback(self.finalize)
-
-    def cancel_tasks(self):
-        """Cancel all running taks."""
-        for task in self._tasks:
-            if not task.done():
-                task.cancel()
-
-    def finalize(self, task: Task):
-        """Deal with potential errors when a task is done.
-
-        This is called as done callback, so there are three possibilites here:
-        1. A task encountered an exception: Cancel all remaining tasks and reraise
-        2. A task was cancelled: There's nothing to do, we are already propagating
-           the exception causing the cancellation
-        3. A task finished normally: Remove its handle
-        """
-        if not task.cancelled():
-            exception = task.exception()
-            if exception:
-                self.cancel_tasks()
-                raise exception
-        self._tasks.discard(task)
-        logger.debug(
-            "Finished download task. Remaining: %i",
-            len([task for task in asyncio.all_tasks() if not task.done()]),
-        )
-
-    async def gather(self):
-        """Await all remaining tasks."""
-        await asyncio.gather(*self._tasks)
 
 
 class Downloader(DownloaderBase):

@@ -39,7 +39,7 @@ class _ProgressBar:
         self._file_size = file_size
 
         self._progress = Progress(
-            TextColumn(f"{self.activity}ing to file '{self._file_name}'"),
+            TextColumn(f"{self.activity}ing file '{self._file_name}'"),
             BarColumn(),
             TimeRemainingColumn(compact=True, elapsed_when_finished=True),
             TransferSpeedColumn(),

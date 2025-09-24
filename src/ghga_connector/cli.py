@@ -96,8 +96,10 @@ def exception_hook(
 
 
 def modify_for_debug(debug: bool):
-    """Initialize message display and configure exception printing"""
+    """Enable debug logging and configure exception printing if debug=True"""
     if debug:
+        # enable debug logging
+        logging.basicConfig(level=logging.DEBUG)
         sys.excepthook = partial(exception_hook)
 
 
@@ -177,6 +179,7 @@ def upload(  # noqa: PLR0913
     ),
 ):
     """Wrapper for the async upload function"""
+    modify_for_debug(debug)
     asyncio.run(
         async_upload(
             file_id=file_id,
@@ -184,21 +187,18 @@ def upload(  # noqa: PLR0913
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             passphrase=passphrase,
-            debug=debug,
         )
     )
 
 
-async def async_upload(  # noqa: PLR0913
+async def async_upload(
     file_id: str,
     file_path: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
-    debug: bool = False,
 ):
     """Upload a file asynchronously"""
-    modify_for_debug(debug)
     async with async_client() as client:
         parameters = await retrieve_upload_parameters(client)
         await upload_file(
@@ -250,13 +250,13 @@ def download(  # noqa: PLR0913
     ),
 ):
     """Wrapper for the async download function"""
+    modify_for_debug(debug)
     asyncio.run(
         async_download(
             output_dir=output_dir,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             passphrase=passphrase,
-            debug=debug,
             overwrite=overwrite,
         )
     )
@@ -283,27 +283,21 @@ def get_private_key(my_private_key_path: Path, passphrase: str | None = None) ->
     return my_private_key
 
 
-async def async_download(  # noqa: PLR0913
+async def async_download(
     *,
     output_dir: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
-    debug: bool = False,
     overwrite: bool = False,
 ):
     """Download files asynchronously"""
-    # enable debug logging
-    if debug:
-        logging.basicConfig(level=logging.DEBUG)
-
     if not output_dir.is_dir():
         raise exceptions.DirectoryDoesNotExistError(directory=output_dir)
 
     my_public_key = get_public_key(my_public_key_path)
     my_private_key = get_private_key(my_private_key_path, passphrase)
 
-    modify_for_debug(debug=debug)
     CLIMessageDisplay.display("\nFetching work package token...")
     work_package_information = get_work_package_information(
         my_private_key=my_private_key

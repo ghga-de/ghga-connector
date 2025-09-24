@@ -22,7 +22,7 @@ import httpx
 
 from ghga_connector.config import Config
 from ghga_connector.core import (
-    AbstractMessageDisplay,
+    CLIMessageDisplay,
     WorkPackageAccessor,
     exceptions,
 )
@@ -76,7 +76,7 @@ class FileStager:
         wanted_file_ids: list[str],
         dcs_api_url: str,
         output_dir: Path,
-        message_display: AbstractMessageDisplay,
+        message_display: CLIMessageDisplay,
         work_package_accessor: WorkPackageAccessor,
         client: httpx.AsyncClient,
         config: Config,

@@ -27,7 +27,7 @@ import httpx
 from tenacity import RetryError
 
 from ghga_connector.core import (
-    AbstractMessageDisplay,
+    CLIMessageDisplay,
     PartRange,
     ResponseExceptionTranslator,
     RetryHandler,
@@ -61,7 +61,7 @@ class Downloader(DownloaderBase):
         file_id: str,
         max_concurrent_downloads: int,
         max_wait_time: int,
-        message_display: AbstractMessageDisplay,
+        message_display: CLIMessageDisplay,
         work_package_accessor: WorkPackageAccessor,
     ):
         self._client = client

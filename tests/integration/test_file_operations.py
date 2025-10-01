@@ -74,7 +74,6 @@ async def test_download_content_range(
             client=client,
             file_id=big_object.object_id,
             max_concurrent_downloads=5,
-            max_wait_time=10,
             work_package_accessor=dummy_accessor,
         )
         await downloader.download_content_range(url=download_url, start=start, end=end)
@@ -117,7 +116,6 @@ async def test_download_file_parts(
             client=client,
             file_id=big_object.object_id,
             max_concurrent_downloads=5,
-            max_wait_time=10,
             work_package_accessor=dummy_accessor,
         )
         downloader.fetch_download_url = mock_fetch  # type: ignore
@@ -152,7 +150,6 @@ async def test_download_file_parts(
             client=client,
             file_id=big_object.object_id,
             max_concurrent_downloads=5,
-            max_wait_time=10,
             work_package_accessor=dummy_accessor,
         )
         downloader.fetch_download_url = mock_fetch  # type: ignore
@@ -197,7 +194,6 @@ async def test_download_file_parts(
             client=client,
             file_id=big_object.object_id,
             max_concurrent_downloads=5,
-            max_wait_time=10,
             work_package_accessor=dummy_accessor,
         )
         downloader.fetch_download_url = mock_fetch  # type: ignore

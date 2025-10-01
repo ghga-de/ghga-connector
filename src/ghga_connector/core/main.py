@@ -103,7 +103,6 @@ async def download_file(  # noqa: PLR0913
     output_dir: Path,
     part_size: int,
     max_concurrent_downloads: int,
-    max_wait_time: int,
     work_package_accessor: WorkPackageAccessor,
     file_id: str,
     file_extension: str = "",
@@ -140,7 +139,6 @@ async def download_file(  # noqa: PLR0913
         client=client,
         file_id=file_id,
         max_concurrent_downloads=max_concurrent_downloads,
-        max_wait_time=max_wait_time,
         work_package_accessor=work_package_accessor,
     )
     try:

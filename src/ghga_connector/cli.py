@@ -332,7 +332,6 @@ async def async_download(
                     file_extension=parameters.file_ids_with_extension[file_id],
                     output_dir=output_dir,
                     max_concurrent_downloads=CONFIG.max_concurrent_downloads,
-                    max_wait_time=CONFIG.max_wait_time,
                     part_size=CONFIG.part_size,
                     work_package_accessor=parameters.work_package_accessor,
                     overwrite=overwrite,

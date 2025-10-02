@@ -28,12 +28,22 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from ghga_connector import exceptions
+from ghga_connector.config import (
+    _get_wkvs_value,
+    get_dcs_api_url,
+    get_ghga_pubkey,
+    get_ucs_api_url,
+    get_wps_api_url,
+    set_runtime_config,
+)
 from ghga_connector.core import WorkPackageAccessor, async_client
-from ghga_connector.core.api_calls.well_knowns import WKVSCaller
 from ghga_connector.core.uploading.structs import UploadStatus
 from ghga_connector.core.uploading.uploader import Uploader
 from tests.fixtures import set_runtime_test_config  # noqa: F401
-from tests.fixtures.mock_api.app import create_caching_headers
+from tests.fixtures.mock_api.app import (
+    create_caching_headers,
+    mock_external_calls,  # noqa: F401
+)
 from tests.fixtures.utils import mock_wps_token
 
 pytestmark = [
@@ -305,29 +315,28 @@ async def test_get_wps_file_info(
             response = await work_package_accessor.get_package_files()
 
 
-# TODO: Get rid of wkvs caller and update this test
-async def test_wkvs_calls(httpx_mock: HTTPXMock):
-    """Test handling of responses for WKVS api calls"""
-    wkvs_url = "https://127.0.0.1"
-
+async def test_set_runtime_config(mock_external_calls):  # noqa: F811
+    """Test set_runtime_config and related code"""
+    # Make a list of the ctx var retrieval functions
+    ctx_var_getter_fns = [
+        get_dcs_api_url,
+        get_ghga_pubkey,
+        get_ucs_api_url,
+        get_wps_api_url,
+    ]
     async with async_client() as client:
-        wkvs_caller = WKVSCaller(client=client, wkvs_url=wkvs_url)
-
         with pytest.raises(exceptions.WellKnownValueNotFound):
-            httpx_mock.add_response(status_code=404)
-            await wkvs_caller.get_server_pubkey()
+            _ = await _get_wkvs_value(client, value_name="bogus")
 
-        with pytest.raises(KeyError):
-            httpx_mock.add_response(status_code=200, json={})
-            await wkvs_caller.get_server_pubkey()
+        # Verify that all the context vars are empty before calling config setup
+        for func in ctx_var_getter_fns:
+            with pytest.raises(ValueError):
+                _ = func()
 
-        # test each call to CYA
-        for func, value_name in [
-            (wkvs_caller.get_dcs_api_url, "dcs_api_url"),
-            (wkvs_caller.get_server_pubkey, "crypt4gh_public_key"),
-            (wkvs_caller.get_ucs_api_url, "ucs_api_url"),
-            (wkvs_caller.get_wps_api_url, "wps_api_url"),
-        ]:
-            httpx_mock.add_response(json={value_name: "dummy-value"})
-            value = await func()
-            assert value == "dummy-value"
+        # Set up runtime config
+        async with set_runtime_config(client):
+            # verify values are now set (from mock api)
+            for func in ctx_var_getter_fns:
+                value = func()
+                assert isinstance(value, str)
+                assert len(value) > 0

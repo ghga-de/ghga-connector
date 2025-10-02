@@ -20,7 +20,7 @@ from typing import Any
 
 import httpx
 
-from ghga_connector.core import exceptions
+from ghga_connector import exceptions
 
 
 @dataclass

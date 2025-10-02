@@ -29,8 +29,8 @@ from ghga_connector.core import (
 )
 from ghga_connector.core.downloading.downloader import Downloader, TaskHandler
 from ghga_connector.core.downloading.structs import URLResponse
-from ghga_connector.core.exceptions import DownloadError
 from ghga_connector.core.progress_bar import DownloadProgressBar
+from ghga_connector.exceptions import DownloadError
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,

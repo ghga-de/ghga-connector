@@ -26,6 +26,7 @@ from pathlib import Path
 import httpx
 from tenacity import RetryError
 
+from ghga_connector import exceptions
 from ghga_connector.core import (
     CLIMessageDisplay,
     PartRange,
@@ -33,7 +34,6 @@ from ghga_connector.core import (
     RetryHandler,
     WorkPackageAccessor,
     calc_part_ranges,
-    exceptions,
 )
 from ghga_connector.core.tasks import TaskHandler
 

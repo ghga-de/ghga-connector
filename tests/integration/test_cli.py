@@ -88,7 +88,7 @@ def set_env_vars(monkeypatch):
 @pytest.fixture(scope="function", autouse=True)
 def apply_test_config():
     """Apply default test config"""
-    with patch("ghga_connector.cli.CONFIG", get_test_config()):
+    with patch("ghga_connector.config.CONFIG", get_test_config()):
         yield
 
 
@@ -170,7 +170,7 @@ async def test_multipart_download(
     """Test the multipart download of a file"""
     # override the default config fixture with updated part size
     monkeypatch.setattr(
-        "ghga_connector.cli.CONFIG", get_test_config(part_size=part_size)
+        "ghga_connector.config.CONFIG", get_test_config(part_size=part_size)
     )
 
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)

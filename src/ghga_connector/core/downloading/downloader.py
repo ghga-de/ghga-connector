@@ -38,7 +38,6 @@ from ghga_connector.core import (
 from ghga_connector.core.tasks import TaskHandler
 
 from ..progress_bar import DownloadProgressBar
-from .abstract_downloader import DownloaderBase
 from .api_calls import (
     get_download_url,
     get_envelope_authorization,
@@ -49,8 +48,9 @@ from .structs import RetryResponse, URLResponse
 logger = logging.getLogger(__name__)
 
 
-class Downloader(DownloaderBase):
-    """Centralized high-level interface for download functionality. Used in the core.
+class Downloader:
+    """Centralized high-level interface for downloading a single file.
+
     This is not meant to be reused, as internal state is not cleared.
     """
 

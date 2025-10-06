@@ -115,47 +115,45 @@ async def set_runtime_config(client: httpx.AsyncClient):
     - wps_api_url
     - dcs_api_url
     - ucs_api_url
+
+    Raises:
+        WellKnownValueNotFound: If one of the well-known values is not found in the
+            response from the WKVS.
+        ConnectionFailedError: If the request fails due to a timeout/connection problem
+        RequestFailedError: If the request fails for any other reason
     """
-    ghga_pubkey = await _get_wkvs_value(client, value_name="crypt4gh_public_key")
-    wps_api_url = (await _get_wkvs_value(client, value_name="wps_api_url")).rstrip("/")
-    dcs_api_url = (await _get_wkvs_value(client, value_name="dcs_api_url")).rstrip("/")
-    ucs_api_url = (await _get_wkvs_value(client, value_name="ucs_api_url")).rstrip("/")
+    values = await _get_wkvs_values(client)
+    for value_name in [
+        "crypt4gh_public_key",
+        "wps_api_url",
+        "dcs_api_url",
+        "ucs_api_url",
+    ]:
+        if value_name not in values:
+            raise exceptions.WellKnownValueNotFound(value_name=value_name)
 
     async with (
-        set_context_var(ghga_pubkey_var, ghga_pubkey),
-        set_context_var(wps_api_url_var, wps_api_url),
-        set_context_var(dcs_api_url_var, dcs_api_url),
-        set_context_var(ucs_api_url_var, ucs_api_url),
+        set_context_var(ghga_pubkey_var, values["crypt4gh_public_key"]),
+        set_context_var(wps_api_url_var, values["wps_api_url"].rstrip("/")),
+        set_context_var(dcs_api_url_var, values["dcs_api_url"].rstrip("/")),
+        set_context_var(ucs_api_url_var, values["ucs_api_url"].rstrip("/")),
     ):
         yield
 
 
-async def _get_wkvs_value(client: httpx.AsyncClient, *, value_name: str) -> Any:
-    """Retrieve a value from the well-known-value-service.
-
-    Args:
-        value_name (str): the name of the value to be retrieved
+async def _get_wkvs_values(client: httpx.AsyncClient) -> dict[str, Any]:
+    """Retrieve a value from the well-known-value-service using the supplied client.
 
     Raises:
-        WellKnownValueNotFound: when a 404 response is received from the WKVS
-        KeyError: when a successful response is received but doesn't contain the expected value
+        ConnectionFailedError: If the request fails due to a timeout/connection problem
+        RequestFailedError: If the request fails for any other reason
     """
-    url = f"{CONFIG.wkvs_api_url}/values/{value_name}"
+    url = f"{CONFIG.wkvs_api_url}/values/"
 
     try:
-        response = await client.get(url)  # verify is True by default
+        response = await client.get(url)
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
 
-    if response.status_code == 404:
-        raise exceptions.WellKnownValueNotFound(value_name=value_name)
-
-    try:
-        value = response.json()[value_name]
-    except KeyError as err:
-        raise KeyError(
-            "Response from well-known-value-service did not include expected field"
-            + f" '{value_name}'"
-        ) from err
-    return value
+    return response.json()

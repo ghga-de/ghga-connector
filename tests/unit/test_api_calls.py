@@ -29,7 +29,6 @@ from pytest_httpx import HTTPXMock
 
 from ghga_connector import exceptions
 from ghga_connector.config import (
-    _get_wkvs_value,
     get_dcs_api_url,
     get_ghga_pubkey,
     get_ucs_api_url,
@@ -325,9 +324,6 @@ async def test_set_runtime_config(mock_external_calls):  # noqa: F811
         get_wps_api_url,
     ]
     async with async_client() as client:
-        with pytest.raises(exceptions.WellKnownValueNotFound):
-            _ = await _get_wkvs_value(client, value_name="bogus")
-
         # Verify that all the context vars are empty before calling config setup
         for func in ctx_var_getter_fns:
             with pytest.raises(ValueError):

@@ -119,6 +119,7 @@ async def set_runtime_config(client: httpx.AsyncClient):
     Raises:
         WellKnownValueNotFound: If one of the well-known values is not found in the
             response from the WKVS.
+        BadResponseCodeError: If the status code returned is not 200
         ConnectionFailedError: If the request fails due to a timeout/connection problem
         RequestFailedError: If the request fails for any other reason
     """
@@ -145,6 +146,7 @@ async def _get_wkvs_values(client: httpx.AsyncClient) -> dict[str, Any]:
     """Retrieve a value from the well-known-value-service using the supplied client.
 
     Raises:
+        BadResponseCodeError: If the status code returned is not 200
         ConnectionFailedError: If the request fails due to a timeout/connection problem
         RequestFailedError: If the request fails for any other reason
     """
@@ -155,5 +157,10 @@ async def _get_wkvs_values(client: httpx.AsyncClient) -> dict[str, Any]:
     except httpx.RequestError as request_error:
         exceptions.raise_if_connection_failed(request_error=request_error, url=url)
         raise exceptions.RequestFailedError(url=url) from request_error
+
+    if response.status_code != 200:
+        raise exceptions.BadResponseCodeError(
+            url=url, response_code=response.status_code
+        )
 
     return response.json()

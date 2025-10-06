@@ -21,7 +21,7 @@ import base64
 from contextlib import nullcontext
 from functools import partial
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import httpx
 import pytest
@@ -39,6 +39,7 @@ from ghga_connector.core import WorkPackageAccessor, async_client
 from ghga_connector.core.uploading.structs import UploadStatus
 from ghga_connector.core.uploading.uploader import Uploader
 from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import (
     create_caching_headers,
     mock_external_calls,  # noqa: F401
@@ -53,6 +54,16 @@ pytestmark = [
         should_mock=lambda request: True,
     ),
 ]
+
+
+@pytest.fixture(scope="function", autouse=True)
+def apply_test_config():
+    """Apply default test config"""
+    with (
+        patch("ghga_connector.config.CONFIG", get_test_config()),
+        patch("ghga_connector.cli.CONFIG", get_test_config()),
+    ):
+        yield
 
 
 class RecordingClient(httpx.AsyncClient):

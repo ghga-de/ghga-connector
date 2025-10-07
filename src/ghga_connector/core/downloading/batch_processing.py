@@ -123,12 +123,12 @@ class FileStager:
         self._staged_files: list[FileInfo] = []
 
         # Files that are currently being staged with retry times:
-        self.unstaged_retry_times = {
+        self._unstaged_retry_times = {
             file_id: now for file_id in wanted_files if file_id not in existing_file_ids
         }
         # Files that could not be staged because they cannot be found:
-        self.missing_files: list[str] = []
-        self.ignore_failed = False
+        self._missing_files: list[str] = []
+        self._ignore_failed = False
 
     async def get_staged_files(self) -> list[FileInfo]:
         """Get files that are already staged.
@@ -138,7 +138,7 @@ class FileStager:
         The dict should be cleared after these files have been downloaded.
         """
         CLIMessageDisplay.display("Updating list of staged files...")
-        staging_items = list(self.unstaged_retry_times.items())
+        staging_items = list(self._unstaged_retry_times.items())
         for file_id, retry_time in staging_items:
             if perf_counter() >= retry_time:
                 await self._check_file_is_in_download_bucket(file_id=file_id)
@@ -153,7 +153,7 @@ class FileStager:
     @property
     def finished(self) -> bool:
         """Check whether work is finished, i.e. no staged or unstaged files remain."""
-        return not (self._staged_files or self.unstaged_retry_times)
+        return not (self._staged_files or self._unstaged_retry_times)
 
     async def _check_file_is_in_download_bucket(self, file_id: str) -> None:
         """Check whether a file with the given file_id is staged to the Download bucket
@@ -170,19 +170,19 @@ class FileStager:
             response = await self._download_client.get_drs_object(file_id)
         except exceptions.FileNotRegisteredError:
             # The Download API returned a 404, meaning it doesn't recognize the file id
-            self.missing_files.append(file_id)
+            self._missing_files.append(file_id)
             return
 
         if isinstance(response, RetryResponse):
             # The file is not staged to the download bucket yet
-            self.unstaged_retry_times[file_id] = perf_counter() + response.retry_after
+            self._unstaged_retry_times[file_id] = perf_counter() + response.retry_after
             CLIMessageDisplay.display(f"File {file_id} is (still) being staged.")
             return
 
         # File is staged and ready for download - add FileInfo instance to dict.
         #  Also, response is a DRS object -- get file size from it
         file_size = extract_file_size(drs_object=response)
-        del self.unstaged_retry_times[file_id]
+        del self._unstaged_retry_times[file_id]
         self._staged_files.append(
             FileInfo(
                 file_id=file_id,
@@ -207,9 +207,9 @@ class FileStager:
         Returns whether there was user interaction.
         Raises an error if the user chose to abort the download.
         """
-        if not self.missing_files or self.ignore_failed:
+        if not self._missing_files or self._ignore_failed:
             return False
-        missing = ", ".join(self.missing_files)
+        missing = ", ".join(self._missing_files)
         message = f"No download exists for the following file IDs: {missing}"
         CLIMessageDisplay.failure(message)
         if self.finished:
@@ -222,5 +222,5 @@ class FileStager:
         self._io_handler.handle_response(response=response)
         CLIMessageDisplay.display("Downloading remaining files")
         self._started_waiting = perf_counter()  # reset the timer
-        self.missing_files = []  # reset list of missing files
+        self._missing_files = []  # reset list of missing files
         return True

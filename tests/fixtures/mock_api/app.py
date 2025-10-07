@@ -426,7 +426,7 @@ async def create_work_order_token(package_id: str, file_id: str):
     )
 
 
-@mock_external_app.get("/values/")
+@mock_external_app.get("/values")
 async def mock_wkvs():
     """Mock the WKVS /values endpoint"""
     api_url = "http://127.0.0.1"

@@ -150,7 +150,7 @@ async def _get_wkvs_values(client: httpx.AsyncClient) -> dict[str, Any]:
         ConnectionFailedError: If the request fails due to a timeout/connection problem
         RequestFailedError: If the request fails for any other reason
     """
-    url = f"{CONFIG.wkvs_api_url}/values/"
+    url = f"{CONFIG.wkvs_api_url}/values"
 
     try:
         response = await client.get(url)

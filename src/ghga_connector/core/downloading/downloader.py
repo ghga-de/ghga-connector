@@ -67,7 +67,7 @@ class Downloader:
 
         The process is, roughly:
         - Retrieve file envelope
-        - Schedule a download task for every file parts
+        - Schedule a download task for every file part
         - Write file parts to disk as they're completed
         """
         # Split the file into parts based on the part size

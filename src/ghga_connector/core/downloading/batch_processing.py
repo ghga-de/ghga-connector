@@ -21,13 +21,10 @@ from time import perf_counter, sleep
 from ghga_connector import exceptions
 from ghga_connector.config import Config, get_download_api_url
 from ghga_connector.constants import C4GH
-from ghga_connector.core import (
-    CLIMessageDisplay,
-    WorkPackageClient,
-)
+from ghga_connector.core import CLIMessageDisplay, WorkPackageClient
 from ghga_connector.core.api_calls import is_service_healthy
 
-from .api_calls import DownloadClient, extract_file_size
+from .api_calls import DownloadClient
 from .structs import RetryResponse
 
 
@@ -181,7 +178,7 @@ class FileStager:
 
         # File is staged and ready for download - add FileInfo instance to dict.
         #  Also, response is a DRS object -- get file size from it
-        file_size = extract_file_size(drs_object=response)
+        file_size = response["size"]
         del self._unstaged_retry_times[file_id]
         self._staged_files.append(
             FileInfo(

@@ -30,11 +30,7 @@ from ghga_connector.core.work_package import WorkPackageClient
 
 from .structs import RetryResponse, UrlAndHeaders
 
-__all__ = [
-    "DownloadClient",
-    "extract_download_url",
-    "extract_file_size",
-]
+__all__ = ["DownloadClient", "extract_download_url"]
 
 DrsObject = dict[str, Any]
 
@@ -280,8 +276,6 @@ def _handle_drs_object_response(
             file_id = url.rsplit("/", 1)[1]
             raise exceptions.FileNotRegisteredError(file_id=file_id)
         case _:
-            # this includes 404 because the file's existence should be verified
-            #  earlier when getting the file envelope
             raise exceptions.BadResponseCodeError(url=url, response_code=status_code)
 
 
@@ -295,17 +289,4 @@ def extract_download_url(drs_object: DrsObject) -> str:
     for access_method in access_methods:
         if access_method["type"] == "s3":
             return access_method["access_url"]["url"]
-    raise exceptions.NoS3AccessMethodError(file_id=drs_object["id"])
-
-
-def extract_file_size(drs_object: DrsObject) -> int:
-    """Extract the file size from a DRS Object
-
-    Raises:
-        NoS3AccessMethodError: If the DRS object doesn't have an S3 access method.
-    """
-    access_methods = drs_object["access_methods"]
-    for access_method in access_methods:
-        if access_method["type"] == "s3":
-            return drs_object["size"]
     raise exceptions.NoS3AccessMethodError(file_id=drs_object["id"])

@@ -59,9 +59,9 @@ async def upload_file(  # noqa: PLR0913
     if is_file_encrypted(file_path):
         raise exceptions.FileAlreadyEncryptedError(file_path=file_path)
 
-    upload_api_api_url = get_upload_api_url()
-    if not is_service_healthy(upload_api_api_url):
-        raise exceptions.ApiNotReachableError(api_url=upload_api_api_url)
+    upload_api_url = get_upload_api_url()
+    if not is_service_healthy(upload_api_url):
+        raise exceptions.ApiNotReachableError(api_url=upload_api_url)
 
     uploader = Uploader(
         client=client,

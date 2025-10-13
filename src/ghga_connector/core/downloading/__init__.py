@@ -16,6 +16,6 @@
 """This subpackage contains functionality needed to download files from GHGA"""
 
 from ..progress_bar import DownloadProgressBar
-from .structs import RetryResponse, UrlAndHeaders
+from .structs import RetryResponse
 
-__all__ = ["DownloadProgressBar", "RetryResponse", "UrlAndHeaders"]
+__all__ = ["DownloadProgressBar", "RetryResponse"]

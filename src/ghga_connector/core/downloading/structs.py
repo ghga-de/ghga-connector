@@ -17,19 +17,9 @@
 
 from dataclasses import dataclass
 
-from httpx import Headers
-
 
 @dataclass
 class RetryResponse:
     """Response to download request if file is not yet staged"""
 
     retry_after: int
-
-
-@dataclass
-class UrlAndHeaders:
-    """Combination of endpoint url and headers needed to make an authorized call against an endpoint"""
-
-    endpoint_url: str
-    headers: Headers

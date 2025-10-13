@@ -28,7 +28,7 @@ from ghga_connector.core import RetryHandler
 from ghga_connector.core.api_calls.utils import modify_headers_for_cache_refresh
 from ghga_connector.core.work_package import WorkPackageClient
 
-from .structs import RetryResponse, UrlAndHeaders
+from .structs import RetryResponse
 
 __all__ = ["DownloadClient", "extract_download_url"]
 
@@ -55,14 +55,16 @@ class DownloadClient:
         No cache refresh switch is needed here because this call only happens
         once per file.
         """
-        url_and_headers = await self.get_envelope_authorization(file_id=file_id)
-        url = url_and_headers.endpoint_url
+        # build url
+        download_api_url = get_download_api_url()
+        url = f"{download_api_url}/objects/{file_id}/envelopes"
+        auth_headers = await self.get_envelope_authorization_headers(file_id=file_id)
 
         # Make function call to get file header envelope
         try:
             response: httpx.Response = await self._retry_handler(
                 fn=self._client.get,
-                headers=url_and_headers.headers,
+                headers=auth_headers,
                 url=url,
             )
         except httpx.RequestError as request_error:
@@ -93,7 +95,8 @@ class DownloadClient:
     async def _retrieve_drs_object_using_params(
         self,
         *,
-        url_and_headers: UrlAndHeaders,
+        url: str,
+        headers: httpx.Headers,
         bust_cache: bool = False,
     ) -> RetryResponse | DrsObject:
         """
@@ -104,9 +107,6 @@ class DownloadClient:
         should try again. If the file is available for download, the DRS object is
         returned.
         """
-        url = url_and_headers.endpoint_url
-        headers = url_and_headers.headers
-
         if bust_cache:
             modify_headers_for_cache_refresh(headers)
 
@@ -135,19 +135,13 @@ class DownloadClient:
 
     async def _get_drs_object_retrieval_params(
         self, *, file_id: str, bust_cache: bool = False
-    ) -> UrlAndHeaders:
-        """
-        Fetch work order token and prepare Download API URL + headers to get
-        object storage URL for file download
-        """
-        # build URL
-        download_api_url = get_download_api_url()
-        url_to_get_download_url = f"{download_api_url}/objects/{file_id}"
+    ) -> httpx.Headers:
+        """Fetch work order token and headers to get object storage URL for file download"""
         decrypted_wot = await self._work_package_client.get_download_wot(
             file_id=file_id, bust_cache=bust_cache
         )
         headers = await self._work_package_client.make_auth_headers(decrypted_wot)
-        return UrlAndHeaders(url_to_get_download_url, headers)
+        return headers
 
     async def get_drs_object(
         self, file_id: str, *, bust_cache: bool = False
@@ -158,44 +152,49 @@ class DownloadClient:
         Step 2 - retrieve the DRS object from the Download API using the work order token.
         Automatically retries requests if cached responses are stale.
         """
-        # Obtain work order token (headers) and URL for the calling the Download API
-        url_and_headers = await self._get_drs_object_retrieval_params(
+        # build URL
+        download_api_url = get_download_api_url()
+        url_to_get_download_url = f"{download_api_url}/objects/{file_id}"
+
+        # Obtain work order token (headers) for the calling the Download API
+        headers = await self._get_drs_object_retrieval_params(
             file_id=file_id, bust_cache=bust_cache
         )
         try:
             # Call the Download API to get the DRS object
             drs_object = await self._retrieve_drs_object_using_params(
-                url_and_headers=url_and_headers,
+                url=url_to_get_download_url,
+                headers=headers,
                 bust_cache=bust_cache,
             )
         except exceptions.UnauthorizedAPICallError:
             # Retry the above two steps while explicitly refreshing the cache if we got
             #  an error due to an expired WOT. This will trigger obtaining a fresh WOT
             #  instead of potentially using a cached version of the most recent one.
-            url_and_headers = await self._get_drs_object_retrieval_params(
+            headers = await self._get_drs_object_retrieval_params(
                 file_id=file_id,
                 bust_cache=True,
             )
             drs_object = await self._retrieve_drs_object_using_params(
-                url_and_headers=url_and_headers,
+                url=url_to_get_download_url,
+                headers=headers,
                 bust_cache=True,
             )
 
         return drs_object
 
-    async def get_envelope_authorization(self, *, file_id: str) -> UrlAndHeaders:
+    async def get_envelope_authorization_headers(
+        self, *, file_id: str
+    ) -> httpx.Headers:
         """
-        Fetch the URL and auth headers needed to retrieve the Crypt4GH envelope for the
-        specified file.
+        Fetch download WOT and build the auth headers needed to retrieve the Crypt4GH
+        envelope for the specified file.
         """
-        # build url
-        download_api_url = get_download_api_url()
         decrypted_wot = await self._work_package_client.get_download_wot(
             file_id=file_id
         )
         headers = await self._work_package_client.make_auth_headers(decrypted_wot)
-        url = f"{download_api_url}/objects/{file_id}/envelopes"
-        return UrlAndHeaders(url, headers)
+        return headers
 
     async def download_content_range(
         self, *, url: str, start: int, end: int

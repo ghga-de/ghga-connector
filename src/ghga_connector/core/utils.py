@@ -15,15 +15,51 @@
 
 """Various helper functions"""
 
+import logging
+import sys
+from functools import partial
 from pathlib import Path
+from types import TracebackType
 
 import crypt4gh.keys
 from ghga_service_commons.utils import crypt
 
 from ghga_connector import exceptions
-from ghga_connector.core.downloading.batch_processing import FileInfo
+from ghga_connector.core.downloading.structs import FileInfo
 from ghga_connector.core.message_display import CLIMessageDisplay
 from ghga_connector.core.structs import WorkPackageInformation
+
+
+def strtobool(value: str) -> bool:
+    """Inplace replacement for distutils.utils"""
+    return value.lower() in ("y", "yes", "on", "1", "true", "t")
+
+
+def exception_hook(
+    type_: BaseException,
+    value: BaseException,
+    traceback: TracebackType | None,
+):
+    """When debug mode is NOT enabled, gets called to perform final error handling
+    before program exits
+    """
+    message = (
+        "An error occurred. Rerun command"
+        + " with --debug at the end to see more information."
+    )
+
+    if value.args:
+        message += f"\n{value.args[0]}"
+
+    CLIMessageDisplay.failure(message)
+
+
+def modify_for_debug(debug: bool):
+    """Enable debug logging and configure exception printing if debug=True"""
+    if debug:
+        # enable debug logging
+        logging.basicConfig(level=logging.DEBUG)
+        sys.excepthook = partial(exception_hook)
 
 
 def get_work_package_information(my_private_key: bytes):

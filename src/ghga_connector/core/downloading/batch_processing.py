@@ -220,3 +220,4 @@ class FileStager:
                 CLIMessageDisplay.success(
                     f"File with id '{file_info.file_id}' has been successfully downloaded."
                 )
+            staged_files.clear()

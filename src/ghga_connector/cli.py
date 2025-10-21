@@ -16,12 +16,8 @@
 """CLI-specific wrappers around core functions."""
 
 import asyncio
-import logging
 import os
-import sys
-from functools import partial
 from pathlib import Path
-from types import TracebackType
 
 import typer
 
@@ -30,39 +26,7 @@ from ghga_connector.config import CONFIG, set_runtime_config
 from ghga_connector.constants import C4GH
 from ghga_connector.core import CLIMessageDisplay, async_client
 from ghga_connector.core.main import async_download, decrypt_file, upload_file
-
-
-def strtobool(value: str) -> bool:
-    """Inplace replacement for distutils.utils"""
-    return value.lower() in ("y", "yes", "on", "1", "true", "t")
-
-
-def exception_hook(
-    type_: BaseException,
-    value: BaseException,
-    traceback: TracebackType | None,
-):
-    """When debug mode is NOT enabled, gets called to perform final error handling
-    before program exits
-    """
-    message = (
-        "An error occurred. Rerun command"
-        + " with --debug at the end to see more information."
-    )
-
-    if value.args:
-        message += f"\n{value.args[0]}"
-
-    CLIMessageDisplay.failure(message)
-
-
-def modify_for_debug(debug: bool):
-    """Enable debug logging and configure exception printing if debug=True"""
-    if debug:
-        # enable debug logging
-        logging.basicConfig(level=logging.DEBUG)
-        sys.excepthook = partial(exception_hook)
-
+from ghga_connector.core.utils import modify_for_debug, strtobool
 
 cli = typer.Typer(no_args_is_help=True)
 

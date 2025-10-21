@@ -23,18 +23,11 @@ from io import BufferedWriter
 from pathlib import Path
 
 from ghga_connector import exceptions
-from ghga_connector.core import (
-    CLIMessageDisplay,
-    PartRange,
-    calc_part_ranges,
-)
+from ghga_connector.core import CLIMessageDisplay, PartRange, calc_part_ranges
 from ghga_connector.core.tasks import TaskHandler
 
 from ..progress_bar import DownloadProgressBar
-from .api_calls import (
-    DownloadClient,
-    extract_download_url,
-)
+from .api_calls import DownloadClient, extract_download_url
 from .structs import RetryResponse
 
 logger = logging.getLogger(__name__)

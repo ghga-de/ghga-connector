@@ -24,7 +24,10 @@ from ghga_connector.config import CONFIG, get_upload_api_url, set_runtime_config
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.batch_processing import FileStager
-from ghga_connector.core.downloading.downloader import Downloader
+from ghga_connector.core.downloading.downloader import (
+    Downloader,
+    handle_download_errors,
+)
 from ghga_connector.core.work_package import WorkPackageClient
 
 from .. import exceptions
@@ -153,9 +156,11 @@ async def async_download(
                 max_concurrent_downloads=CONFIG.max_concurrent_downloads,
             )
             CLIMessageDisplay.display(f"Downloading file with id '{file_id}'...")
-            await downloader.download_file(
-                output_path=file_info.path_during_download, part_size=CONFIG.part_size
-            )
+            with handle_download_errors(file_info):
+                await downloader.download_file(
+                    output_path=file_info.path_during_download,
+                    part_size=CONFIG.part_size,
+                )
 
 
 def decrypt_file(

@@ -19,6 +19,7 @@ import asyncio
 import gc
 import logging
 from asyncio import PriorityQueue, Queue, Semaphore, Task
+from contextlib import contextmanager
 from io import BufferedWriter
 from pathlib import Path
 
@@ -28,10 +29,28 @@ from ghga_connector.core.tasks import TaskHandler
 
 from ..progress_bar import DownloadProgressBar
 from .api_calls import DownloadClient, extract_download_url
-from .structs import RetryResponse
+from .structs import FileInfo, RetryResponse
 
 logger = logging.getLogger(__name__)
 # TODO: [later] More better logging
+
+__all__ = ["Downloader", "handle_download_errors"]
+
+
+@contextmanager
+def handle_download_errors(file_info: FileInfo):
+    """Used to handle download errors from `Downloader.download_file()`"""
+    file_id = file_info.file_id
+    try:
+        yield
+    except exceptions.GetEnvelopeError as error:
+        CLIMessageDisplay.failure(
+            f"The request to get an envelope for file '{file_id}' failed."
+        )
+        raise error
+    except exceptions.DownloadError as error:
+        CLIMessageDisplay.failure(f"Failed downloading with id '{file_id}'.")
+        raise error
 
 
 class Downloader:

@@ -194,7 +194,7 @@ class FileStager:
         return True
 
     async def manage_file_downloads(self, overwrite: bool) -> AsyncGenerator[FileInfo]:
-        """Manages file downloads by handling errors, checking for existing files,
+        """Manages file downloads by checking for existing files before download,
         printing messages to the display, and renaming files after they are downloaded.
 
         Yields file information.
@@ -203,19 +203,7 @@ class FileStager:
             staged_files = await self.get_staged_files()
             for file_info in staged_files:
                 utils.check_for_existing_file(file_info=file_info, overwrite=overwrite)
-                try:
-                    file_id = file_info.file_id
-                    yield file_info
-                except exceptions.GetEnvelopeError as error:
-                    CLIMessageDisplay.failure(
-                        f"The request to get an envelope for file '{file_id}' failed."
-                    )
-                    raise error
-                except exceptions.DownloadError as error:
-                    CLIMessageDisplay.failure(
-                        f"Failed downloading with id '{file_id}'."
-                    )
-                    raise error
+                yield file_info
                 file_info.path_during_download.rename(file_info.path_once_complete)
                 CLIMessageDisplay.success(
                     f"File with id '{file_info.file_id}' has been successfully downloaded."

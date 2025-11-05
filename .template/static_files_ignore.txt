@@ -9,9 +9,13 @@ scripts/list_outdated_dependencies.py
 scripts/update_openapi_docs.py
 scripts/update_readme.py
 scripts/update_pyproject.py
+.github/workflows/check_config_docs.yaml
 .github/workflows/check_openapi_spec.yaml
+.github/workflows/check_pyproject.yaml
+.github/workflows/check_readme.yaml
 .github/workflows/ci_release.yaml
 .github/workflows/ci_workflow_dispatch.yaml
+.github/workflows/static_code_analysis.yaml
 .github/workflows/tests.yaml
 .pyproject_generation/pyproject_template.toml
 .devcontainer/Dockerfile

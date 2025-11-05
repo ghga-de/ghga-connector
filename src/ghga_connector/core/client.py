@@ -15,7 +15,6 @@
 """Handling session initialization for httpx"""
 
 from contextlib import asynccontextmanager
-from typing import Union
 
 import hishel
 import httpx
@@ -28,8 +27,11 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
+from ghga_connector import __version__
 from ghga_connector.config import CONFIG
 from ghga_connector.constants import TIMEOUT
+
+USER_AGENT = f"GHGAConnector/{__version__}"
 
 
 class RetryHandler:
@@ -58,7 +60,7 @@ class RetryHandler:
 
 
 def get_cache_transport(
-    wrapped_transport: Union[httpx.AsyncBaseTransport, None] = None,
+    wrapped_transport: httpx.AsyncBaseTransport | None = None,
 ) -> hishel.AsyncCacheTransport:
     """Construct an async cache transport with `hishel`.
 
@@ -88,6 +90,7 @@ def get_mounts() -> dict[str, httpx.AsyncBaseTransport]:
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
     async with httpx.AsyncClient(
+        headers=httpx.Headers({"User-Agent": USER_AGENT}),
         timeout=TIMEOUT,
         limits=httpx.Limits(
             max_connections=CONFIG.max_concurrent_downloads,

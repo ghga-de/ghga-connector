@@ -4,5 +4,5 @@
 -r requirements-dev-template.in
 
 # additional requirements can be listed here
-testcontainers[kafka,mongo]>=3.4.1
+testcontainers[kafka,mongo]>=4.13
 ghga-service-commons[api]>=4.1.0

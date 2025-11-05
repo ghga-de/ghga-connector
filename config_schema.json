@@ -2,12 +2,6 @@
   "additionalProperties": false,
   "description": "Modifies the original Settings class provided by the user",
   "properties": {
-    "user_agent": {
-      "default": "GHGAConnector/1.8.0",
-      "description": "Custom user agent string to use for requests in the client.",
-      "title": "User Agent",
-      "type": "string"
-    },
     "max_concurrent_downloads": {
       "default": 5,
       "description": "Number of parallel downloader tasks for file parts.",

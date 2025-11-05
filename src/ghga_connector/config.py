@@ -20,21 +20,11 @@ from hexkit.config import config_from_yaml
 from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings
 
-from ghga_connector import __version__
 from ghga_connector.constants import DEFAULT_PART_SIZE, MAX_RETRIES, MAX_WAIT_TIME
 
 
-class UserAgentConfig(BaseSettings):
-    """Config for a custom user_agent for httpx requests."""
-
-    user_agent: str = Field(
-        default=f"GHGAConnector/{__version__}",
-        description="Custom user agent string to use for requests in the client.",
-    )
-
-
 @config_from_yaml(prefix="ghga_connector")
-class Config(UserAgentConfig):
+class Config(BaseSettings):
     """Global Config Parameters"""
 
     max_concurrent_downloads: PositiveInt = Field(

@@ -9,5 +9,4 @@ retry_status_codes:
 - 502
 - 503
 - 504
-user_agent: GHGAConnector/1.8.0
 wkvs_api_url: https://127.0.0.1

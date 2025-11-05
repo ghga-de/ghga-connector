@@ -57,7 +57,7 @@ ghga_connector --help
 ### Parameters
 
 The service requires the following configuration parameters:
-- <a id="properties/user_agent"></a>**`user_agent`** *(string)*: Custom user agent string to use for requests in the client. Default: `"GHGA Connector (1.8.0)"`.
+- <a id="properties/user_agent"></a>**`user_agent`** *(string)*: Custom user agent string to use for requests in the client. Default: `"GHGAConnector/1.8.0"`.
 - <a id="properties/max_concurrent_downloads"></a>**`max_concurrent_downloads`** *(integer)*: Number of parallel downloader tasks for file parts. Exclusive minimum: `0`. Default: `5`.
 - <a id="properties/max_retries"></a>**`max_retries`** *(integer)*: Number of times to retry failed API calls. Minimum: `0`. Default: `5`.
 - <a id="properties/max_wait_time"></a>**`max_wait_time`** *(integer)*: Maximum time in seconds to wait before quitting without a download. Exclusive minimum: `0`. Default: `3600`.

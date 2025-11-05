@@ -28,7 +28,7 @@ class UserAgentConfig(BaseSettings):
     """Config for a custom user_agent for httpx requests."""
 
     user_agent: str = Field(
-        default=f"GHGA Connector ({__version__})",
+        default=f"GHGAConnector/{__version__}",
         description="Custom user agent string to use for requests in the client.",
     )
 

@@ -1,15 +1,11 @@
-version: "3"
-
 services:
   app:
     build:
       context: .
       dockerfile: ./Dockerfile
       args:
-        # [Choice] Python version: 3, 3.8, 3.7, 3.6
-        VARIANT: 3.10
         # [Choice] Install Node.js
-        INSTALL_NODE: "true"
+        INSTALL_NODE: "false"
         NODE_VERSION: "lts/*"
         PACKAGE_NAME: "ghga_connector"
         # On Linux, you may need to update USER_UID and USER_GID below if not your local UID is not 1000.
@@ -18,6 +14,7 @@ services:
 
     init: true
 
+    # Makes testcontainers work on linux based hosts
     extra_hosts:
       - host.docker.internal:host-gateway
 
@@ -39,7 +36,7 @@ services:
     # (Adding the "ports" property to this file will not forward from a Codespace.)
 
   localstack:
-    image: "localstack/localstack:0.14.2"
+    image: localstack/localstack
     environment:
       SERVICES: s3
       DEFAULT_REGION: eu-west-1
@@ -47,14 +44,15 @@ services:
       # accessible at localhost
       HOSTNAME_EXTERNAL: localhost
       USE_SSL: "false"
-      DATA_DIR: /tmp/localstack/data
+      DATA_DIR: /var/lib/localstack/data
       DEBUG: 1
     volumes:
       - type: volume
         source: s3_fs
-        target: /tmp/localstack
+        target: /var/lib/localstack
         volume:
           nocopy: true
     # useful ports: 4566 - AWS API
+
 volumes:
   s3_fs: {}

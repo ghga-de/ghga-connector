@@ -23,10 +23,6 @@ babel==2.17.0 \
     --hash=sha256:0c54cffb19f690cdcc52a3b50bcbf71e07a808d1c80d549f2459b9d2cf0afb9d \
     --hash=sha256:4d0b53093fdfb4b21c92b5213dba5a1b23885afa8383709427046b21c366e5f2
     # via jsonschema2md
-backports-asyncio-runner==1.2.0 \
-    --hash=sha256:0da0a936a8aeb554eccb426dc55af3ba63bcdc69fa1a600b5bb305413a4477b5 \
-    --hash=sha256:a5aa7b2b7d8f8bfcaa2b57313f70792df84e32a2a746f585213373f900b42162
-    # via pytest-asyncio
 bcrypt==5.0.0 \
     --hash=sha256:046ad6db88edb3c5ece4369af997938fb1c19d6a699b9c1b27b0db432faae4c4 \
     --hash=sha256:0c418ca99fd47e9c59a301744d63328f17798b5947b0f791e9af3c1c499c2d0a \
@@ -495,12 +491,6 @@ docker==7.1.0 \
 docopt==0.6.2 \
     --hash=sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491
     # via crypt4gh
-exceptiongroup==1.3.0 \
-    --hash=sha256:4d111e6e0c13d0644cad6ddaa7ed0261a0b36971f6d23e7ec9b4b9097da78a10 \
-    --hash=sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88
-    # via
-    #   anyio
-    #   pytest
 fastapi==0.120.4 \
     --hash=sha256:2d856bc847893ca4d77896d4504ffdec0fb04312b705065fca9104428eca3868 \
     --hash=sha256:9bdf192308676480d3593e10fd05094e56d6fdc7d9283db26053d8104d5f82a0
@@ -1168,11 +1158,7 @@ tomli==2.3.0 \
     --hash=sha256:f85209946d1fe94416debbb88d00eb92ce9cd5266775424ff81bc959e001acaf \
     --hash=sha256:feb0dacc61170ed7ab602d3d972a58f14ee3ee60494292d384649a3dc38ef463 \
     --hash=sha256:ff72b71b5d10d22ecb084d345fc26f42b5143c5533db5e2eaba7d2d335358876
-    # via
-    #   -r lock/requirements-dev-template.in
-    #   coverage
-    #   mypy
-    #   pytest
+    # via -r lock/requirements-dev-template.in
 tomli-w==1.2.0 \
     --hash=sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90 \
     --hash=sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021
@@ -1202,8 +1188,6 @@ typing-extensions==4.15.0 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
     # via
     #   anyio
-    #   cryptography
-    #   exceptiongroup
     #   fastapi
     #   hishel
     #   mypy
@@ -1215,8 +1199,6 @@ typing-extensions==4.15.0 \
     #   testcontainers
     #   typer
     #   typing-inspection
-    #   uvicorn
-    #   virtualenv
 typing-inspection==0.4.2 \
     --hash=sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7 \
     --hash=sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464

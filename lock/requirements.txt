@@ -271,12 +271,6 @@ docopt==0.6.2 \
     # via
     #   -c lock/requirements-dev.txt
     #   crypt4gh
-exceptiongroup==1.3.0 \
-    --hash=sha256:4d111e6e0c13d0644cad6ddaa7ed0261a0b36971f6d23e7ec9b4b9097da78a10 \
-    --hash=sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88
-    # via
-    #   -c lock/requirements-dev.txt
-    #   anyio
 ghga-service-commons==5.2.0 \
     --hash=sha256:834a26606bc391d228f6ffd81e4bed4fb882e72e957fc000ba2afc59cc03d18f \
     --hash=sha256:a21b492fdda16f74c2a5696010b2fa79dc4050679cad9a4915567cb0b94a4217
@@ -735,8 +729,6 @@ typing-extensions==4.15.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   anyio
-    #   cryptography
-    #   exceptiongroup
     #   hishel
     #   opentelemetry-api
     #   pydantic

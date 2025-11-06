@@ -20,44 +20,57 @@ from pathlib import Path
 
 import httpx
 
-from ghga_connector.config import CONFIG, get_upload_api_url, set_runtime_config
+from ghga_connector.config import CONFIG, set_runtime_config
 from ghga_connector.core.client import async_client
+from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.batch_processing import FileStager
 from ghga_connector.core.downloading.downloader import (
     Downloader,
     handle_download_errors,
 )
+from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.work_package import WorkPackageClient
 
 from .. import exceptions
 from . import utils
-from .api_calls import is_service_healthy
 from .crypt import Crypt4GHDecryptor
 from .file_operations import is_file_encrypted
 from .message_display import CLIMessageDisplay
-from .uploading.main import run_upload
 from .uploading.uploader import Uploader
+
+
+async def async_upload(
+    file_alias: str,
+    file_path: Path,
+    my_public_key_path: Path,
+    my_private_key_path: Path,
+    passphrase: str | None = None,
+):
+    """Upload a file asynchronously"""
+    async with async_client() as client, set_runtime_config(client=client):
+        await upload_file(
+            client=client,
+            file_alias=file_alias,
+            file_path=file_path,
+            my_public_key_path=my_public_key_path,
+            my_private_key_path=my_private_key_path,
+            passphrase=passphrase,
+        )
 
 
 async def upload_file(  # noqa: PLR0913
     *,
     client: httpx.AsyncClient,
-    file_id: str,
+    file_alias: str,
     file_path: Path,
     my_public_key_path: Path,
     my_private_key_path: Path,
-    part_size: int,
     passphrase: str | None = None,
 ) -> None:
     """Core command to upload a file. Can be called by CLI, GUI, etc."""
-    if not my_public_key_path.is_file():
-        raise exceptions.PubKeyFileDoesNotExistError(public_key_path=my_public_key_path)
-
-    if not my_private_key_path.is_file():
-        raise exceptions.PrivateKeyFileDoesNotExistError(
-            private_key_path=my_private_key_path
-        )
+    my_public_key = utils.get_public_key(my_public_key_path)
+    my_private_key = utils.get_private_key(my_private_key_path, passphrase)
 
     if not file_path.is_file():
         raise exceptions.FileDoesNotExistError(file_path=file_path)
@@ -65,41 +78,38 @@ async def upload_file(  # noqa: PLR0913
     if is_file_encrypted(file_path):
         raise exceptions.FileAlreadyEncryptedError(file_path=file_path)
 
-    upload_api_url = get_upload_api_url()
-    if not is_service_healthy(upload_api_url):
-        raise exceptions.ApiNotReachableError(api_url=upload_api_url)
+    work_package_client = WorkPackageClient(
+        client=client, my_private_key=my_private_key, my_public_key=my_public_key
+    )
+    upload_client = UploadClient(client=client, work_package_client=work_package_client)
+
+    part_size = utils.check_adjust_part_size(
+        part_size=CONFIG.part_size, file_size=file_path.stat().st_size
+    )
+
+    encryptor = Crypt4GHEncryptor(part_size=part_size, my_private_key=my_private_key)
 
     uploader = Uploader(
-        client=client,
-        file_id=file_id,
-        public_key_path=my_public_key_path,
+        upload_client=upload_client,
+        encryptor=encryptor,
+        file_alias=file_alias,
+        file_path=file_path,
+        part_size=part_size,
+        max_concurrent_uploads=CONFIG.max_concurrent_uploads,
     )
-    try:
-        await run_upload(
-            file_id=file_id,
-            file_path=file_path,
-            my_private_key_path=my_private_key_path,
-            part_size=part_size,
-            passphrase=passphrase,
-            uploader=uploader,
-        )
-    except exceptions.StartUploadError as error:
-        CLIMessageDisplay.failure("The request to start a multipart upload has failed.")
-        raise error
-    except exceptions.CantChangeUploadStatusError as error:
-        CLIMessageDisplay.failure(f"The file with id '{file_id}' was already uploaded.")
-        raise error
-    except exceptions.ConnectionFailedError as error:
-        CLIMessageDisplay.failure("The upload failed too many times and was aborted.")
-        raise error
-    except exceptions.FinalizeUploadError as error:
-        CLIMessageDisplay.failure(
-            f"Finishing the upload with id '{file_id}' failed.\n{error.cause}"
-        )
 
-    CLIMessageDisplay.success(
-        f"File with id '{file_id}' has been successfully uploaded."
-    )
+    file_id = await uploader.initiate_file_upload()
+
+    try:
+        await uploader.upload_file()
+    except exceptions.CreateFileUploadError as err:
+        CLIMessageDisplay.failure(str(err))
+        CLIMessageDisplay.failure(
+            f"Failed to upload {file_alias}, (file ID {file_id}), deleting."
+        )
+        await uploader.delete_file()
+    else:
+        CLIMessageDisplay.success(f"Successfully uploaded {file_alias}.")
 
 
 async def async_download(
@@ -117,17 +127,10 @@ async def async_download(
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)
 
-    CLIMessageDisplay.display("\nFetching work package token...")
-    work_package_information = utils.get_work_package_information(
-        my_private_key=my_private_key
-    )
-
     async with async_client() as client, set_runtime_config(client=client):
         CLIMessageDisplay.display("Retrieving API configuration information...")
         work_package_client = WorkPackageClient(
-            access_token=work_package_information.decrypted_token,
             client=client,
-            package_id=work_package_information.package_id,
             my_private_key=my_private_key,
             my_public_key=my_public_key,
         )

@@ -19,6 +19,7 @@
 from pathlib import Path
 
 import httpx
+from pydantic import UUID4
 
 from ghga_connector.constants import MAX_PART_NUMBER
 
@@ -37,6 +38,14 @@ class ApiNotReachableError(RuntimeError):
     def __init__(self, *, api_url: str):
         message = f"The url '{api_url}' is currently not reachable."
         super().__init__(message)
+
+
+class AuthorizationError(RuntimeError):
+    """Raised when a protected endpoint returns a 401 or 403"""
+
+    def __init__(self):
+        msg = "Your request did not include valid credentials."
+        super().__init__(msg)
 
 
 class BadResponseCodeError(RuntimeError):
@@ -59,12 +68,47 @@ class CantChangeUploadStatusError(RuntimeError):
         super().__init__(message)
 
 
+class ChecksumValidationError(RuntimeError):
+    """Raised when checksum validation failed and the uploaded file needs removal."""
+
+    def __init__(self, *, bucket_id: str, object_id: str, message: str):
+        self.bucket_id = bucket_id
+        self.object_id = object_id
+        super().__init__(message)
+
+
+class CompleteFileUploadError(RuntimeError):
+    """Raised when there's a problem trying to complete an upload."""
+
+    def __init__(self, *, file_alias: str, reason: str):
+        # Make sure we only use one period at the end of the error message
+        reason = reason.removesuffix(".")
+
+        # Make first character of 'reason' lowercase
+        reason = reason[0].lower() + reason[1:]
+        msg = f"Failed to complete upload for file with alias {file_alias} because {reason}."
+        super().__init__(msg)
+
+
 class ConnectionFailedError(RuntimeError):
     """Thrown when a ConnectError or ConnectTimeout error is raised by httpx"""
 
     def __init__(self, *, url: str, reason: str):
         message = f"Request to '{url}' failed to connect. Reason: {reason}"
         super().__init__(message)
+
+
+class CreateFileUploadError(RuntimeError):
+    """Raised when there's a problem trying to create a new FileUpload."""
+
+    def __init__(self, *, file_alias: str, reason: str):
+        # Make sure we only use one period at the end of the error message
+        reason = reason.removesuffix(".")
+
+        # Make first character of 'reason' lowercase
+        reason = reason[0].lower() + reason[1:]
+        msg = f"Failed to initiate upload for file with alias {file_alias} because {reason}."
+        super().__init__(msg)
 
 
 class DirectoryDoesNotExistError(RuntimeError):
@@ -102,16 +146,6 @@ class EnvelopeNotFoundError(RuntimeError):
         message = (
             f"The request for an envelope for the file with ID '{file_id}' failed."
         )
-        super().__init__(message)
-
-
-class ExternalApiError(RuntimeError):
-    """Thrown when the services request to an external API failed"""
-
-    # TODO: [later] Maybe remove this if not needed during setup
-
-    def __init__(self):
-        message = "The service was unable to contact an external API."
         super().__init__(message)
 
 
@@ -164,6 +198,25 @@ class FinalizeUploadError(RuntimeError):
 
 class GetEnvelopeError(RuntimeError):
     """Raised when fetching an header envelope fails"""
+
+
+class InvalidBoxError(RuntimeError):
+    """Raised when receiving a 404 from the Upload API for a given box ID"""
+
+    def __init__(self, *, work_package_id: UUID4):
+        msg = f"The upload box associated with Work Package {work_package_id} doesn't exist."
+        super().__init__(msg)
+
+
+class InvalidFileUploadError(RuntimeError):
+    """Raised when receiving a 404 from the Upload API for a given file ID"""
+
+    def __init__(self, *, work_package_id: UUID4, file_id: UUID4):
+        msg = (
+            f"The upload box associated with Work Package {work_package_id} doesn't"
+            + f" have any files with the given file ID ({file_id})"
+        )
+        super().__init__(msg)
 
 
 class InvalidWorkPackageToken(RuntimeError):
@@ -262,12 +315,28 @@ class NoWorkPackageAccessError(RuntimeError):
     a specific work package id (response code 403)
     """
 
-    def __init__(self, *, work_package_id: str):
+    def __init__(self, *, work_package_id: UUID4):
         message = (
             "This auth token is not valid "
             f"for the work package with the id '{work_package_id}'."
         )
         super().__init__(message)
+
+
+class OrphanedUploadError(RuntimeError):
+    """Raised when a multipart upload is found to be already in progress for a file
+    which we are trying to create. This is a rare situation that will have to be
+    resolved by the GHGA dev team if it occurs.
+    """
+
+    def __init__(self, *, file_alias: str, box_id: UUID4):
+        msg = (
+            "A multipart upload is already in progress for this file, but"
+            + " cannot be aborted due to a system error. Please contact the GHGA Help"
+            + " Desk and request manual abortion of any S3 uploads for file alias"
+            + f" {file_alias} in box {box_id}."
+        )
+        super().__init__(msg)
 
 
 class OutputPathIsNotDirectory(RuntimeError):
@@ -337,6 +406,39 @@ class RetryTimeExpectedError(RuntimeError):
         super().__init__(message)
 
 
+class S3StorageError(RuntimeError):
+    """Raised when there's a problem in the Upload API related to the S3 storage."""
+
+    def __init__(self, *, work_package_id: UUID4):
+        msg = (
+            "There was a problem with the S3 storage configuration for the upload box"
+            + f" associated with Work Package {work_package_id}."
+        )
+        super().__init__(msg)
+
+
+class S3UploadDetailsError(RuntimeError):
+    """Raised when the Upload API fails to find expected details of an ongoing S3 upload"""
+
+    def __init__(self, *, file_alias: str, work_package_id: UUID4):
+        msg = (
+            "The Upload API failed to find the expected information about the ongoing"
+            + f" S3 upload for file alias {file_alias} in the upload box associated"
+            + f" with Work Package {work_package_id}."
+        )
+        super().__init__(msg)
+
+
+class S3UploadMissingError(RuntimeError):
+    """Raised when the Upload API indicates that the S3 instance does not have record
+    of a multipart upload with the ID that is stored in the Upload API's database.
+    """
+
+    def __init__(self):
+        msg = "According to the Upload API, the expected multipart upload wasn't found in S3"
+        super().__init__(msg)
+
+
 class StartUploadError(RuntimeError):
     """Raised when an issue is encountered during the initialization of a multipart upload"""
 
@@ -347,6 +449,14 @@ class UnauthorizedAPICallError(RuntimeError):
     def __init__(self, *, url: str, cause: str):
         message = f"Could not authorize call to '{url}': {cause}"
         super().__init__(message)
+
+
+class UnexpectedError(RuntimeError):
+    """Raised as a catch-all when unexpected errors occur."""
+
+    def __init__(self, info: str):
+        msg = f"An unexpected error occurred: {info}"
+        super().__init__(msg)
 
 
 class UnexpectedRetryResponseError(RuntimeError):
@@ -361,6 +471,40 @@ class UnexpectedRetryResponseError(RuntimeError):
             + " staged download"
         )
         super().__init__(message)
+
+
+class UploadAlreadyExistsError(RuntimeError):
+    """Raised when trying to create a duplicate file upload."""
+
+    def __init__(self, *, work_package_id: UUID4):
+        msg = (
+            "An upload for this file alias already exists in the upload box associated"
+            + f" with Work Package {work_package_id}"
+        )
+        super().__init__(msg)
+
+
+class UploadBoxLockedError(RuntimeError):
+    """Raised when trying to add/remove files for a locked FileUploadBox."""
+
+    def __init__(self, *, work_package_id: UUID4):
+        msg = (
+            f"The upload box associated with work package {work_package_id} is locked."
+        )
+        super().__init__(msg)
+
+
+class UploadFileError(RuntimeError):
+    """Raised when there's a problem trying to upload a file part."""
+
+    def __init__(self, *, file_alias: str, reason: str):
+        # Make sure we only use one period at the end of the error message
+        reason = reason.removesuffix(".")
+
+        # Make first character of 'reason' lowercase
+        reason = reason[0].lower() + reason[1:]
+        msg = f"Failed to upload file with alias {file_alias} because {reason}."
+        super().__init__(msg)
 
 
 class UploadIdUnsetError(RuntimeError):

@@ -22,18 +22,18 @@ from pathlib import Path
 import typer
 
 from ghga_connector import exceptions
-from ghga_connector.config import CONFIG, set_runtime_config
 from ghga_connector.constants import C4GH
-from ghga_connector.core import CLIMessageDisplay, async_client
-from ghga_connector.core.main import async_download, decrypt_file, upload_file
+from ghga_connector.core import CLIMessageDisplay
+from ghga_connector.core.main import async_download, async_upload, decrypt_file
 from ghga_connector.core.utils import modify_for_debug, strtobool
 
 cli = typer.Typer(no_args_is_help=True)
 
 
+@cli.command(no_args_is_help=True)
 def upload(  # noqa: PLR0913
     *,
-    file_id: str = typer.Option(..., help="The id of the file to upload"),
+    file_alias: str = typer.Option(..., help="The alias of the file to upload"),
     file_path: Path = typer.Option(..., help="The path to the file to upload"),
     my_public_key_path: Path = typer.Option(
         "./key.pub",
@@ -58,33 +58,13 @@ def upload(  # noqa: PLR0913
     modify_for_debug(debug)
     asyncio.run(
         async_upload(
-            file_id=file_id,
+            file_alias=file_alias,
             file_path=file_path,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             passphrase=passphrase,
         )
     )
-
-
-async def async_upload(
-    file_id: str,
-    file_path: Path,
-    my_public_key_path: Path,
-    my_private_key_path: Path,
-    passphrase: str | None = None,
-):
-    """Upload a file asynchronously"""
-    async with async_client() as client, set_runtime_config(client=client):
-        await upload_file(
-            client=client,
-            file_id=file_id,
-            file_path=file_path,
-            my_public_key_path=my_public_key_path,
-            my_private_key_path=my_private_key_path,
-            passphrase=passphrase,
-            part_size=CONFIG.part_size,
-        )
 
 
 if strtobool(os.getenv("UPLOAD_ENABLED") or "false"):

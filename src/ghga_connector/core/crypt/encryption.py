@@ -13,46 +13,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""This module contains Crypt4GH based encryption functionality"""
+"""Functionality to encrypt files in chunks with Crypt4GH before upload."""
 
 import base64
 import os
 from collections.abc import Generator
 from io import BufferedReader
-from pathlib import Path
+from typing import Any
 
 import crypt4gh.header
-import crypt4gh.keys
 import crypt4gh.lib
 from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
+from pydantic import SecretBytes
 
 from ghga_connector.config import get_ghga_pubkey
-from ghga_connector.core import get_segments, read_file_parts
-
-from .abstract_bases import Encryptor
-from .checksums import Checksums
+from ghga_connector.core.crypt.checksums import Checksums
+from ghga_connector.core.file_operations import get_segments, read_file_parts
 
 
-class Crypt4GHEncryptor(Encryptor):
+class Crypt4GHEncryptor:
     """Handles on the fly encryption and checksum calculation"""
 
-    def __init__(
-        self,
-        part_size: int,
-        private_key_path: Path,
-        passphrase: str | None,
-        checksums: Checksums = Checksums(),
-        file_secret: bytes | None = None,
-    ):
-        self._encrypted_file_size = 0
-        self._checksums = checksums
+    def __init__(self, part_size: int, my_private_key: SecretBytes):
         self._part_size = part_size
-        self._private_key_path = private_key_path
+        self._my_private_key = my_private_key
         self._server_public_key = base64.b64decode(get_ghga_pubkey())
-        self._passphrase = passphrase
-        if file_secret is None:
-            file_secret = os.urandom(32)
-        self._file_secret = file_secret
+        self._file_secret = os.urandom(32)
+        self.checksums = Checksums()  # Updated as encryption takes place
+        self._encrypted_file_size = 0  # Updated as encryption takes place
 
     def _encrypt(self, part: bytes):
         """Encrypt file part using secret"""
@@ -64,7 +52,7 @@ class Crypt4GHEncryptor(Encryptor):
 
         return b"".join(encrypted_segments), incomplete_segment
 
-    def _encrypt_segment(self, segment: bytes):
+    def _encrypt_segment(self, segment: bytes) -> bytes:
         """Encrypt one single segment"""
         nonce = os.urandom(12)
         encrypted_data = crypto_aead_chacha20poly1305_ietf_encrypt(
@@ -77,38 +65,31 @@ class Crypt4GHEncryptor(Encryptor):
         Gather file encryption/decryption secret and assemble a crypt4gh envelope using the
         server's private and the client's public key
         """
-        if self._passphrase:
-            private_key = crypt4gh.keys.get_private_key(
-                filepath=self._private_key_path, callback=lambda: self._passphrase
-            )
-        else:
-            private_key = crypt4gh.keys.get_private_key(
-                filepath=self._private_key_path, callback=None
-            )
-
-        keys = [(0, private_key, self._server_public_key)]
+        keys = [(0, self._my_private_key.get_secret_value(), self._server_public_key)]
         header_content = crypt4gh.header.make_packet_data_enc(0, self._file_secret)
         header_packets = crypt4gh.header.encrypt(header_content, keys)
         header_bytes = crypt4gh.header.serialize(header_packets)
-
         return header_bytes
 
     def get_encrypted_size(self) -> int:
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
-    def process_file(self, file: BufferedReader) -> Generator[bytes, None, None]:
-        """Encrypt file parts and prepare for upload."""
+    def process_file(
+        self, file: BufferedReader
+    ) -> Generator[tuple[int, bytes], Any, None]:
+        """Encrypt file parts for upload, yielding a tuple of the part number and content."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()
-        update_encrypted = self._checksums.update_encrypted
 
         # get envelope size to adjust checksum buffers and encrypted content size
         envelope_size = len(upload_buffer)
 
-        for file_part in read_file_parts(file=file, part_size=self._part_size):
+        for part_number, file_part in enumerate(
+            read_file_parts(file=file, part_size=self._part_size), start=1
+        ):
             # process unencrypted
-            self._checksums.update_unencrypted(file_part)
+            self.checksums.update_unencrypted(file_part)
             unprocessed_bytes += file_part
 
             # encrypt in chunks
@@ -118,12 +99,12 @@ class Crypt4GHEncryptor(Encryptor):
             # update checksums and yield if part size
             if len(upload_buffer) >= self._part_size:
                 current_part = upload_buffer[: self._part_size]
-                if self._checksums.encrypted_is_empty():
-                    update_encrypted(current_part[envelope_size:])
+                if self.checksums.encrypted_is_empty():
+                    self.checksums.update_encrypted(current_part[envelope_size:])
                 else:
-                    update_encrypted(current_part)
+                    self.checksums.update_encrypted(current_part)
                 self._encrypted_file_size += self._part_size
-                yield current_part
+                yield part_number, current_part
                 upload_buffer = upload_buffer[self._part_size :]
 
         # process dangling bytes
@@ -132,14 +113,16 @@ class Crypt4GHEncryptor(Encryptor):
 
         while len(upload_buffer) >= self._part_size:
             current_part = upload_buffer[: self._part_size]
-            update_encrypted(current_part)
+            self.checksums.update_encrypted(current_part)
             self._encrypted_file_size += self._part_size
-            yield current_part
+            part_number += 1
+            yield part_number, current_part
             upload_buffer = upload_buffer[self._part_size :]
 
         if upload_buffer:
-            update_encrypted(upload_buffer)
+            self.checksums.update_encrypted(upload_buffer)
             self._encrypted_file_size += len(upload_buffer)
-            yield upload_buffer
+            part_number += 1
+            yield part_number, upload_buffer
 
         self._encrypted_file_size -= envelope_size

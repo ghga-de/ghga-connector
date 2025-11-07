@@ -157,7 +157,7 @@ class WorkPackageClient:
         body = {
             "work_type": work_type,
             "alias": alias,
-            "file_id": file_id,
+            "file_id": str(file_id),
         }
         upload_wot = await self._get_work_order_token(
             url=url, bust_cache=bust_cache, body=body

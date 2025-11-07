@@ -30,6 +30,8 @@ from ghga_connector.config import get_ghga_pubkey
 from ghga_connector.core.crypt.checksums import Checksums
 from ghga_connector.core.file_operations import get_segments, read_file_parts
 
+FileProcessor = Generator[tuple[int, bytes], Any, None]
+
 
 class Crypt4GHEncryptor:
     """Handles on the fly encryption and checksum calculation"""
@@ -75,9 +77,7 @@ class Crypt4GHEncryptor:
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
-    def process_file(
-        self, file: BufferedReader
-    ) -> Generator[tuple[int, bytes], Any, None]:
+    def process_file(self, file: BufferedReader) -> FileProcessor:
         """Encrypt file parts for upload, yielding a tuple of the part number and content."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()

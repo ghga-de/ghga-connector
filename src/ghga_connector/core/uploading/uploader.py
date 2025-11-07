@@ -17,16 +17,14 @@
 import asyncio
 import logging
 import math
-from collections.abc import Generator
 from pathlib import Path
-from time import time
-from typing import Any
 
 import crypt4gh.lib
 from pydantic import UUID4
 
 from ghga_connector import exceptions
-from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
+from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor, FileProcessor
+from ghga_connector.core.progress_bar import UploadProgressBar
 from ghga_connector.core.tasks import TaskHandler
 from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.utils import calc_number_of_parts
@@ -56,6 +54,10 @@ class Uploader:
         self._file_size = file_path.stat().st_size
         self._semaphore = asyncio.Semaphore(max_concurrent_uploads)
 
+    def new_progress_bar(self) -> UploadProgressBar:
+        """Create a new progress bar"""
+        return UploadProgressBar(file_name=self._file_alias, file_size=self._file_size)
+
     async def initiate_file_upload(self) -> UUID4:
         """Initiate a file upload in the Upload API, exchanging the file alias for a
         UUID4 file ID.
@@ -77,18 +79,16 @@ class Uploader:
     async def delete_file(self) -> None:
         """Delete a file from its FileUploadBox
 
-        Raises:
-            NotImplementedError
+        Raises a `FileDeletionError` if there's a problem with the operation.
         """
-        # TODO: update doc string
-        # TODO: add command to delete a file so it doesn't have to be done on data portal
-        await self._upload_client.delete_file(file_id=self._file_id)
+        try:
+            await self._upload_client.delete_file(file_id=self._file_id)
+        except Exception as err:
+            raise exceptions.DeleteFileUploadError(
+                file_alias=self._file_alias, file_id=self._file_id
+            ) from err
 
-    async def _upload_file_part(
-        self,
-        file_processor: Generator[tuple[int, bytes], Any, None],
-        upload_start_time: float,
-    ) -> None:
+    async def _upload_file_part(self, file_processor: FileProcessor) -> None:
         """Encrypt and upload a file part
 
         Raises:
@@ -104,17 +104,7 @@ class Uploader:
                 await self._upload_client.upload_file_part(
                     file_id=self._file_id, content=part, part_no=part_number
                 )
-                # mask the actual current file part number and display an in sequence number instead
-                delta = time() - upload_start_time
-                avg_speed = (
-                    self._in_sequence_part_number * (self._part_size / 1024**2) / delta
-                )
-                log.info(
-                    "...   Processing upload for file part %i/%i (%.2f MiB/s)",
-                    self._in_sequence_part_number,
-                    self._num_parts,
-                    avg_speed,
-                )
+                self._progress_bar.advance(len(part))  # Created in `.upload_file()`
                 self._in_sequence_part_number += 1
 
             except BaseException as exc:
@@ -143,15 +133,12 @@ class Uploader:
         # Encrypt and upload file parts in parallel
         log.info("(2/4) Encrypting and uploading %s", self._file_alias)
         with self._file_path.open("rb") as file:
-            upload_start_time = time()
             file_processor = self._encryptor.process_file(file=file)
             task_handler = TaskHandler()
+            self._progress_bar = self.new_progress_bar()
             for _ in range(self._num_parts):
                 task_handler.schedule(
-                    self._upload_file_part(
-                        file_processor=file_processor,
-                        upload_start_time=upload_start_time,
-                    )
+                    self._upload_file_part(file_processor=file_processor)
                 )
             # Wait for all upload tasks to finish
             await task_handler.gather()

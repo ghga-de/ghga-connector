@@ -57,26 +57,6 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
-class CantChangeUploadStatusError(RuntimeError):
-    """
-    Thrown when the upload status of a file can't be set to the requested status
-    (response code 400)
-    """
-
-    def __init__(self, *, upload_id: str, upload_status: str):
-        message = f"The upload with id '{upload_id}' can't be set to '{upload_status}'."
-        super().__init__(message)
-
-
-class ChecksumValidationError(RuntimeError):
-    """Raised when checksum validation failed and the uploaded file needs removal."""
-
-    def __init__(self, *, bucket_id: str, object_id: str, message: str):
-        self.bucket_id = bucket_id
-        self.object_id = object_id
-        super().__init__(message)
-
-
 class CompleteFileUploadError(RuntimeError):
     """Raised when there's a problem trying to complete an upload."""
 
@@ -168,6 +148,14 @@ class FileAlreadyExistsError(RuntimeError):
         super().__init__(message)
 
 
+class DeleteFileUploadError(RuntimeError):
+    """Raised when there's a problem deleting a FileUpload in the Upload API"""
+
+    def __init__(self, *, file_alias: str, file_id: UUID4):
+        msg = f"Failed to delete remote copy of {file_alias} (file ID {file_id})."
+        super().__init__(msg)
+
+
 class FileDoesNotExistError(RuntimeError):
     """Thrown when the specified file does not exist."""
 
@@ -184,15 +172,6 @@ class FileNotRegisteredError(RuntimeError):
             f"The request for the file '{file_id}' failed, "
             "because this file id does not exist."
         )
-        super().__init__(message)
-
-
-class FinalizeUploadError(RuntimeError):
-    """Raised when a finished multipart upload cannot be finalized"""
-
-    def __init__(self, *, cause: str):
-        self.cause = cause
-        message = f"Could not finalize download due to: {cause}"
         super().__init__(message)
 
 
@@ -246,7 +225,7 @@ class MaxPartNoExceededError(RuntimeError):
     """
     Thrown when requesting a part number larger than the maximally possible number of parts.
 
-    This exception should never be reaised and indicates a bug.
+    This exception should never be raised and indicates a bug.
     """
 
     def __init__(self):
@@ -293,18 +272,6 @@ class NoUploadAccessError(RuntimeError):
         message = (
             "You are not registered as a data submitter "
             + f"for the file corresponding to the upload_id '{upload_id}'."
-        )
-        super().__init__(message)
-
-
-class NoUploadPossibleError(RuntimeError):
-    """Thrown when a multipart upload currently can't be started (response code 400)"""
-
-    def __init__(self, *, file_id: str):
-        message = (
-            "It is not possible to start a multipart upload for file with id "
-            + f"'{file_id}' because this download is already pending or has been "
-            + "accepted."
         )
         super().__init__(message)
 

@@ -104,6 +104,10 @@ def get_private_key(
     my_private_key_path: Path, passphrase: str | None = None
 ) -> SecretBytes:
     """Get the user's private key, using the passphrase if supplied/needed."""
+    if not my_private_key_path.is_file():
+        raise exceptions.PrivateKeyFileDoesNotExistError(
+            private_key_path=my_private_key_path
+        )
     callback = (lambda: passphrase) if passphrase else None
     my_private_key = SecretBytes(
         crypt4gh.keys.get_private_key(filepath=my_private_key_path, callback=callback)
@@ -171,7 +175,6 @@ def check_adjust_part_size(part_size: int, file_size: int) -> int:
             part_size / 1024**2,
         )
 
-    # need to set this either way as we convert MiB to bytes
     return part_size
 
 

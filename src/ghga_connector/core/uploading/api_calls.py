@@ -100,6 +100,7 @@ class UploadClient:
         body = {"alias": file_alias, "size": file_size}
 
         try:
+            log.debug("Requesting file upload creation at url %s", url)
             response = await self._client.post(url, headers=headers, json=body)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
@@ -128,7 +129,7 @@ class UploadClient:
         )
 
         # contact Upload API to create file upload
-        url = f"/boxes/{box_id}/uploads/{file_id}/parts/{part_no}"
+        url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}/parts/{part_no}"
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -136,6 +137,7 @@ class UploadClient:
         }
 
         try:
+            log.debug("Getting part upload url from %s", url)
             response = await self._client.get(url, headers=headers)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
@@ -168,6 +170,7 @@ class UploadClient:
         url = await self.get_part_upload_url(file_id=file_id, part_no=part_no)
 
         try:
+            log.debug("Uploading file part number %i for %s", part_no, str(file_id))
             response = await self._client.put(url, content=content)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
@@ -190,7 +193,7 @@ class UploadClient:
             work_type="close", box_id=box_id, file_id=file_id, alias=None
         )
 
-        url = f"/boxes/{box_id}/uploads/{file_id}"
+        url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}"
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -202,6 +205,7 @@ class UploadClient:
         }
 
         try:
+            log.debug("Requesting file upload completion at url %s", url)
             response = await self._client.patch(url, json=body, headers=headers)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)
@@ -221,10 +225,10 @@ class UploadClient:
         """Delete a file upload"""
         box_id = await self._work_package_client.get_package_box_id()  # cached
         delete_file_wot = await self._work_package_client.get_upload_wot(
-            work_type="close", box_id=box_id, file_id=file_id, alias=None
+            work_type="delete", box_id=box_id, file_id=file_id, alias=None
         )
 
-        url = f"/boxes/{box_id}/uploads/{file_id}"
+        url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}"
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -232,6 +236,7 @@ class UploadClient:
         }
 
         try:
+            log.debug("Requesting file deletion at url %s", url)
             response = await self._client.delete(url, headers=headers)
         except httpx.RequestError as request_error:
             exceptions.raise_if_connection_failed(request_error=request_error, url=url)

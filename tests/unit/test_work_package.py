@@ -33,6 +33,7 @@ from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
     RecordingClient,
     mock_work_package_token,
+    patch_work_package_functions,  # noqa: F401
 )
 
 pytestmark = [
@@ -95,14 +96,13 @@ async def test_get_work_order_token_caching(
     monkeypatch,
     httpx_mock: HTTPXMock,
     set_runtime_test_config,  # noqa: F811
+    patch_work_package_functions,  # noqa: F811
 ):
     """Test the caching of call to the Work Package API to get a work order token."""
-    # Patch the decrypt function so we don't need an actual token
-    monkeypatch.setattr(
-        "ghga_connector.core.work_package._decrypt", lambda data, key: data
-    )
-
     # Patch the client to record calls
+    monkeypatch.setattr(
+        "ghga_connector.core.work_package.crypt.decrypt", lambda data, key: "test"
+    )
     monkeypatch.setattr("ghga_connector.core.client.httpx.AsyncClient", RecordingClient)
     async with async_client() as client:
         assert isinstance(client, RecordingClient)

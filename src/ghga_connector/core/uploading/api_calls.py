@@ -83,7 +83,7 @@ class UploadClient:
         msg = f"Upload API returned status code {status_code}"
         raise exceptions.UnexpectedError(msg)
 
-    async def create_file_upload(self, *, file_alias: str, file_size: int) -> UUID4:
+    async def create_file_upload(self, *, file_alias: str, file_size: int) -> UUID4:  # type: ignore[return]
         """Contact the Upload API to initiate a new upload for a file alias"""
         box_id = await self._work_package_client.get_package_box_id()
         create_file_wot = await self._work_package_client.get_upload_wot(

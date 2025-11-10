@@ -73,7 +73,8 @@ async def test_encryption_decryption(
     pubkey_path = key_dir / pk_name
     private_key_path = key_dir / sk_name
 
-    private_key = get_private_key(private_key_path)
+    passphrase = "test" if sk_name.startswith("encrypted") else None
+    private_key = get_private_key(private_key_path, passphrase=passphrase)
 
     pubkey = base64.b64encode(crypt4gh.keys.get_public_key(pubkey_path)).decode("utf-8")
     monkeypatch.setattr(
@@ -90,7 +91,6 @@ async def test_encryption_decryption(
         in_file.seek(0)
 
         # produce encrypted file
-        passphrase = "test" if sk_name.startswith("encrypted") else None
         encryptor = Crypt4GHEncryptor(
             part_size=8 * 1024**3,
             my_private_key=private_key,

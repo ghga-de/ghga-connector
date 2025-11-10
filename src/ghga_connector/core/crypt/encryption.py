@@ -107,6 +107,8 @@ class Crypt4GHEncryptor:
                 yield part_number, current_part
                 upload_buffer = upload_buffer[self._part_size :]
 
+        self._encrypted_file_size -= envelope_size
+
         # process dangling bytes
         if unprocessed_bytes:
             upload_buffer += self._encrypt_segment(unprocessed_bytes)
@@ -124,5 +126,3 @@ class Crypt4GHEncryptor:
             self._encrypted_file_size += len(upload_buffer)
             part_number += 1
             yield part_number, upload_buffer
-
-        self._encrypted_file_size -= envelope_size

@@ -132,10 +132,10 @@ class Uploader:
 
         # Encrypt and upload file parts in parallel
         log.info("(2/4) Encrypting and uploading %s", self._file_alias)
-        with self._file_path.open("rb") as file:
+        self._progress_bar = self.new_progress_bar()
+        with self._file_path.open("rb") as file, self._progress_bar:
             file_processor = self._encryptor.process_file(file=file)
             task_handler = TaskHandler()
-            self._progress_bar = self.new_progress_bar()
             for _ in range(self._num_parts):
                 task_handler.schedule(
                     self._upload_file_part(file_processor=file_processor)

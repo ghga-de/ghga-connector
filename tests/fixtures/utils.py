@@ -16,9 +16,12 @@
 """Utils for Fixture handling"""
 
 from pathlib import Path
+from unittest.mock import AsyncMock
+from uuid import UUID
 
 import crypt4gh.keys
 import httpx
+import pytest
 from ghga_service_commons.utils import crypt
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -26,7 +29,27 @@ KEY_DIR = BASE_DIR / "keypair"
 PUBLIC_KEY_FILE = KEY_DIR / "key.pub"
 PRIVATE_KEY_FILE = KEY_DIR / "key.sec"
 
+TEST_FILE_UPLOAD_BOX_ID = UUID("6ec579af-3918-45d2-8333-d2cdcfb53d1d")
 TEST_WORK_PACKAGE_ID = "2cc323e2-f2ba-4f52-aae3-57107ab8ff2f"
+
+
+@pytest.fixture()
+def patch_work_package_functions(monkeypatch):
+    """Patches work package functions for up and download as well as input"""
+    box_id_mock = AsyncMock()
+    box_id_mock.return_value = TEST_FILE_UPLOAD_BOX_ID
+    monkeypatch.setattr(
+        "ghga_connector.core.work_package.WorkPackageClient.get_package_box_id",
+        box_id_mock,
+    )
+    monkeypatch.setattr(
+        "ghga_connector.core.work_package.get_work_package_token",
+        mock_work_package_token,
+    )
+    monkeypatch.setattr(
+        "ghga_connector.core.work_package._decrypt",
+        lambda data, key: data,
+    )
 
 
 def mock_work_package_token(max_tries: int) -> list[str]:

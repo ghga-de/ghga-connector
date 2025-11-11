@@ -31,10 +31,17 @@ cli = typer.Typer(no_args_is_help=True)
 
 
 @cli.command(no_args_is_help=True)
-def upload(  # noqa: PLR0913
-    *,
-    file_alias: str = typer.Option(..., help="The alias of the file to upload"),
-    file_path: Path = typer.Option(..., help="The path to the file to upload"),
+def upload(
+    file_info: list[str] = typer.Argument(
+        ...,
+        help=(
+            "The comma-separated file alias and path. If only a file path is supplied"
+            + " then the file name will be used instead. Example:"
+            + " 'my_file,./files/abc.bam' or './files/abc.bam' (in the latter, the file"
+            + " alias would be 'abc.bam'). Specify as many files as needed, e.g.:"
+            + " 'ghga-connector upload alias1,file1.bam file2.bam alias3,file3.bam ...'"
+        ),
+    ),
     my_public_key_path: Path = typer.Option(
         "./key.pub",
         help="The path to a public key from the key pair that was announced in the "
@@ -54,12 +61,11 @@ def upload(  # noqa: PLR0913
         False, help="Set this option in order to view traceback for errors."
     ),
 ):
-    """Wrapper for the async upload function"""
+    """Upload one or more files asynchronously"""
     modify_for_debug(debug)
     asyncio.run(
         async_upload(
-            file_alias=file_alias,
-            file_path=file_path,
+            unparsed_file_info=file_info,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             passphrase=passphrase,

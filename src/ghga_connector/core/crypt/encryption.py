@@ -26,6 +26,7 @@ import crypt4gh.lib
 from nacl.bindings import crypto_aead_chacha20poly1305_ietf_encrypt
 from pydantic import SecretBytes
 
+from ghga_connector import exceptions
 from ghga_connector.config import get_ghga_pubkey
 from ghga_connector.core.crypt.checksums import Checksums
 from ghga_connector.core.file_operations import get_segments, read_file_parts
@@ -77,7 +78,9 @@ class Crypt4GHEncryptor:
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
-    def process_file(self, file: BufferedReader) -> FileProcessor:
+    def process_file(
+        self, *, file: BufferedReader, expected_encrypted_size: int
+    ) -> FileProcessor:
         """Encrypt file parts for upload, yielding a tuple of the part number and content."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()
@@ -126,3 +129,10 @@ class Crypt4GHEncryptor:
             self._encrypted_file_size += len(upload_buffer)
             part_number += 1
             yield part_number, upload_buffer
+
+        # Finally, verify the encrypted size
+        if expected_encrypted_size != self._encrypted_file_size:
+            raise exceptions.EncryptedSizeMismatch(
+                actual_encrypted_size=self._encrypted_file_size,
+                expected_encrypted_size=expected_encrypted_size,
+            )

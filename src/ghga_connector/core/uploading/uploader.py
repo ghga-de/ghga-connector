@@ -17,7 +17,6 @@
 import asyncio
 import logging
 import math
-from pathlib import Path
 
 import crypt4gh.lib
 from pydantic import UUID4
@@ -27,31 +26,31 @@ from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor, FileProcesso
 from ghga_connector.core.progress_bar import UploadProgressBar
 from ghga_connector.core.tasks import TaskHandler
 from ghga_connector.core.uploading.api_calls import UploadClient
+from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.utils import calc_number_of_parts
 
 log = logging.getLogger(__name__)
 
 
 class Uploader:
-    """A class that centralizes file upload logic"""
+    """Provides the functionality to upload a single file"""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         *,
         upload_client: UploadClient,
         encryptor: Crypt4GHEncryptor,
-        file_alias: str,
-        file_path: Path,
+        file_info: FileInfoForUpload,
         part_size: int,
         max_concurrent_uploads: int,
     ):
         """Instantiate the Uploader"""
         self._upload_client = upload_client
-        self._file_alias = file_alias
-        self._file_path = file_path
+        self._file_alias = file_info.alias
+        self._file_path = file_info.path
         self._encryptor = encryptor
         self._part_size = part_size
-        self._file_size = file_path.stat().st_size
+        self._file_size = file_info.size
         self._semaphore = asyncio.Semaphore(max_concurrent_uploads)
 
     def new_progress_bar(self) -> UploadProgressBar:
@@ -69,7 +68,6 @@ class Uploader:
             self._file_id = await self._upload_client.create_file_upload(
                 file_alias=self._file_alias, file_size=self._file_size
             )
-            log.info("(1/4) Initialized file upload for %s.", self._file_alias)
             return self._file_id
         except Exception as err:
             raise exceptions.CreateFileUploadError(
@@ -131,10 +129,11 @@ class Uploader:
         self._in_sequence_part_number = 1
 
         # Encrypt and upload file parts in parallel
-        log.info("(2/4) Encrypting and uploading %s", self._file_alias)
         self._progress_bar = self.new_progress_bar()
         with self._file_path.open("rb") as file, self._progress_bar:
-            file_processor = self._encryptor.process_file(file=file)
+            file_processor = self._encryptor.process_file(
+                file=file, expected_encrypted_size=expected_encrypted_size
+            )
             task_handler = TaskHandler()
             for _ in range(self._num_parts):
                 task_handler.schedule(
@@ -142,14 +141,6 @@ class Uploader:
                 )
             # Wait for all upload tasks to finish
             await task_handler.gather()
-
-        # Verify that the encrypted file size matches expected value
-        encrypted_file_size = self._encryptor.get_encrypted_size()
-        if expected_encrypted_size != encrypted_file_size:
-            raise exceptions.EncryptedSizeMismatch(
-                actual_encrypted_size=encrypted_file_size,
-                expected_encrypted_size=expected_encrypted_size,
-            )
 
         # Get the unencrypted checksum and tell the Upload API to conclude the S3 upload
         unencrypted_checksum = self._encryptor.checksums.get()[0]

@@ -28,6 +28,7 @@ from ghga_connector import exceptions
 from ghga_connector.config import set_runtime_config
 from ghga_connector.core.client import async_client
 from ghga_connector.core.main import upload_file
+from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.utils import modify_for_debug
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
@@ -159,13 +160,13 @@ async def test_upload_journey(
         upload_id_ref=upload_id_ref,
     )
 
-    # create big temp file
+    # create 2 big temp files
     with big_temp_file(SIZE) as file:
+        file_info = FileInfoForUpload(ALIAS, Path(file.name), SIZE)
         async with async_client() as client, set_runtime_config(client=client):
             await upload_file(
                 client=client,
-                file_alias=ALIAS,
-                file_path=Path(file.name),
+                file_info_list=[file_info],
                 my_public_key_path=PUBLIC_KEY_FILE,
                 my_private_key_path=PRIVATE_KEY_FILE,
                 passphrase=None,
@@ -183,11 +184,11 @@ async def test_upload_bad_url(
     httpx_mock.add_exception(httpx.RequestError(""))
     with big_temp_file(SIZE) as file, pytest.raises(exceptions.ApiNotReachableError):
         modify_for_debug(debug=True)
+        file_info = FileInfoForUpload(ALIAS, Path(file.name), SIZE)
         async with async_client() as client, set_runtime_config(client=client):
             await upload_file(
                 client=client,
-                file_alias=ALIAS,
-                file_path=Path(file.name),
+                file_info_list=[file_info],
                 my_public_key_path=PUBLIC_KEY_FILE,
                 my_private_key_path=PRIVATE_KEY_FILE,
                 passphrase=None,

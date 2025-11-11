@@ -21,6 +21,7 @@ import sys
 from functools import partial
 from pathlib import Path
 from types import TracebackType
+from typing import Any
 
 import crypt4gh.keys
 import crypt4gh.lib
@@ -28,6 +29,7 @@ from pydantic import SecretBytes
 
 from ghga_connector import exceptions
 from ghga_connector.core.downloading.structs import FileInfo
+from ghga_connector.core.file_operations import is_file_encrypted
 from ghga_connector.core.message_display import CLIMessageDisplay
 
 log = logging.getLogger(__name__)
@@ -187,3 +189,19 @@ def calc_encrypted_file_size(unencrypted_file_size: int) -> int:
 def calc_number_of_parts(encrypted_file_size: int, part_size: int) -> int:
     """Calculate the number of file parts from the file and part sizes"""
     return math.ceil(encrypted_file_size / part_size)
+
+
+def parse_file_upload_path(s: str) -> Path:
+    """Ensure the specified path points to an existing file for upload"""
+    path = Path(s)
+    if not (path.exists() and path.is_file()):
+        raise exceptions.FileDoesNotExistError(file_path=path)
+    if is_file_encrypted(path):
+        raise exceptions.FileAlreadyEncryptedError(file_path=path)
+    return path
+
+
+def detect_duplicates(values: list[Any], field_name: str = ""):
+    """Raise an error if there are duplicate values in the list"""
+    if len(set(values)) < len(values):
+        raise ValueError(f"Duplicate {field_name} values detected.")

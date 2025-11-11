@@ -22,7 +22,6 @@ import httpx
 
 from ghga_connector.config import CONFIG, set_runtime_config
 from ghga_connector.core.client import async_client
-from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.batch_processing import FileStager
 from ghga_connector.core.downloading.downloader import (
@@ -30,40 +29,68 @@ from ghga_connector.core.downloading.downloader import (
     handle_download_errors,
 )
 from ghga_connector.core.uploading.api_calls import UploadClient
+from ghga_connector.core.uploading.batch_processing import BatchUploader
+from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.work_package import WorkPackageClient
 
 from .. import exceptions
 from . import utils
 from .crypt import Crypt4GHDecryptor
-from .file_operations import is_file_encrypted
 from .message_display import CLIMessageDisplay
-from .uploading.uploader import Uploader
+
+
+def parse_file_info_for_upload(file_info: list[str]) -> list[FileInfoForUpload]:
+    """Given a list of strings, derive a file alias, path, and size from each item."""
+    items: list[FileInfoForUpload] = []
+    for i, arg in enumerate(file_info, 1):
+        if not arg:
+            continue
+        if "," in arg:
+            alias, path = arg.split(",", 1)
+            alias = alias.strip()
+            if not path:
+                raise RuntimeError(
+                    f"No path supplied for alias '{alias}' in arg #{i}. Verify input and"
+                    + " ensure that alias and file path are separated only by a comma"
+                    + " and no whitespace."
+                )
+            validated_path = utils.parse_file_upload_path(path)
+        else:
+            validated_path = utils.parse_file_upload_path(arg)
+            alias = validated_path.name
+        size = validated_path.stat().st_size
+        items.append(FileInfoForUpload(alias=alias, path=validated_path, size=size))
+
+    # Ensure unique aliases and file paths
+    for field_name in ["alias", "path"]:
+        utils.detect_duplicates([getattr(x, field_name) for x in items], field_name)
+
+    return items
 
 
 async def async_upload(
-    file_alias: str,
-    file_path: Path,
+    *,
+    unparsed_file_info: list[str],
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
 ):
-    """Upload a file asynchronously"""
+    """Upload one or more files asynchronously"""
+    parsed_file_info = parse_file_info_for_upload(unparsed_file_info)
     async with async_client() as client, set_runtime_config(client=client):
         await upload_file(
             client=client,
-            file_alias=file_alias,
-            file_path=file_path,
+            file_info_list=parsed_file_info,
             my_public_key_path=my_public_key_path,
             my_private_key_path=my_private_key_path,
             passphrase=passphrase,
         )
 
 
-async def upload_file(  # noqa: PLR0913
+async def upload_file(
     *,
     client: httpx.AsyncClient,
-    file_alias: str,
-    file_path: Path,
+    file_info_list: list[FileInfoForUpload],
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
@@ -72,44 +99,16 @@ async def upload_file(  # noqa: PLR0913
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)
 
-    if not file_path.is_file():
-        raise exceptions.FileDoesNotExistError(file_path=file_path)
-
-    if is_file_encrypted(file_path):
-        raise exceptions.FileAlreadyEncryptedError(file_path=file_path)
-
     work_package_client = WorkPackageClient(
         client=client, my_private_key=my_private_key, my_public_key=my_public_key
     )
     upload_client = UploadClient(client=client, work_package_client=work_package_client)
 
-    part_size = utils.check_adjust_part_size(
-        part_size=CONFIG.part_size, file_size=file_path.stat().st_size
+    CLIMessageDisplay.display(f"Preparing to upload {len(file_info_list)} files")
+    batch_uploader = BatchUploader(upload_client=upload_client, config=CONFIG)
+    await batch_uploader.upload_files(
+        file_info_list=file_info_list, my_private_key=my_private_key
     )
-
-    encryptor = Crypt4GHEncryptor(part_size=part_size, my_private_key=my_private_key)
-
-    uploader = Uploader(
-        upload_client=upload_client,
-        encryptor=encryptor,
-        file_alias=file_alias,
-        file_path=file_path,
-        part_size=part_size,
-        max_concurrent_uploads=CONFIG.max_concurrent_uploads,
-    )
-
-    file_id = await uploader.initiate_file_upload()
-
-    try:
-        await uploader.upload_file()
-    except exceptions.CreateFileUploadError as err:
-        CLIMessageDisplay.failure(str(err))
-        CLIMessageDisplay.failure(
-            f"Failed to upload {file_alias}, (file ID {file_id}), deleting."
-        )
-        await uploader.delete_file()
-    else:
-        CLIMessageDisplay.success(f"Successfully uploaded {file_alias}.")
 
 
 async def async_download(

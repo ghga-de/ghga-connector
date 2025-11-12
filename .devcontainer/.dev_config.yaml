@@ -1,3 +1,4 @@
-# Please only mention the non-default settings here:
-max_retries: 2
+client_num_retries: 2
+client_cache_capacity: 512
+client_cache_ttl: 57
 wkvs_api_url: https://127.0.0.1

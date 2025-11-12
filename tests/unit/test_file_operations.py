@@ -94,6 +94,7 @@ async def test_encryption_decryption(
         encryptor = Crypt4GHEncryptor(
             part_size=8 * 1024**3,
             my_private_key=private_key,
+            file_size=file_size,
         )
         for chunk in encryptor.process_file(file=in_file):  # type: ignore
             encrypted_file.write(chunk[1])

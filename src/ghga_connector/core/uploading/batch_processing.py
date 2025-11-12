@@ -52,7 +52,9 @@ class BatchUploader:
                 part_size=self._config.part_size, file_size=file_info.size
             )
             encryptor = Crypt4GHEncryptor(
-                part_size=part_size, my_private_key=my_private_key
+                part_size=part_size,
+                my_private_key=my_private_key,
+                file_size=file_info.size,
             )
             uploader = Uploader(
                 upload_client=self._upload_client,

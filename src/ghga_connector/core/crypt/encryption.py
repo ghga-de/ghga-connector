@@ -16,6 +16,7 @@
 """Functionality to encrypt files in chunks with Crypt4GH before upload."""
 
 import base64
+import math
 import os
 from collections.abc import Generator
 from io import BufferedReader
@@ -37,22 +38,22 @@ FileProcessor = Generator[tuple[int, bytes], Any, None]
 class Crypt4GHEncryptor:
     """Handles on the fly encryption and checksum calculation"""
 
-    def __init__(self, part_size: int, my_private_key: SecretBytes):
+    def __init__(self, part_size: int, my_private_key: SecretBytes, file_size: int):
         self._part_size = part_size
         self._my_private_key = my_private_key
         self._server_public_key = base64.b64decode(get_ghga_pubkey())
         self._file_secret = os.urandom(32)
         self.checksums = Checksums()  # Updated as encryption takes place
         self._encrypted_file_size = 0  # Updated as encryption takes place
+        num_segments = math.ceil(file_size / crypt4gh.lib.SEGMENT_SIZE)
+        self.expected_encrypted_size = file_size + num_segments * 28
 
     def _encrypt(self, part: bytes):
         """Encrypt file part using secret"""
         segments, incomplete_segment = get_segments(
             part=part, segment_size=crypt4gh.lib.SEGMENT_SIZE
         )
-
         encrypted_segments = [self._encrypt_segment(segment) for segment in segments]
-
         return b"".join(encrypted_segments), incomplete_segment
 
     def _encrypt_segment(self, segment: bytes) -> bytes:
@@ -78,9 +79,7 @@ class Crypt4GHEncryptor:
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
-    def process_file(
-        self, *, file: BufferedReader, expected_encrypted_size: int
-    ) -> FileProcessor:
+    def process_file(self, *, file: BufferedReader) -> FileProcessor:
         """Encrypt file parts for upload, yielding a tuple of the part number and content."""
         unprocessed_bytes = b""
         upload_buffer = self._create_envelope()
@@ -131,8 +130,8 @@ class Crypt4GHEncryptor:
             yield part_number, upload_buffer
 
         # Finally, verify the encrypted size
-        if expected_encrypted_size != self._encrypted_file_size:
+        if self.expected_encrypted_size != self._encrypted_file_size:
             raise exceptions.EncryptedSizeMismatch(
                 actual_encrypted_size=self._encrypted_file_size,
-                expected_encrypted_size=expected_encrypted_size,
+                expected_encrypted_size=self.expected_encrypted_size,
             )

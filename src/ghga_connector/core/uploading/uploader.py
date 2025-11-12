@@ -16,9 +16,7 @@
 
 import asyncio
 import logging
-import math
 
-import crypt4gh.lib
 from pydantic import UUID4
 
 from ghga_connector import exceptions
@@ -123,19 +121,17 @@ class Uploader:
                 match the expected value.
             CompleteFileUploadError: If there's an error completing the file upload.
         """
-        num_segments = math.ceil(self._file_size / crypt4gh.lib.SEGMENT_SIZE)
-        expected_encrypted_size = self._file_size + num_segments * 28
-        self._num_parts = calc_number_of_parts(expected_encrypted_size, self._part_size)
+        num_parts = calc_number_of_parts(
+            self._encryptor.expected_encrypted_size, self._part_size
+        )
         self._in_sequence_part_number = 1
 
         # Encrypt and upload file parts in parallel
         self._progress_bar = self.new_progress_bar()
         with self._file_path.open("rb") as file, self._progress_bar:
-            file_processor = self._encryptor.process_file(
-                file=file, expected_encrypted_size=expected_encrypted_size
-            )
+            file_processor = self._encryptor.process_file(file=file)
             task_handler = TaskHandler()
-            for _ in range(self._num_parts):
+            for _ in range(num_parts):
                 task_handler.schedule(
                     self._upload_file_part(file_processor=file_processor)
                 )

@@ -180,12 +180,6 @@ def check_adjust_part_size(part_size: int, file_size: int) -> int:
     return part_size
 
 
-def calc_encrypted_file_size(unencrypted_file_size: int) -> int:
-    """Calculate encrypted file size."""
-    num_segments = math.ceil(unencrypted_file_size / crypt4gh.lib.SEGMENT_SIZE)
-    return unencrypted_file_size + num_segments * 28
-
-
 def calc_number_of_parts(encrypted_file_size: int, part_size: int) -> int:
     """Calculate the number of file parts from the file and part sizes"""
     return math.ceil(encrypted_file_size / part_size)

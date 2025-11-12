@@ -78,7 +78,7 @@ async def async_upload(
     """Upload one or more files asynchronously"""
     parsed_file_info = parse_file_info_for_upload(unparsed_file_info)
     async with async_client() as client, set_runtime_config(client=client):
-        await upload_file(
+        await upload_files(
             client=client,
             file_info_list=parsed_file_info,
             my_public_key_path=my_public_key_path,
@@ -87,7 +87,7 @@ async def async_upload(
         )
 
 
-async def upload_file(
+async def upload_files(
     *,
     client: httpx.AsyncClient,
     file_info_list: list[FileInfoForUpload],
@@ -95,7 +95,7 @@ async def upload_file(
     my_private_key_path: Path,
     passphrase: str | None = None,
 ) -> None:
-    """Core command to upload a file. Can be called by CLI, GUI, etc."""
+    """Core command to upload one or more files. Can be called by CLI, GUI, etc."""
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)
 

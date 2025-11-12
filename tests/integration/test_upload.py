@@ -27,7 +27,7 @@ from pytest_httpx import HTTPXMock
 from ghga_connector import exceptions
 from ghga_connector.config import set_runtime_config
 from ghga_connector.core.client import async_client
-from ghga_connector.core.main import upload_file
+from ghga_connector.core.main import upload_files
 from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.utils import modify_for_debug
 from tests.fixtures.config import get_test_config
@@ -164,7 +164,7 @@ async def test_upload_journey(
     with big_temp_file(SIZE) as file:
         file_info = FileInfoForUpload(ALIAS, Path(file.name), SIZE)
         async with async_client() as client, set_runtime_config(client=client):
-            await upload_file(
+            await upload_files(
                 client=client,
                 file_info_list=[file_info],
                 my_public_key_path=PUBLIC_KEY_FILE,
@@ -186,7 +186,7 @@ async def test_upload_bad_url(
         modify_for_debug(debug=True)
         file_info = FileInfoForUpload(ALIAS, Path(file.name), SIZE)
         async with async_client() as client, set_runtime_config(client=client):
-            await upload_file(
+            await upload_files(
                 client=client,
                 file_info_list=[file_info],
                 my_public_key_path=PUBLIC_KEY_FILE,

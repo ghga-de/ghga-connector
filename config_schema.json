@@ -98,6 +98,13 @@
       "title": "Max Concurrent Downloads",
       "type": "integer"
     },
+    "max_concurrent_uploads": {
+      "default": 5,
+      "description": "Number of parallel upload tasks for file parts.",
+      "exclusiveMinimum": 0,
+      "title": "Max Concurrent Uploads",
+      "type": "integer"
+    },
     "max_wait_time": {
       "default": 3600,
       "description": "Maximum time in seconds to wait before quitting without a download.",

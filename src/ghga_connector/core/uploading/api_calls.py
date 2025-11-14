@@ -20,16 +20,37 @@ from uuid import UUID
 
 import httpx
 from pydantic import UUID4
+from tenacity import RetryError
 
 from ghga_connector import exceptions
 from ghga_connector.config import get_upload_api_url
-from ghga_connector.core import RetryHandler
 from ghga_connector.core.api_calls.utils import is_service_healthy
 from ghga_connector.core.work_package import WorkPackageClient
 
 __all__ = ["UploadClient"]
 
 log = logging.getLogger(__name__)
+
+
+def _form_authorization_headers(work_order_token: str) -> dict[str, str]:
+    """Build authorization header using supplied work order token"""
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": work_order_token,
+    }
+
+
+def _check_for_request_errors(retry_error: RetryError, url: str):
+    """Examine an instance of a RetryError to see if it contains an httpx.RequestError
+
+    Raises a ConnectionFailedError if there's a ConnectError or ConnectTimeout, and
+    re-raises all other httpx.RequestError types as a RequestFailedError.
+    """
+    exception = retry_error.last_attempt.exception()
+    if exception and isinstance(exception, httpx.RequestError):
+        exceptions.raise_if_connection_failed(request_error=exception, url=url)
+        raise exceptions.RequestFailedError(url=url) from retry_error
 
 
 class UploadClient:
@@ -41,7 +62,6 @@ class UploadClient:
         self._client = client
         self._work_package_client = work_package_client
         self._upload_api_url = get_upload_api_url()
-        self._retry_handler = RetryHandler.basic()
 
         if not is_service_healthy(self._upload_api_url):
             raise exceptions.ApiNotReachableError(api_url=self._upload_api_url)
@@ -83,7 +103,7 @@ class UploadClient:
         msg = f"Upload API returned status code {status_code}"
         raise exceptions.UnexpectedError(msg)
 
-    async def create_file_upload(self, *, file_alias: str, file_size: int) -> UUID4:  # type: ignore[return]
+    async def create_file_upload(self, *, file_alias: str, file_size: int) -> UUID4:
         """Contact the Upload API to initiate a new upload for a file alias"""
         box_id = await self._work_package_client.get_package_box_id()
         create_file_wot = await self._work_package_client.get_upload_wot(
@@ -92,32 +112,29 @@ class UploadClient:
 
         # contact Upload API to create file upload
         url = f"{self._upload_api_url}/boxes/{box_id}/uploads"
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": create_file_wot,
-        }
+        headers = _form_authorization_headers(create_file_wot)
         body = {"alias": file_alias, "size": file_size}
 
         try:
             log.debug("Requesting file upload creation at url %s", url)
             response = await self._client.post(url, headers=headers, json=body)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            _check_for_request_errors(retry_error, url)
+            response = retry_error.last_attempt.result()
 
-        if (status_code := response.status_code) == 201:
-            file_id = UUID(response.json())
-            return file_id
+        if response.status_code != 201:
+            self._handle_bad_status_codes(
+                status_code=response.status_code,
+                response=response,
+                box_id=box_id,
+                file_alias=file_alias,
+            )
 
-        self._handle_bad_status_codes(
-            status_code=status_code,
-            response=response,
-            box_id=box_id,
-            file_alias=file_alias,
-        )
+        # Return the newly generated File ID
+        file_id = UUID(response.json())
+        return file_id
 
-    async def get_part_upload_url(self, *, file_id: UUID4, part_no: int) -> str:  # type: ignore[return]
+    async def get_part_upload_url(self, *, file_id: UUID4, part_no: int) -> str:
         """Get pre-signed S3 upload URL for a specific file part.
 
         Returns a pre-signed URL that can be used to upload the bytes for the specified
@@ -128,31 +145,27 @@ class UploadClient:
             work_type="upload", box_id=box_id, file_id=file_id, alias=None
         )
 
-        # contact Upload API to create file upload
+        # contact Upload API to create file upload URL
         url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}/parts/{part_no}"
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": upload_file_wot,
-        }
+        headers = _form_authorization_headers(upload_file_wot)
 
         try:
             log.debug("Getting part upload url from %s", url)
             response = await self._client.get(url, headers=headers)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            _check_for_request_errors(retry_error, url)
+            response = retry_error.last_attempt.result()
 
-        if (status_code := response.status_code) == 200:
-            part_upload_url = response.json()
-            return part_upload_url
+        if response.status_code != 200:
+            self._handle_bad_status_codes(
+                status_code=response.status_code,
+                response=response,
+                box_id=box_id,
+                file_id=file_id,
+            )
 
-        self._handle_bad_status_codes(
-            status_code=status_code,
-            response=response,
-            box_id=box_id,
-            file_id=file_id,
-        )
+        # Return the pre-signed upload URL:
+        return response.json()
 
     async def upload_file_part(
         self,
@@ -172,17 +185,14 @@ class UploadClient:
         try:
             log.debug("Uploading file part number %i for %s", part_no, str(file_id))
             response = await self._client.put(url, content=content)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            _check_for_request_errors(retry_error, url)
+            response = retry_error.last_attempt.result()
 
-        status_code = response.status_code
-        if status_code == 200:
-            return
-
-        self._handle_bad_status_codes(
-            status_code=status_code, response=response, file_id=file_id
-        )
+        if response.status_code != 200:
+            self._handle_bad_status_codes(
+                status_code=response.status_code, response=response, file_id=file_id
+            )
 
     async def complete_file_upload(
         self, *, file_id: UUID4, unencrypted_checksum: str, encrypted_checksum: str
@@ -194,11 +204,7 @@ class UploadClient:
         )
 
         url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}"
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": close_file_wot,
-        }
+        headers = _form_authorization_headers(close_file_wot)
         body = {
             "unencrypted_checksum": unencrypted_checksum,
             "encrypted_checksum": encrypted_checksum,
@@ -207,19 +213,17 @@ class UploadClient:
         try:
             log.debug("Requesting file upload completion at url %s", url)
             response = await self._client.patch(url, json=body, headers=headers)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            _check_for_request_errors(retry_error, url)
+            response = retry_error.last_attempt.result()
 
-        if (status_code := response.status_code) == 204:
-            return
-
-        self._handle_bad_status_codes(
-            status_code=status_code,
-            response=response,
-            box_id=box_id,
-            file_id=file_id,
-        )
+        if response.status_code != 204:
+            self._handle_bad_status_codes(
+                status_code=response.status_code,
+                response=response,
+                box_id=box_id,
+                file_id=file_id,
+            )
 
     async def delete_file(self, *, file_id: UUID4) -> None:
         """Delete a file upload"""
@@ -229,28 +233,22 @@ class UploadClient:
         )
 
         url = f"{self._upload_api_url}/boxes/{box_id}/uploads/{file_id}"
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-            "Authorization": delete_file_wot,
-        }
+        headers = _form_authorization_headers(delete_file_wot)
 
         try:
             log.debug("Requesting file deletion at url %s", url)
             response = await self._client.delete(url, headers=headers)
-        except httpx.RequestError as request_error:
-            exceptions.raise_if_connection_failed(request_error=request_error, url=url)
-            raise exceptions.RequestFailedError(url=url) from request_error
+        except RetryError as retry_error:
+            _check_for_request_errors(retry_error, url)
+            response = retry_error.last_attempt.result()
 
-        if (status_code := response.status_code) == 204:
-            return
-
-        self._handle_bad_status_codes(
-            status_code=status_code,
-            response=response,
-            box_id=box_id,
-            file_id=file_id,
-        )
+        if response.status_code != 204:
+            self._handle_bad_status_codes(
+                status_code=response.status_code,
+                response=response,
+                box_id=box_id,
+                file_id=file_id,
+            )
 
 
 def _handle_404(

@@ -79,7 +79,10 @@ class Config(CompositeCacheConfig):
     """Global Config Parameters"""
 
     max_concurrent_downloads: PositiveInt = Field(
-        default=5, description="Number of parallel downloader tasks for file parts."
+        default=5, description="Number of parallel download tasks for file parts."
+    )
+    max_concurrent_uploads: PositiveInt = Field(
+        default=5, description="Number of parallel upload tasks for file parts."
     )
     max_wait_time: PositiveInt = Field(
         default=MAX_WAIT_TIME,

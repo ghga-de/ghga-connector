@@ -54,3 +54,10 @@ class Checksums:
         """Update encrypted part checksums"""
         self._encrypted_md5.append(hashlib.md5(part, usedforsecurity=False).hexdigest())
         self._encrypted_sha256.append(hashlib.sha256(part).hexdigest())
+
+    def encrypted_checksum_for_s3(self) -> str:
+        """Formulate the expected encrypted checksum str (etag) stored by S3."""
+        concatenated_md5s = b"".join(bytes.fromhex(md5) for md5 in self._encrypted_md5)
+        object_md5 = hashlib.md5(concatenated_md5s, usedforsecurity=False).hexdigest()
+        num_parts = len(self._encrypted_md5)
+        return object_md5 + f"-{num_parts}"

@@ -177,7 +177,7 @@ class FileNotRegisteredError(RuntimeError):
 
 
 class GetEnvelopeError(RuntimeError):
-    """Raised when fetching an header envelope fails"""
+    """Raised when fetching a header envelope fails"""
 
 
 class InvalidBoxError(RuntimeError):

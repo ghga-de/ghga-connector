@@ -120,7 +120,6 @@ def set_presigned_url_update_endpoint(
             object_id=object_id,
             expires_after=expires_after,
         )
-        print(download_url)
 
         monkeypatch.setenv("S3_DOWNLOAD_URL", download_url)
 

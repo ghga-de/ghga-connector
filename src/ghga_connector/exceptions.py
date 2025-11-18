@@ -60,13 +60,21 @@ class BadResponseCodeError(RuntimeError):
 class _FileUploadError(RuntimeError):
     """Base error class for top-level errors in file upload"""
 
-    def __init__(self, *, action: str, file_alias: str, reason: str):
+    def __init__(
+        self, *, action: str, file_alias: str, reason: str, file_id: UUID4 | None = None
+    ):
         # Make sure we only use one period at the end of the error message
         reason = reason.removesuffix(".")
 
         # Make first character of 'reason' lowercase
         reason = reason[0].lower() + reason[1:]
-        msg = f"Failed to {action} upload for file with alias {file_alias} because {reason}."
+
+        # Calculate whether to show the file ID and if so format it
+        file_id_portion = f" ({file_id=})" if file_id else ""
+        msg = (
+            f"Failed to {action} upload for file with alias {file_alias}"
+            + f"{file_id_portion} because {reason}."
+        )
         super().__init__(msg)
 
 
@@ -149,12 +157,16 @@ class FileAlreadyExistsError(RuntimeError):
         super().__init__(message)
 
 
-class DeleteFileUploadError(RuntimeError):
+class DeleteFileUploadError(_FileUploadError):
     """Raised when there's a problem deleting a FileUpload in the Upload API"""
 
-    def __init__(self, *, file_alias: str, file_id: UUID4):
-        msg = f"Failed to delete remote copy of {file_alias} (file ID {file_id})."
-        super().__init__(msg)
+    def __init__(self, *, file_alias: str, file_id: UUID4, reason: str):
+        super().__init__(
+            action="delete",
+            file_alias=file_alias,
+            file_id=file_id,
+            reason=reason,
+        )
 
 
 class FileDoesNotExistError(RuntimeError):

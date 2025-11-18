@@ -81,7 +81,7 @@ class Uploader:
             await self._upload_client.delete_file(file_id=self._file_id)
         except Exception as err:
             raise exceptions.DeleteFileUploadError(
-                file_alias=self._file_alias, file_id=self._file_id
+                file_alias=self._file_alias, file_id=self._file_id, reason=str(err)
             ) from err
 
     async def _upload_file_part(self, file_processor: FileProcessor) -> None:

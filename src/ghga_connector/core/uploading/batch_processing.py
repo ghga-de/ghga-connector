@@ -56,8 +56,8 @@ async def upload_files_from_list(
             max_concurrent_uploads=max_concurrent_uploads,
         )
         # TODO: Special handling for keyboard cancel?
-
         log.info("Initializing upload for %s", file_info.alias)
+        log.debug("Full file path is %s", str(file_info.path.resolve()))
         file_id = await uploader.initiate_file_upload()
         log.info(
             "File upload successfully initialized for %s."

@@ -29,7 +29,7 @@ from ghga_connector.core.downloading.downloader import (
     handle_download_errors,
 )
 from ghga_connector.core.uploading.api_calls import UploadClient
-from ghga_connector.core.uploading.batch_processing import BatchUploader
+from ghga_connector.core.uploading.batch_processing import upload_files_from_list
 from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.work_package import WorkPackageClient
 
@@ -105,9 +105,12 @@ async def upload_files(
     upload_client = UploadClient(client=client, work_package_client=work_package_client)
 
     CLIMessageDisplay.display(f"Preparing to upload {len(file_info_list)} files")
-    batch_uploader = BatchUploader(upload_client=upload_client, config=CONFIG)
-    await batch_uploader.upload_files(
-        file_info_list=file_info_list, my_private_key=my_private_key
+    await upload_files_from_list(
+        upload_client=upload_client,
+        file_info_list=file_info_list,
+        my_private_key=my_private_key,
+        configured_part_size=CONFIG.part_size,
+        max_concurrent_uploads=CONFIG.max_concurrent_uploads,
     )
 
 

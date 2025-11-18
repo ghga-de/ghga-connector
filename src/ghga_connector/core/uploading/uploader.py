@@ -139,7 +139,7 @@ class Uploader:
             await task_handler.gather()
 
         # Get the unencrypted checksum and tell the Upload API to conclude the S3 upload
-        unencrypted_checksum = self._encryptor.checksums.get()[0]
+        unencrypted_checksum = self._encryptor.checksums.unencrypted_sha256.hexdigest()
         encrypted_checksum = self._encryptor.checksums.encrypted_checksum_for_s3()
 
         try:

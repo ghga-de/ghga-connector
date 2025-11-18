@@ -37,7 +37,7 @@ def _form_authorization_headers(work_order_token: str) -> dict[str, str]:
     return {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": work_order_token,
+        "Authorization": f"Bearer {work_order_token}",
     }
 
 

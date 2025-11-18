@@ -80,9 +80,7 @@ class UploadClient:
         match status_code:
             case 400:
                 raise exceptions.S3StorageError(work_package_id=work_package_id)
-            case 401:
-                raise exceptions.AuthorizationError()
-            case 403:
+            case 401 | 403:
                 raise exceptions.AuthorizationError()
             case 404:
                 _handle_404(

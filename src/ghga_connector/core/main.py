@@ -20,7 +20,7 @@ from pathlib import Path
 
 import httpx
 
-from ghga_connector.config import CONFIG, set_runtime_config
+from ghga_connector.config import get_config, set_runtime_config
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.batch_processing import FileStager
@@ -103,14 +103,15 @@ async def upload_files(
         client=client, my_private_key=my_private_key, my_public_key=my_public_key
     )
     upload_client = UploadClient(client=client, work_package_client=work_package_client)
+    config = get_config()
 
     CLIMessageDisplay.display(f"Preparing to upload {len(file_info_list)} files")
     await upload_files_from_list(
         upload_client=upload_client,
         file_info_list=file_info_list,
         my_private_key=my_private_key,
-        configured_part_size=CONFIG.part_size,
-        max_concurrent_uploads=CONFIG.max_concurrent_uploads,
+        configured_part_size=config.part_size,
+        max_concurrent_uploads=config.max_concurrent_uploads,
     )
 
 
@@ -140,6 +141,7 @@ async def async_download(
         download_client = DownloadClient(
             client=client, work_package_client=work_package_client
         )
+        config = get_config()
 
         CLIMessageDisplay.display("Preparing files for download...")
         file_stager = FileStager(
@@ -147,7 +149,7 @@ async def async_download(
             output_dir=output_dir,
             work_package_client=work_package_client,
             download_client=download_client,
-            config=CONFIG,
+            config=config,
         )
 
         # Use file stager to manage downloads
@@ -158,13 +160,13 @@ async def async_download(
                 download_client=download_client,
                 file_id=file_id,
                 file_size=file_info.file_size,
-                max_concurrent_downloads=CONFIG.max_concurrent_downloads,
+                max_concurrent_downloads=config.max_concurrent_downloads,
             )
             CLIMessageDisplay.display(f"Downloading file with id '{file_id}'...")
             with handle_download_errors(file_info):
                 await downloader.download_file(
                     output_path=file_info.path_during_download,
-                    part_size=CONFIG.part_size,
+                    part_size=config.part_size,
                 )
 
 

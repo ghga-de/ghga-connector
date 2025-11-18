@@ -57,17 +57,24 @@ class BadResponseCodeError(RuntimeError):
         super().__init__(message)
 
 
-class CompleteFileUploadError(RuntimeError):
-    """Raised when there's a problem trying to complete an upload."""
+class _FileUploadError(RuntimeError):
+    """Base error class for top-level errors in file upload"""
 
-    def __init__(self, *, file_alias: str, reason: str):
+    def __init__(self, *, action: str, file_alias: str, reason: str):
         # Make sure we only use one period at the end of the error message
         reason = reason.removesuffix(".")
 
         # Make first character of 'reason' lowercase
         reason = reason[0].lower() + reason[1:]
-        msg = f"Failed to complete upload for file with alias {file_alias} because {reason}."
+        msg = f"Failed to {action} upload for file with alias {file_alias} because {reason}."
         super().__init__(msg)
+
+
+class CompleteFileUploadError(_FileUploadError):
+    """Raised when there's a problem trying to complete an upload."""
+
+    def __init__(self, *, file_alias: str, reason: str):
+        super().__init__(action="complete", file_alias=file_alias, reason=reason)
 
 
 class ConnectionFailedError(RuntimeError):
@@ -78,17 +85,11 @@ class ConnectionFailedError(RuntimeError):
         super().__init__(message)
 
 
-class CreateFileUploadError(RuntimeError):
+class CreateFileUploadError(_FileUploadError):
     """Raised when there's a problem trying to create a new FileUpload."""
 
     def __init__(self, *, file_alias: str, reason: str):
-        # Make sure we only use one period at the end of the error message
-        reason = reason.removesuffix(".")
-
-        # Make first character of 'reason' lowercase
-        reason = reason[0].lower() + reason[1:]
-        msg = f"Failed to initiate upload for file with alias {file_alias} because {reason}."
-        super().__init__(msg)
+        super().__init__(action="initiate", file_alias=file_alias, reason=reason)
 
 
 class DirectoryDoesNotExistError(RuntimeError):
@@ -461,17 +462,11 @@ class UploadBoxLockedError(RuntimeError):
         super().__init__(msg)
 
 
-class UploadFileError(RuntimeError):
+class UploadFileError(_FileUploadError):
     """Raised when there's a problem trying to upload a file part."""
 
     def __init__(self, *, file_alias: str, reason: str):
-        # Make sure we only use one period at the end of the error message
-        reason = reason.removesuffix(".")
-
-        # Make first character of 'reason' lowercase
-        reason = reason[0].lower() + reason[1:]
-        msg = f"Failed to upload file with alias {file_alias} because {reason}."
-        super().__init__(msg)
+        super().__init__(action="perform", file_alias=file_alias, reason=reason)
 
 
 class UploadIdUnsetError(RuntimeError):

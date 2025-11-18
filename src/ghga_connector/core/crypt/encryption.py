@@ -79,57 +79,85 @@ class Crypt4GHEncryptor:
         """Get file size after encryption, excluding envelope"""
         return self._encrypted_file_size
 
+    def _get_current_part_and_update_checksum(
+        self, *, upload_buffer: bytes, content_offset: int
+    ) -> bytes:
+        """Get the next encrypted chunk and update the encrypted checksum and size"""
+        # Cap the yielded chunk size at the part size
+        current_part = upload_buffer[: self._part_size]
+
+        # Make sure we only calculate the checksum on the file content itself,
+        #  not the envelope. Same for calculating encrypted file size.
+        encrypted_file_content_chunk = (
+            current_part[content_offset:]
+            if self.checksums.encrypted_is_empty()
+            else current_part
+        )
+        self.checksums.update_encrypted(encrypted_file_content_chunk)
+        self._encrypted_file_size += len(encrypted_file_content_chunk)
+        return current_part
+
     def process_file(self, *, file: BufferedReader) -> FileProcessor:
         """Encrypt file parts for upload, yielding a tuple of the part number and content."""
-        unprocessed_bytes = b""
+        # Create an upload buffer initialized with the file envelope.
         upload_buffer = self._create_envelope()
 
         # get envelope size to adjust checksum buffers and encrypted content size
         envelope_size = len(upload_buffer)
 
+        # Create a separate buffer for content that has yet to be encrypted
+        unprocessed_bytes = b""
         for part_number, file_part in enumerate(
             read_file_parts(file=file, part_size=self._part_size), start=1
         ):
-            # process unencrypted
+            # Update the unencrypted content's checksum
             self.checksums.update_unencrypted(file_part)
+
+            # Add the file part to the unencrypted buffer
             unprocessed_bytes += file_part
 
-            # encrypt in chunks
+            # Encrypt the buffer and keep any stragglers in `unprocessed_bytes`
             encrypted_bytes, unprocessed_bytes = self._encrypt(unprocessed_bytes)
+
+            # Add the encrypted bytes to the upload buffer (notice we have two buffers)
             upload_buffer += encrypted_bytes
 
-            # update checksums and yield if part size
+            # See if having added the file part met the predetermined part size
             if len(upload_buffer) >= self._part_size:
-                current_part = upload_buffer[: self._part_size]
-                if self.checksums.encrypted_is_empty():
-                    self.checksums.update_encrypted(current_part[envelope_size:])
-                else:
-                    self.checksums.update_encrypted(current_part)
-                self._encrypted_file_size += self._part_size
+                current_part = self._get_current_part_and_update_checksum(
+                    upload_buffer=upload_buffer,
+                    content_offset=envelope_size,
+                )
                 yield part_number, current_part
+
+                # Trim the yielded/uploaded part from the front of the upload buffer
                 upload_buffer = upload_buffer[self._part_size :]
 
-        self._encrypted_file_size -= envelope_size
-
-        # process dangling bytes
+        # All file parts should have been yielded, so process any dangling bytes
         if unprocessed_bytes:
             upload_buffer += self._encrypt_segment(unprocessed_bytes)
 
+        # Remaining bytes could potentially constitute multiple parts, allowing for
+        #  corner case where encryption causes remaining bytes to exceed one full part
         while len(upload_buffer) >= self._part_size:
-            current_part = upload_buffer[: self._part_size]
-            self.checksums.update_encrypted(current_part)
-            self._encrypted_file_size += self._part_size
-            part_number += 1
+            current_part = self._get_current_part_and_update_checksum(
+                upload_buffer=upload_buffer,
+                content_offset=envelope_size,
+            )
+            part_number += 1  # manually increment part number now
             yield part_number, current_part
             upload_buffer = upload_buffer[self._part_size :]
 
+        # Now anything left in upload buffer is less than full part size. Yield it too.
         if upload_buffer:
-            self.checksums.update_encrypted(upload_buffer)
-            self._encrypted_file_size += len(upload_buffer)
+            current_part = self._get_current_part_and_update_checksum(
+                upload_buffer=upload_buffer,
+                content_offset=envelope_size,
+            )
             part_number += 1
             yield part_number, upload_buffer
 
-        # Finally, verify the encrypted size
+        # Finally, verify the encrypted size and raise an error if it doesn't match.
         if self.expected_encrypted_size != self._encrypted_file_size:
             raise exceptions.EncryptedSizeMismatch(
                 actual_encrypted_size=self._encrypted_file_size,

@@ -36,7 +36,7 @@ class Checksums:
 
     def encrypted_is_empty(self):
         """Returns true if the encryption checksum buffer is still empty"""
-        return len(self._encrypted_md5) > 0
+        return len(self._encrypted_md5) == 0
 
     def get(self):
         """Return all checksums at the end of processing"""

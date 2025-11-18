@@ -48,7 +48,7 @@ def parse_file_info_for_upload(file_info: list[str]) -> list[FileInfoForUpload]:
         if "," in arg:
             alias, path = arg.split(",", 1)
             alias = alias.strip()
-            if not path:
+            if not path.strip():
                 raise RuntimeError(
                     f"No path supplied for alias '{alias}' in arg #{i}. Verify input and"
                     + " ensure that alias and file path are separated only by a comma"

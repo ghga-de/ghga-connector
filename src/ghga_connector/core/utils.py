@@ -187,7 +187,7 @@ def calc_number_of_parts(encrypted_file_size: int, part_size: int) -> int:
 
 def parse_file_upload_path(s: str) -> Path:
     """Ensure the specified path points to an existing file for upload"""
-    path = Path(s)
+    path = Path(s).resolve()
     if not (path.exists() and path.is_file()):
         raise exceptions.FileDoesNotExistError(file_path=path)
     if is_file_encrypted(path):

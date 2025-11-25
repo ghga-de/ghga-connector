@@ -230,9 +230,9 @@ async def test_download_file_parts(
         part_ranges = calc_part_ranges(
             part_size=part_size, total_file_size=total_file_size
         )
-        part_ranges = list(part_ranges)
+        part_ranges = list(part_ranges)  # type: ignore
         for idx, part_range in enumerate(part_ranges):
-            if idx == len(part_ranges) - 1:
+            if idx == len(part_ranges) - 1:  # type: ignore
                 task_handler.schedule(
                     downloader._download_to_queue(part_range=PartRange(-10000, -1))
                 )

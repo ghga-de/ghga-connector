@@ -31,7 +31,6 @@ from ghga_connector.core.main import upload_files
 from ghga_connector.core.uploading.structs import FileInfoForUpload
 from ghga_connector.core.utils import modify_for_debug
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
 from tests.fixtures.s3 import S3Fixture, s3_fixture  # noqa: F401
 from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
@@ -134,7 +133,6 @@ def set_init_upload_placeholder(
 async def test_upload_journey(
     s3_fixture: S3Fixture,  # noqa: F811
     httpx_mock: HTTPXMock,
-    mock_external_calls,  # noqa: F811
     monkeypatch,
     patch_work_package_functions,  # noqa: F811
 ):
@@ -171,7 +169,6 @@ async def test_upload_journey(
 
 async def test_upload_bad_url(
     httpx_mock: HTTPXMock,
-    mock_external_calls,  # noqa: F811
     monkeypatch,
     patch_work_package_functions,  # noqa: F811
 ):

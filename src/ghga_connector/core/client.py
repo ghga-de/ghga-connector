@@ -39,23 +39,13 @@ def get_cache_transport(
     )
 
 
-def get_mounts(
-    base_transport: httpx.AsyncHTTPTransport | None = None,
-    limits: httpx.Limits | None = None,
-) -> dict[str, httpx.AsyncBaseTransport]:
-    """Return a dict of mounts for the cache transport."""
-    return {
-        "all://": get_cache_transport(base_transport=base_transport, limits=limits),
-    }
-
-
 @asynccontextmanager
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
     config = get_config()
     async with httpx.AsyncClient(
         timeout=TIMEOUT,
-        mounts=get_mounts(
+        transport=get_cache_transport(
             limits=httpx.Limits(
                 max_connections=config.max_concurrent_downloads,
                 max_keepalive_connections=config.max_concurrent_downloads,

@@ -35,7 +35,6 @@ from tests.fixtures import state
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import (
     mock_external_app,
-    mock_external_calls,  # noqa: F401
     url_expires_after,
 )
 from tests.fixtures.s3 import (  # noqa: F401
@@ -157,7 +156,6 @@ async def test_multipart_download(
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test the multipart download of a file"""
@@ -227,7 +225,6 @@ async def test_download(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test the download of a file"""
@@ -281,7 +278,6 @@ async def test_file_not_downloadable(
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Test to try downloading a file that isn't in storage.
@@ -359,7 +355,6 @@ async def test_download_bad_url(
     httpx_mock: HTTPXMock,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
-    mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Check that the right error is raised for a bad URL in the download logic."""

@@ -345,7 +345,7 @@ async def get_upload_wot(package_id: UUID, request: Request):
 @mock_external_app.get("/values")
 async def mock_wkvs():
     """Mock the WKVS /values endpoint"""
-    api_url = "http://127.0.0.1"
+    api_url = "https://127.0.0.1"
     values: dict[str, str] = {
         "crypt4gh_public_key": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
         "wps_api_url": f"{api_url}{WORK}",

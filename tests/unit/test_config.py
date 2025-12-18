@@ -30,6 +30,7 @@ from ghga_connector.config import (
 from ghga_connector.core import async_client
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.config import get_test_config
+from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -48,7 +49,7 @@ def apply_test_config():
         yield
 
 
-async def test_set_runtime_config():
+async def test_set_runtime_config(mock_external_calls):  # noqa: F811
     """Test set_runtime_config and related code"""
     # Make a list of the ctx var retrieval functions
     ctx_var_getter_fns = [

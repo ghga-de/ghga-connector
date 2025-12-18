@@ -22,4 +22,4 @@ max_wait_time: 3600
 part_size: 67108864
 per_request_jitter: 0.0
 retry_after_applicable_for_num_requests: 1
-wkvs_api_url: https://127.0.0.1
+wkvs_api_url: https//127.0.0.1

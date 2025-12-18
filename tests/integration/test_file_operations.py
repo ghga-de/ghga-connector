@@ -33,6 +33,7 @@ from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.downloader import Downloader, TaskHandler
 from ghga_connector.exceptions import DownloadError
 from tests.fixtures.config import get_test_config
+from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -75,6 +76,7 @@ async def test_download_to_queue(
     stop: int,
     file_size: int,
     s3_fixture: S3Fixture,  # noqa: F811
+    mock_external_calls,  # noqa: F811
     monkeypatch,
 ):
     """Test the `_download_to_queue` function."""
@@ -123,6 +125,7 @@ async def test_download_file_parts(
     part_size: int,
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path,
+    mock_external_calls,  # noqa: F811
     monkeypatch,
 ):
     """Test the `_download_to_queue` function with multiple file parts and an

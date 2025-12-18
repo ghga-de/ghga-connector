@@ -40,28 +40,33 @@ def get_cache_transport(
     )
 
 
+def init_proxies(limits: httpx.Limits):
+    """Init mount points for proxies, if provided"""
+    proxies = {}
+    if http_proxy := os.environ.get("HTTP_PROXY", ""):
+        proxies["http://"] = get_cache_transport(
+            httpx.AsyncHTTPTransport(proxy=http_proxy), limits=limits
+        )
+    if https_proxy := os.environ.get("HTTPS_PROXY", ""):
+        proxies["https://"] = get_cache_transport(
+            httpx.AsyncHTTPTransport(proxy=https_proxy), limits=limits
+        )
+
+    return proxies
+
+
 @asynccontextmanager
 async def async_client():
     """Yields a context manager async httpx client and closes it afterward"""
     config = get_config()
-    proxies = {}
-    if http_proxy := os.environ.get("HTTP_PROXY", ""):
-        proxies["http://"] = get_cache_transport(
-            httpx.AsyncHTTPTransport(proxy=http_proxy)
-        )
-    if https_proxy := os.environ.get("HTTPS_PROXY", ""):
-        proxies["https://"] = get_cache_transport(
-            httpx.AsyncHTTPTransport(proxy=https_proxy)
-        )
     limits = httpx.Limits(
         max_connections=config.max_concurrent_downloads,
         max_keepalive_connections=config.max_concurrent_downloads,
     )
     transport = get_cache_transport(limits=limits)
-
+    proxies = init_proxies(limits=limits)
     async with httpx.AsyncClient(
         timeout=TIMEOUT, transport=transport, mounts=proxies
     ) as client:
-        httpx.AsyncClient()
         attach_correlation_id_to_requests(client)
         yield client

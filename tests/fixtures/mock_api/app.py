@@ -31,6 +31,7 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 import httpx
+import pytest
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from ghga_service_commons.api.api import ApiConfigBase, configure_app
@@ -378,3 +379,9 @@ def get_test_mounts(
         ),  # let S3 traffic go out
     }
     return mounts
+
+
+@pytest.fixture(scope="function")
+def mock_external_calls(monkeypatch):
+    """Monkeypatch the async_client so it only intercepts calls to the mock app"""
+    monkeypatch.setattr("ghga_connector.core.client.init_proxies", get_test_mounts)

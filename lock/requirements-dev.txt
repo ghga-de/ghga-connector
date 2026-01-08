@@ -15,9 +15,9 @@ babel==2.17.0
     # via jsonschema2md
 bcrypt==5.0.0
     # via crypt4gh
-boto3==1.42.23
+boto3==1.42.24
     # via hexkit
-botocore==1.42.23
+botocore==1.42.24
     # via
     #   boto3
     #   hexkit
@@ -60,7 +60,7 @@ fastapi==0.120.4
     # via ghga-service-commons
 filelock==3.20.2
     # via virtualenv
-ghga-service-commons @ git+https://github.com/ghga-de/ghga-service-commons@03c2992d0414827751a1597215b87fd6f53fcf34
+ghga-service-commons @ git+https://github.com/ghga-de/ghga-service-commons@47f35707d2822eaf9149fb21faa76bf10dc2ad31
     # via
     #   -r lock/requirements-dev.in
     #   ghga-connector (pyproject.toml)
@@ -125,7 +125,7 @@ opentelemetry-api==1.39.1
     # via hexkit
 packaging==25.0
     # via pytest
-pathspec==1.0.1
+pathspec==1.0.2
     # via mypy
 platformdirs==4.5.1
     # via virtualenv
@@ -205,7 +205,7 @@ starlette==0.49.3
     # via fastapi
 tenacity==9.1.2
     # via ghga-service-commons
-testcontainers==4.13.3
+testcontainers==4.14.0
     # via -r lock/requirements-dev.in
 tomli==2.3.0
     # via -r lock/requirements-dev-template.in

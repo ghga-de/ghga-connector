@@ -16,10 +16,10 @@
 
 from contextlib import asynccontextmanager
 
-import hishel
 import httpx
 from ghga_service_commons.http.correlation import attach_correlation_id_to_requests
 from ghga_service_commons.transports import (
+    AsyncCacheTransport,
     CompositeTransportFactory,
     cached_ratelimiting_retry_proxies,
 )
@@ -31,7 +31,7 @@ from ghga_connector.constants import TIMEOUT
 def get_cache_transport(
     base_transport: httpx.AsyncBaseTransport | None = None,
     limits: httpx.Limits | None = None,
-) -> hishel.AsyncCacheTransport:
+) -> AsyncCacheTransport:
     """Construct an async cache transport with `hishel`.
 
     The `wrapped_transport` parameter can be used for testing to inject, for example,

@@ -62,6 +62,11 @@ class WorkPackageClient:
             data=encrypted_token, key=my_private_key.get_secret_value()
         )
 
+        # Per-instance cache so each instance (and its event loop) gets its own cache.
+        self.get_upload_wot = alru_cache(
+            maxsize=UPLOAD_WOT_CACHE_SIZE, typed=True, ttl=UPLOAD_WOT_CACHE_TIME
+        )(self._get_upload_wot)
+
     async def _call_url(
         self,
         *,
@@ -145,8 +150,7 @@ class WorkPackageClient:
         download_wot = await self._get_work_order_token(url=url)
         return download_wot
 
-    @alru_cache(maxsize=UPLOAD_WOT_CACHE_SIZE, typed=True, ttl=UPLOAD_WOT_CACHE_TIME)
-    async def get_upload_wot(
+    async def _get_upload_wot(
         self,
         *,
         work_type: WorkType,

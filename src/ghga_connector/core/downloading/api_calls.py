@@ -52,6 +52,11 @@ class DownloadClient:
         self._work_package_client = work_package_client
         self._download_api_url = get_download_api_url()
 
+        # Per-instance cache so each instance (and its event loop) gets its own cache.
+        self.get_drs_object = alru_cache(
+            maxsize=DOWNLOAD_URL_CACHE_SIZE, typed=True, ttl=DOWNLOAD_URL_CACHE_TIME
+        )(self._get_drs_object)
+
     async def _get_drs_object_retrieval_auth_headers(
         self, *, file_id: str
     ) -> httpx.Headers:
@@ -159,10 +164,7 @@ class DownloadClient:
                     url=url, response_code=status_code
                 )
 
-    @alru_cache(
-        maxsize=DOWNLOAD_URL_CACHE_SIZE, typed=True, ttl=DOWNLOAD_URL_CACHE_TIME
-    )
-    async def get_drs_object(self, file_id: str) -> DrsObject | RetryResponse:
+    async def _get_drs_object(self, file_id: str) -> DrsObject | RetryResponse:
         """Gets the DRS object for the requested file ID or possibly a Retry response.
 
         Results from this method are cached and can be invalidated with:

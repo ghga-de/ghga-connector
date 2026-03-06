@@ -24,7 +24,7 @@ from pathlib import Path
 from string import Template
 
 import jsonschema2md
-import tomli
+import tomllib
 from casefy import kebabcase, titlecase
 from pydantic import BaseModel, Field
 
@@ -97,7 +97,7 @@ def read_toml_package_header() -> PackageHeader:
     """Read basic information about the package from the pyproject.toml"""
 
     with open(PYPROJECT_TOML_PATH, "rb") as pyproject_toml:
-        pyproject = tomli.load(pyproject_toml)
+        pyproject = tomllib.load(pyproject_toml)
         pyproject_project = pyproject["project"]
         return PackageHeader(
             shortname=pyproject_project["name"],
@@ -151,7 +151,7 @@ def read_design_description() -> str:
 
 
 def generate_config_docs() -> str:
-    """Generate markdown-formatted documentation for the configration parameters
+    """Generate markdown-formatted documentation for the configuration parameters
     listed in the config schema."""
 
     parser = jsonschema2md.Parser(
@@ -167,7 +167,7 @@ def generate_config_docs() -> str:
     properties_index = md_lines.index("## Properties\n\n")
     md_lines = md_lines[properties_index + 1 :]
 
-    return "\n".join(md_lines)
+    return "".join(md_lines).rstrip()
 
 
 def generate_openapi_docs() -> str:

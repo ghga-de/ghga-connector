@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show ghga-service-commons)",
+      "Bash(pip show pytest-httpx)",
+      "Bash(python -c \"import hishel; print\\(hishel.__version__\\)\")",
+      "Bash(pip show hishel)",
+      "Bash(python -m pytest tests/unit/test_work_package.py::test_get_work_order_token_caching -x)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"from hishel import AsyncSqliteStorage, SpecificationPolicy; from hishel._policies import CacheOptions; from hishel.httpx import AsyncCacheTransport; print\\(''OK''\\)\")",
+      "Bash(python -c \"from hishel._core._spec import CacheOptions; print\\(''OK''\\)\")",
+      "Bash(python -m pytest tests/unit/test_work_package.py::test_get_work_order_token_caching -x -s --log-cli-level=DEBUG)",
+      "Bash(pip show hishel ghga-service-commons)",
+      "Bash(python3:*)",
+      "Bash(python -m pytest tests/unit/test_work_package.py::test_get_work_order_token_caching -xvs)",
+      "Bash(python -m pytest tests/unit/test_work_package.py::test_get_work_order_token_caching -xvs -k \"test_get_work_order_token\" --pdb-trace)",
+      "Bash(git checkout f3b2f487 -- src/ghga_connector/core/client.py)",
+      "Bash(git checkout HEAD -- src/ghga_connector/core/client.py)",
+      "Bash(git checkout dbf4cf3b -- src/ghga_connector/core/client.py)",
+      "Bash(pytest tests/integration)",
+      "Bash(pytest tests/integration/test_cli.py::test_multipart_download -k \"20971520-32768 or 78643200-10485760\" -v)",
+      "Bash(pytest tests/integration/test_cli.py::test_multipart_download -k \"20971520-32768\" -v)"
+    ]
+  }
+}

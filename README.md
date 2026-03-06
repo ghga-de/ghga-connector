@@ -57,18 +57,6 @@ ghga_connector --help
 ### Parameters
 
 The service requires the following configuration parameters:
-- <a id="properties/client_cache_capacity"></a>**`client_cache_capacity`** *(integer)*: Maximum number of entries to store in the cache. Older entries are evicted once this limit is reached. Exclusive minimum: `0`. Default: `128`.
-
-- <a id="properties/client_cache_ttl"></a>**`client_cache_ttl`** *(integer)*: Number of seconds after which a stored response is considered stale. Minimum: `0`. Default: `60`.
-
-- <a id="properties/client_cacheable_methods"></a>**`client_cacheable_methods`** *(array)*: HTTP methods for which responses are allowed to be cached. Default: `["POST", "GET"]`.
-
-  - <a id="properties/client_cacheable_methods/items"></a>**Items** *(string)*
-
-- <a id="properties/client_cacheable_status_codes"></a>**`client_cacheable_status_codes`** *(array)*: HTTP response status code for which responses are allowed to be cached. Default: `[200, 201]`.
-
-  - <a id="properties/client_cacheable_status_codes/items"></a>**Items** *(integer)*
-
 - <a id="properties/client_exponential_backoff_max"></a>**`client_exponential_backoff_max`** *(integer)*: Maximum number of seconds to wait between retries when using exponential backoff retry strategies. The client timeout might need to be adjusted accordingly. Minimum: `0`. Default: `60`.
 
 - <a id="properties/client_num_retries"></a>**`client_num_retries`** *(integer)*: Number of times to retry failed API calls. Minimum: `0`. Default: `3`.

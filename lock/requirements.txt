@@ -24,6 +24,12 @@ anysqlite==0.0.5 \
     # via
     #   -c lock/requirements-dev.txt
     #   hishel
+async-lru==2.2.0 \
+    --hash=sha256:80abae2a237dbc6c60861d621619af39f0d920aea306de34cb992c879e01370c \
+    --hash=sha256:e2c1cf731eba202b59c5feedaef14ffd9d02ad0037fcda64938699f2c380eafe
+    # via
+    #   -c lock/requirements-dev.txt
+    #   ghga-connector (pyproject.toml)
 bcrypt==5.0.0 \
     --hash=sha256:046ad6db88edb3c5ece4369af997938fb1c19d6a699b9c1b27b0db432faae4c4 \
     --hash=sha256:0c418ca99fd47e9c59a301744d63328f17798b5947b0f791e9af3c1c499c2d0a \

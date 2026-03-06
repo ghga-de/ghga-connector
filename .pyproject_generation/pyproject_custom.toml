@@ -7,7 +7,8 @@ dependencies = [
     "crypt4gh>=1.6, <2",
     "ghga-service-commons[crypt, transports]>=6.1",
     "hexkit[s3]>=7.1",
-    "rich>=14.0, <15"
+    "rich>=14.0, <15",
+    "async-lru >= 2.1.0",
 ]
 
 

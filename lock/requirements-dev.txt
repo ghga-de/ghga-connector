@@ -21,6 +21,10 @@ anysqlite==0.0.5 \
     --hash=sha256:9dfcf87baf6b93426ad1d9118088c41dbf24ef01b445eea4a5d486bac2755cce \
     --hash=sha256:cb345dc4f76f6b37f768d7a0b3e9cf5c700dfcb7a6356af8ab46a11f666edbe7
     # via hishel
+async-lru==2.2.0 \
+    --hash=sha256:80abae2a237dbc6c60861d621619af39f0d920aea306de34cb992c879e01370c \
+    --hash=sha256:e2c1cf731eba202b59c5feedaef14ffd9d02ad0037fcda64938699f2c380eafe
+    # via ghga-connector (pyproject.toml)
 babel==2.18.0 \
     --hash=sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d \
     --hash=sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35

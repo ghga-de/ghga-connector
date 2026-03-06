@@ -63,7 +63,7 @@ FAKE_ENVELOPE = "Thisisafakeenvelope"
 SHORT_LIFESPAN = 10
 
 pytestmark = [
-    pytest.mark.asyncio,
+    pytest.mark.asyncio(loop_scope="session"),
     pytest.mark.httpx_mock(
         assert_all_responses_were_requested=False,
         assert_all_requests_were_expected=False,

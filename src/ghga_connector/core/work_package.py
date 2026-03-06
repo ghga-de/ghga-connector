@@ -21,14 +21,18 @@ from typing import Any, Literal
 from uuid import UUID
 
 import httpx
+from async_lru import alru_cache
 from ghga_service_commons.utils import crypt
 from ghga_service_commons.utils.crypt import decrypt
 from pydantic import UUID4, SecretBytes
 from tenacity import RetryError
 
 from ghga_connector.config import get_work_package_api_url
-from ghga_connector.constants import CACHE_MIN_FRESH
-from ghga_connector.core.api_calls.utils import modify_headers_for_cache_refresh
+from ghga_connector.constants import (
+    CACHE_MIN_FRESH,
+    UPLOAD_WOT_CACHE_SIZE,
+    UPLOAD_WOT_CACHE_TIME,
+)
 from ghga_connector.core.utils import get_work_package_token
 
 from .. import exceptions
@@ -135,12 +139,13 @@ class WorkPackageClient:
         work_package = await self._get_work_package()
         return UUID(work_package["box_id"])
 
-    async def get_download_wot(self, *, file_id: str, bust_cache: bool = False) -> str:
+    async def get_download_wot(self, *, file_id: str) -> str:
         """Get a work order token from the Work Package API enabling download of a single file"""
         url = f"{self.work_package_api_url}/work-packages/{self.package_id}/files/{file_id}/work-order-tokens"
-        download_wot = await self._get_work_order_token(url=url, bust_cache=bust_cache)
+        download_wot = await self._get_work_order_token(url=url)
         return download_wot
 
+    @alru_cache(maxsize=UPLOAD_WOT_CACHE_SIZE, typed=True, ttl=UPLOAD_WOT_CACHE_TIME)
     async def get_upload_wot(
         self,
         *,
@@ -148,10 +153,17 @@ class WorkPackageClient:
         box_id: UUID4,
         file_id: UUID4 | None = None,
         alias: str | None = None,
-        bust_cache: bool = False,
     ) -> str:
         """Get a work order token from the Work Package API enabling file upload operations for
         a single file.
+
+        Results from this method are cached and can be invalidated with:
+        `get_upload_wot.cache_invalidate(**kwargs)`
+
+        Note that upload *URLs* are not cached. In the upload path,
+        new upload URLs are requested for every file part, which may or may not occur
+        several times within the life of one upload WOT, depending on transfer speed
+        and part size.
         """
         url = f"{self.work_package_api_url}/work-packages/{self.package_id}/boxes/{box_id}/work-order-tokens"
         body = {
@@ -159,13 +171,11 @@ class WorkPackageClient:
             "alias": alias,
             "file_id": str(file_id),
         }
-        upload_wot = await self._get_work_order_token(
-            url=url, bust_cache=bust_cache, body=body
-        )
+        upload_wot = await self._get_work_order_token(url=url, body=body)
         return upload_wot
 
     async def _get_work_order_token(
-        self, *, url: str, bust_cache: bool, body: dict[str, Any] | None = None
+        self, *, url: str, body: dict[str, Any] | None = None
     ) -> str:
         """Call Work Package API endpoint to retrieve and decrypt work order token.
 
@@ -181,8 +191,6 @@ class WorkPackageClient:
                 "Cache-Control": f"min-fresh={CACHE_MIN_FRESH}",
             }
         )
-        if bust_cache:
-            modify_headers_for_cache_refresh(headers)
 
         response = await self._call_url(
             fn=self.client.post, body=body, headers=headers, url=url

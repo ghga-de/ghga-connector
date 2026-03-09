@@ -78,14 +78,6 @@ class RecordingClient(httpx.AsyncClient):
         self.calls.append(response)
         return response
 
-    def assert_last_call_from_cache(self):
-        """Assert that the last call was from the cache."""
-        assert self.calls[-1].extensions["hishel_from_cache"]
-
-    def assert_last_call_not_from_cache(self):
-        """Assert that the last call was not from the cache."""
-        assert not self.calls[-1].extensions["hishel_from_cache"]
-
     async def get(self, *args, **kwargs) -> httpx.Response:
         """Record GET calls."""
         return await self._do_request("get", *args, **kwargs)

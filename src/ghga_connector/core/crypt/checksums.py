@@ -34,10 +34,6 @@ class Checksums:
             + f"Encrypted SHA256: {self.encrypted_sha256}"
         )
 
-    def encrypted_is_empty(self):
-        """Returns true if the encryption checksum buffer is still empty"""
-        return len(self.encrypted_md5) == 0
-
     def update_unencrypted(self, part: bytes):
         """Update checksum for unencrypted file"""
         self.unencrypted_sha256.update(part)

@@ -20,7 +20,7 @@ import logging
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
-from ghga_connector.core import CLIMessageDisplay, utils
+from ghga_connector.core import CLIMessageDisplay
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.uploading.structs import FileInfoForUpload
@@ -34,24 +34,19 @@ async def upload_files_from_list(
     upload_client: UploadClient,
     file_info_list: list[FileInfoForUpload],
     my_private_key: SecretBytes,
-    configured_part_size: int,
     max_concurrent_uploads: int,
 ):
     """Upload all files in the provided list of file paths"""
     CLIMessageDisplay.display(f"Starting batch upload of {len(file_info_list)} files")
     for file_info in file_info_list:
-        part_size = utils.check_adjust_part_size(
-            part_size=configured_part_size, file_size=file_info.size
-        )
         encryptor = Crypt4GHEncryptor(
-            part_size=part_size,
+            part_size=file_info.part_size,
             my_private_key=my_private_key,
-            file_size=file_info.size,
+            file_size=file_info.decrypted_size,
         )
         uploader = Uploader(
             upload_client=upload_client,
             encryptor=encryptor,
-            part_size=part_size,
             file_info=file_info,
             max_concurrent_uploads=max_concurrent_uploads,
         )

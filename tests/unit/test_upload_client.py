@@ -78,12 +78,19 @@ async def test_create_file_upload_success(
 ):
     """Test the create_file_upload() method on the UploadClient"""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads"
-    body = {"alias": FILE_ALIAS, "size": 5}
+    body = {
+        "alias": FILE_ALIAS,
+        "decrypted_size": 1000,
+        "encrypted_size": 1100,
+        "part_size": 100,
+    }
 
     httpx_mock.add_response(
         201, url=url, match_json=body, method="POST", json=str(FILE_ID)
     )
-    file_id = await upload_client.create_file_upload(file_alias=FILE_ALIAS, file_size=5)
+    file_id = await upload_client.create_file_upload(
+        file_alias=FILE_ALIAS, decrypted_size=1000, encrypted_size=1100, part_size=100
+    )
     assert file_id == FILE_ID
 
     # Check that we get the right type of WOT
@@ -94,7 +101,12 @@ async def test_create_file_upload_success(
     # Test that other status codes will trigger the error translation
     httpx_mock.add_response(500, url=url, match_json=body, method="POST")
     with pytest.raises(exceptions.UnexpectedError):
-        _ = await upload_client.create_file_upload(file_alias=FILE_ALIAS, file_size=5)
+        _ = await upload_client.create_file_upload(
+            file_alias=FILE_ALIAS,
+            decrypted_size=1000,
+            encrypted_size=1100,
+            part_size=100,
+        )
 
 
 async def test_get_part_upload_url(upload_client: UploadClient, httpx_mock: HTTPXMock):
@@ -128,15 +140,22 @@ async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTT
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
     unencrypted_checksum = "abc123"
     encrypted_checksum = "xyz456"
+    parts_md5 = ["part1_md5"]
+    parts_sha256 = ["part1_sha256"]
     body = {
-        "unencrypted_checksum": unencrypted_checksum,
-        "encrypted_checksum": encrypted_checksum,
+        "decrypted_sha256": unencrypted_checksum,
+        "encrypted_md5": encrypted_checksum,
+        "encrypted_parts_md5": parts_md5,
+        "encrypted_parts_sha256": parts_sha256,
     }
     httpx_mock.add_response(204, url=url, match_json=body, method="PATCH")
     await upload_client.complete_file_upload(
         file_id=FILE_ID,
-        unencrypted_checksum=unencrypted_checksum,
-        encrypted_checksum=encrypted_checksum,
+        file_alias=FILE_ALIAS,
+        decrypted_sha256=unencrypted_checksum,
+        encrypted_md5=encrypted_checksum,
+        encrypted_parts_md5=parts_md5,
+        encrypted_parts_sha256=parts_sha256,
     )
 
     # Check that we get the right type of WOT
@@ -149,8 +168,11 @@ async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTT
     with pytest.raises(exceptions.UnexpectedError):
         await upload_client.complete_file_upload(
             file_id=FILE_ID,
-            unencrypted_checksum=unencrypted_checksum,
-            encrypted_checksum=encrypted_checksum,
+            file_alias=FILE_ALIAS,
+            decrypted_sha256=unencrypted_checksum,
+            encrypted_md5=encrypted_checksum,
+            encrypted_parts_md5=parts_md5,
+            encrypted_parts_sha256=parts_sha256,
         )
 
 
@@ -158,7 +180,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
     """Test the delete_file() method on the UploadClient"""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
     httpx_mock.add_response(204, url=url, method="DELETE")
-    await upload_client.delete_file(file_id=FILE_ID)
+    await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
@@ -168,20 +190,38 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
     # Test that other status codes will trigger the error translation
     httpx_mock.add_response(500, url=url)
     with pytest.raises(exceptions.UnexpectedError):
-        await upload_client.delete_file(file_id=FILE_ID)
+        await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
 
 
 @pytest.mark.parametrize(
     "status_code, response_json, box_id, file_alias, file_id, expected_error",
     [
-        # 400 status code
+        # 400 status code - noSuchStorage
         (
             400,
-            {"exception_id": "s3StorageError"},
+            {"exception_id": "noSuchStorage"},
             BOX_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.S3StorageError,
+        ),
+        # 400 status code - checksumMismatch
+        (
+            400,
+            {"exception_id": "checksumMismatch"},
+            BOX_ID,
+            FILE_ALIAS,
+            FILE_ID,
+            exceptions.ChecksumMismatchError,
+        ),
+        # 400 status code - no matching exception id
+        (
+            400,
+            {"exception_id": "nosuchexceptionid"},
+            BOX_ID,
+            FILE_ALIAS,
+            FILE_ID,
+            exceptions.UnexpectedError,
         ),
         # 401 status code
         (
@@ -246,10 +286,10 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
             FILE_ID,
             exceptions.UnexpectedError,
         ),
-        # 409 status codes - lockedBox
+        # 409 status codes - boxStateError
         (
             409,
-            {"exception_id": "lockedBox"},
+            {"exception_id": "boxStateError"},
             BOX_ID,
             FILE_ALIAS,
             FILE_ID,
@@ -300,10 +340,10 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
             None,
             exceptions.InvalidBoxError,
         ),
-        # Test with None values for optional parameters - 409 lockedBox
+        # Test with None values for optional parameters - 409 boxStateError
         (
             409,
-            {"exception_id": "lockedBox"},
+            {"exception_id": "boxStateError"},
             None,
             None,
             None,

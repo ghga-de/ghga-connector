@@ -60,7 +60,7 @@ def make_uploader(
     if upload_client is None:
         upload_client = AsyncMock()
     encryptor = make_mock_encryptor()
-    file_info = make_file_info_for_upload(path, alias=FILE_ALIAS, decrypted_size=1000)
+    file_info = make_file_info_for_upload(path=path, alias=FILE_ALIAS, decrypted_size=1000)
     return Uploader(
         upload_client=upload_client,
         encryptor=encryptor,

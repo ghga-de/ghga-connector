@@ -89,7 +89,9 @@ class Uploader:
             ) from err
 
     async def _upload_file_part(self, file_processor: FileProcessor) -> None:
-        """Encrypt and upload a file part
+        """Encrypt and upload a file part.
+
+        Fetches the next part from the file_processor.
 
         Raises:
             UploadFileError: If there is a problem during content transfer.

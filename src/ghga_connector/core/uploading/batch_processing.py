@@ -40,7 +40,7 @@ async def upload_files_from_list(
     CLIMessageDisplay.display(f"Starting batch upload of {len(file_info_list)} files")
     for file_info in file_info_list:
         encryptor = Crypt4GHEncryptor(
-            part_size=file_info.part_size,
+            part_size=file_info.part_size,  # this will be the adjusted part size
             my_private_key=my_private_key,
             file_size=file_info.decrypted_size,
         )

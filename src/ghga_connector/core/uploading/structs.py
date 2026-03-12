@@ -16,15 +16,12 @@
 """Data structures for file upload"""
 
 import logging
-from collections.abc import Generator
 from functools import cached_property
 from math import ceil
 from pathlib import Path
 
 import crypt4gh.lib
 from pydantic import computed_field
-
-from ghga_connector.core.structs import PartRange
 
 log = logging.getLogger(__name__)
 
@@ -137,13 +134,3 @@ class FileInfoForUpload(CoreFileInfo):
     def part_count(self) -> int:
         """Calculate the number of file parts"""
         return ceil(self.encrypted_size / self.part_size)
-
-    # TODO: Use this and finish implementing 'from_part' logic
-    def calc_encrypted_part_ranges(self, from_part: int = 1) -> Generator[PartRange]:
-        """Calculate file part ranges that align with the Crypt4GH segment size."""
-        processed = 0
-        while processed < self.encrypted_size:
-            start = processed
-            processed += self.part_size
-            end = min(processed, self.encrypted_size)
-            yield PartRange(start, end)

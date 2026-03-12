@@ -140,34 +140,3 @@ def test_part_size_adjusted_for_10k_limit():
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
     assert info.part_size >= MIN_PART_SIZE
     assert ceil(info.encrypted_size / info.part_size) < 10_000
-
-
-def test_calc_encrypted_part_ranges_single_part():
-    """Make sure that a small file yields a single range spanning the full encrypted size."""
-    info = make_file_info_for_upload(100, configured_part_size=MIN_ALIGNED)
-    assert info.part_count == 1
-    ranges = list(info.calc_encrypted_part_ranges())
-    assert len(ranges) == 1
-    assert ranges[0].start == 0
-    assert ranges[0].stop == info.encrypted_size
-
-
-def test_calc_encrypted_part_ranges_coverage_and_contiguity():
-    """Make sure that the ranges are contiguous, start at 0, and end at encrypted_size.
-
-    Also verifies that the number of ranges matches part_count.
-    """
-    decrypted_size = 200 * 1024 * 1024  # produces multiple parts
-    info = make_file_info_for_upload(decrypted_size, configured_part_size=MIN_ALIGNED)
-    ranges = list(info.calc_encrypted_part_ranges())
-
-    assert len(ranges) > 1
-    assert len(ranges) == info.part_count
-    assert ranges[0].start == 0
-    assert ranges[-1].stop == info.encrypted_size
-
-    for i in range(len(ranges) - 1):
-        assert ranges[i].stop == ranges[i + 1].start
-
-    total = sum(r.stop - r.start for r in ranges)
-    assert total == info.encrypted_size

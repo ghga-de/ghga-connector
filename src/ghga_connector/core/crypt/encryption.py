@@ -90,7 +90,7 @@ class Crypt4GHEncryptor:
         #  not the envelope. Same for calculating encrypted file size.
         ciphertext_chunk = (
             current_part[content_offset:]
-            if not self.checksums.encrypted_md5
+            if not self.checksums.encrypted_parts_md5
             else current_part
         )
         self.checksums.update_encrypted(ciphertext_chunk)
@@ -111,7 +111,7 @@ class Crypt4GHEncryptor:
             read_file_parts(file=file, part_size=self._part_size), start=1
         ):
             # Update the unencrypted content's checksum
-            self.checksums.update_unencrypted(file_part)
+            self.checksums.update_decrypted_sha256(file_part)
 
             # Add the file part to the unencrypted buffer
             unprocessed_bytes += file_part

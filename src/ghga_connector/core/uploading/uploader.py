@@ -142,8 +142,8 @@ class Uploader:
             await task_handler.gather()
 
         # Get the unencrypted checksum and tell the Upload API to conclude the S3 upload
-        unencrypted_checksum = self._encryptor.checksums.unencrypted_sha256.hexdigest()
-        encrypted_checksum = self._encryptor.checksums.encrypted_checksum_for_s3()
+        unencrypted_checksum = self._encryptor.checksums.decrypted_sha256.hexdigest()
+        encrypted_checksum = self._encryptor.checksums.get_encrypted_checksum_for_s3()
 
         try:
             await self._upload_client.complete_file_upload(
@@ -151,8 +151,8 @@ class Uploader:
                 file_alias=self._file_alias,
                 decrypted_sha256=unencrypted_checksum,
                 encrypted_md5=encrypted_checksum,
-                encrypted_parts_md5=self._encryptor.checksums.encrypted_md5,
-                encrypted_parts_sha256=self._encryptor.checksums.encrypted_sha256,
+                encrypted_parts_md5=self._encryptor.checksums.encrypted_parts_md5,
+                encrypted_parts_sha256=self._encryptor.checksums.encrypted_parts_sha256,
             )
             log.info("(4/4) Finished upload for %s.", self._file_id)
         except Exception as err:

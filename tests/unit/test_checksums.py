@@ -26,13 +26,13 @@ def test_update_encrypted_appends_per_part_call():
     part = b"encrypted block"
     checksums.update_encrypted(part)
 
-    assert len(checksums.encrypted_md5) == 1
-    assert len(checksums.encrypted_sha256) == 1
+    assert len(checksums.encrypted_parts_md5) == 1
+    assert len(checksums.encrypted_parts_sha256) == 1
     assert (
-        checksums.encrypted_md5[0]
+        checksums.encrypted_parts_md5[0]
         == hashlib.md5(part, usedforsecurity=False).hexdigest()
     )
-    assert checksums.encrypted_sha256[0] == hashlib.sha256(part).hexdigest()
+    assert checksums.encrypted_parts_sha256[0] == hashlib.sha256(part).hexdigest()
 
 
 def test_encrypted_checksum_for_s3_single_part():
@@ -46,7 +46,7 @@ def test_encrypted_checksum_for_s3_single_part():
     expected_etag = (
         hashlib.md5(bytes.fromhex(md5_hex), usedforsecurity=False).hexdigest() + "-1"
     )
-    assert checksums.encrypted_checksum_for_s3() == expected_etag
+    assert checksums.get_encrypted_checksum_for_s3() == expected_etag
 
 
 def test_encrypted_checksum_for_s3_multiple_parts():
@@ -61,4 +61,4 @@ def test_encrypted_checksum_for_s3_multiple_parts():
     expected_etag = (
         hashlib.md5(concat, usedforsecurity=False).hexdigest() + f"-{len(parts)}"
     )
-    assert checksums.encrypted_checksum_for_s3() == expected_etag
+    assert checksums.get_encrypted_checksum_for_s3() == expected_etag

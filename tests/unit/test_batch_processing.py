@@ -33,7 +33,7 @@ FILE_ID = TEST_FILE_ID
 
 def make_mock_uploader(
     *,
-    upload_raises: Exception | None = None,
+    upload_raises: BaseException | None = None,
 ) -> AsyncMock:
     """Create a mock Uploader with configurable upload_file side effect."""
     uploader = AsyncMock()
@@ -67,15 +67,22 @@ async def test_upload_files_from_list_success_does_not_call_delete():
         mock_uploader.delete_file.assert_not_called()
 
 
-async def test_upload_files_from_list_deletes_on_create_upload_error():
-    """Make sure delete_file is called when upload_file raises CreateFileUploadError."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        exceptions.CreateFileUploadError(
+            file_alias="test-file", reason="something went wrong"
+        ),
+        KeyboardInterrupt(),
+    ],
+)
+async def test_upload_files_from_list_deletes_on_errors(error: BaseException):
+    """Make sure delete_file() is called when upload_file() raises
+    either a KeyboardInterrupt or any other error.
+    """
     with NamedTemporaryFile() as f:
         file_info = make_file_info_for_upload(path=Path(f.name))
-        mock_uploader = make_mock_uploader(
-            upload_raises=exceptions.CreateFileUploadError(
-                file_alias="test-file", reason="failed"
-            )
-        )
+        mock_uploader = make_mock_uploader(upload_raises=error)
 
         with (
             patch(

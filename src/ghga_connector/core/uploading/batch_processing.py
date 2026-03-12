@@ -19,7 +19,6 @@ import logging
 
 from pydantic import SecretBytes
 
-from ghga_connector import exceptions
 from ghga_connector.core import CLIMessageDisplay
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.uploading.api_calls import UploadClient
@@ -36,7 +35,11 @@ async def upload_files_from_list(
     my_private_key: SecretBytes,
     max_concurrent_uploads: int,
 ):
-    """Upload all files in the provided list of file paths"""
+    """Upload all files in the provided list of file paths.
+
+    If the user cancels the upload, e.g. via CTRL+C, or if an unexpected error occurs,
+    the in progress file will be cancelled and the upload process halted.
+    """
     CLIMessageDisplay.display(f"Starting batch upload of {len(file_info_list)} files")
     for file_info in file_info_list:
         encryptor = Crypt4GHEncryptor(
@@ -50,7 +53,6 @@ async def upload_files_from_list(
             file_info=file_info,
             max_concurrent_uploads=max_concurrent_uploads,
         )
-        # TODO: Special handling for keyboard cancel?
         log.info("Initializing upload for %s", file_info.alias)
         log.debug("Full file path is %s", str(file_info.path.resolve()))
         file_id = await uploader.initiate_file_upload()
@@ -64,11 +66,27 @@ async def upload_files_from_list(
         log.info("Encrypting and uploading %s", file_info.alias)
         try:
             await uploader.upload_file()
-        except exceptions.CreateFileUploadError as err:
+        except KeyboardInterrupt:
+            # User cancellation is handled here
+            CLIMessageDisplay.failure(
+                f"User aborted upload for {file_info.alias}, (file ID {file_id}), deleting."
+            )
+            await uploader.delete_file()
+            CLIMessageDisplay.success(
+                f"File upload for {file_info.alias} successfully cancelled."
+                + "\nUpload process stopped. If applicable, any previously completed"
+                + " file uploads remain uploaded."
+            )
+        except BaseException as err:
+            # All other errors are handled here
             CLIMessageDisplay.failure(str(err))
             CLIMessageDisplay.failure(
                 f"Failed to upload {file_info.alias}, (file ID {file_id}), deleting."
             )
             await uploader.delete_file()
+            CLIMessageDisplay.display(
+                f"File upload for {file_info.alias} was cancelled."
+            )
         else:
+            # This is the success case
             CLIMessageDisplay.success(f"Successfully uploaded {file_info.alias}.")

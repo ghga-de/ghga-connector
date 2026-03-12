@@ -13,22 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Unit tests for the client for the Upload API"""
+"""Unit tests for the HTTP client for the Upload API"""
 
 from collections.abc import AsyncGenerator
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
+import httpx
 import pytest
 import pytest_asyncio
 from httpx import Response
 from pydantic import UUID4
 from pytest_httpx import HTTPXMock
+from tenacity import RetryError
 
 from ghga_connector import exceptions
 from ghga_connector.core.client import async_client
-from ghga_connector.core.uploading.api_calls import UploadClient
+from ghga_connector.core.uploading.api_calls import (
+    UploadClient,
+    _check_for_request_errors,
+)
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 
 pytestmark = [
@@ -76,7 +81,7 @@ async def upload_client(
 async def test_create_file_upload_success(
     upload_client: UploadClient, httpx_mock: HTTPXMock
 ):
-    """Test the create_file_upload() method on the UploadClient"""
+    """Test that create_file_upload posts the correct body and returns the file ID."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads"
     body = {
         "alias": FILE_ALIAS,
@@ -110,7 +115,7 @@ async def test_create_file_upload_success(
 
 
 async def test_get_part_upload_url(upload_client: UploadClient, httpx_mock: HTTPXMock):
-    """Test the get_part_upload_url() method on the UploadClient"""
+    """Test that get_part_upload_url returns the presigned URL from the API."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
     httpx_mock.add_response(200, url=url, method="GET", json=UPLOAD_URL)
     upload_url = await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
@@ -128,7 +133,7 @@ async def test_get_part_upload_url(upload_client: UploadClient, httpx_mock: HTTP
 
 
 async def test_upload_file_part(upload_client: UploadClient, httpx_mock: HTTPXMock):
-    """Test the upload_file_part() method on the UploadClient"""
+    """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
     httpx_mock.add_response(200, url=url, method="GET", json=UPLOAD_URL)
     httpx_mock.add_response(200, url=UPLOAD_URL, method="PUT", match_content=b"abc123")
@@ -136,7 +141,7 @@ async def test_upload_file_part(upload_client: UploadClient, httpx_mock: HTTPXMo
 
 
 async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTTPXMock):
-    """Test the complete_file_upload() method on the UploadClient"""
+    """Test that complete_file_upload sends the correct checksums in the PATCH request."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
     unencrypted_checksum = "abc123"
     encrypted_checksum = "xyz456"
@@ -177,7 +182,7 @@ async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTT
 
 
 async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
-    """Test the delete_file() method on the UploadClient"""
+    """Test that delete_file sends a DELETE request and uses the correct work order token."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
     httpx_mock.add_response(204, url=url, method="DELETE")
     await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
@@ -313,9 +318,9 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
             FILE_ID,
             exceptions.OrphanedUploadError,
         ),
-        # 409 status codes - no matching exception id
+        # 400 status codes - no matching exception id
         (
-            409,
+            400,
             {"exception_id": "nosuchexceptionid"},
             BOX_ID,
             FILE_ALIAS,
@@ -378,7 +383,7 @@ async def test_handle_bad_status_codes(
     file_id: UUID4 | None,
     expected_error: type[Exception],
 ):
-    """Test _handle_bad_status_codes method with various parameters and status codes."""
+    """Make sure _handle_bad_status_codes translates HTTP errors to the correct exception types."""
     response = Response(status_code=status_code, json=response_json)
     with pytest.raises(expected_error):
         upload_client._handle_bad_status_codes(
@@ -388,3 +393,58 @@ async def test_handle_bad_status_codes(
             file_alias=file_alias,
             file_id=file_id,
         )
+
+
+def make_retry_error(exception: Exception) -> RetryError:
+    """Wrap an exception inside a tenacity RetryError via a mock last_attempt."""
+    mock_attempt = MagicMock()
+    mock_attempt.exception.return_value = exception
+    return RetryError(last_attempt=mock_attempt)
+
+
+def test_check_for_request_errors_connect_error():
+    """Make sure a RetryError wrapping ConnectError is translated to ConnectionFailedError."""
+    retry_error = make_retry_error(httpx.ConnectError("connection refused"))
+    with pytest.raises(exceptions.ConnectionFailedError):
+        _check_for_request_errors(retry_error, "http://example.com")
+
+
+def test_check_for_request_errors_connect_timeout():
+    """Make sure a RetryError wrapping ConnectTimeout is translated to ConnectionFailedError."""
+    retry_error = make_retry_error(httpx.ConnectTimeout("timed out"))
+    with pytest.raises(exceptions.ConnectionFailedError):
+        _check_for_request_errors(retry_error, "http://example.com")
+
+
+def test_check_for_request_errors_other_request_error():
+    """Make sure a RetryError wrapping a non-connect RequestError is translated to RequestFailedError."""
+    retry_error = make_retry_error(httpx.ReadTimeout("read timeout"))
+    with pytest.raises(exceptions.RequestFailedError):
+        _check_for_request_errors(retry_error, "http://example.com")
+
+
+async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_raises(
+    upload_client: UploadClient, httpx_mock: HTTPXMock
+):
+    """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
+    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
+    # Return 403 on both attempts (first call and the bust_cache retry)
+    httpx_mock.add_response(
+        403, url=url, method="GET", json={"exception_id": "authorizationError"}
+    )
+    httpx_mock.add_response(
+        403, url=url, method="GET", json={"exception_id": "authorizationError"}
+    )
+
+    # Replace the AsyncMock auto-attribute with a plain MagicMock so calling
+    # cache_invalidate() doesn't create an unawaited coroutine warning.
+    cache_invalidate_mock = MagicMock()
+    upload_client._work_package_client.get_upload_wot.cache_invalidate = (  # type: ignore
+        cache_invalidate_mock
+    )
+
+    with pytest.raises(exceptions.AuthorizationError):
+        await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
+
+    # The cache should have been invalidated exactly once (on the bust_cache=True retry)
+    cache_invalidate_mock.assert_called_once()

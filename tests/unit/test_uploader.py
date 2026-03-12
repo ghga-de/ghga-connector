@@ -173,7 +173,7 @@ async def test_upload_file_calls_complete_after_all_parts():
             max_concurrent_uploads=1,
         )
         uploader._file_id = FILE_ID
-        uploader.new_progress_bar = MagicMock(return_value=MagicMock())
+        uploader.new_progress_bar = MagicMock(return_value=MagicMock())  # type: ignore
 
         await uploader.upload_file()
 
@@ -200,7 +200,7 @@ async def test_upload_file_complete_error_raises_complete_file_upload_error():
             max_concurrent_uploads=1,
         )
         uploader._file_id = FILE_ID
-        uploader.new_progress_bar = MagicMock(return_value=MagicMock())
+        uploader.new_progress_bar = MagicMock(return_value=MagicMock())  # type: ignore
 
         with pytest.raises(exceptions.CompleteFileUploadError):
             await uploader.upload_file()

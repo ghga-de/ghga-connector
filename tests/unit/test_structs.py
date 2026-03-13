@@ -22,11 +22,9 @@ import crypt4gh.lib
 import pytest
 
 from ghga_connector.core.uploading.structs import (
-    AUTH_TAG_LENGTH,
     ENVELOPE_SIZE,
     MAX_PART_SIZE,
     MIN_PART_SIZE,
-    NONCE_LENGTH,
     CoreFileInfo,
     FileInfoForUpload,
 )
@@ -62,24 +60,20 @@ def make_file_info_for_upload(
         # Zero-byte file: only the envelope
         (0, ENVELOPE_SIZE),
         # Sub-segment file: remainder gets nonce + auth tag overhead
-        (100, 100 + NONCE_LENGTH + AUTH_TAG_LENGTH + ENVELOPE_SIZE),
+        (100, 100 + crypt4gh.lib.CIPHER_DIFF + ENVELOPE_SIZE),
         # Exactly one full segment: no remainder chunk
         (SEGMENT_SIZE, CIPHER_SEGMENT_SIZE + ENVELOPE_SIZE),
         # One full segment + 1-byte remainder
         (
             SEGMENT_SIZE + 1,
-            CIPHER_SEGMENT_SIZE + 1 + NONCE_LENGTH + AUTH_TAG_LENGTH + ENVELOPE_SIZE,
+            CIPHER_SEGMENT_SIZE + 1 + crypt4gh.lib.CIPHER_DIFF + ENVELOPE_SIZE,
         ),
         # Multiple full segments, no remainder
         (3 * SEGMENT_SIZE, 3 * CIPHER_SEGMENT_SIZE + ENVELOPE_SIZE),
         # Multiple segments + remainder
         (
             2 * SEGMENT_SIZE + 500,
-            2 * CIPHER_SEGMENT_SIZE
-            + 500
-            + NONCE_LENGTH
-            + AUTH_TAG_LENGTH
-            + ENVELOPE_SIZE,
+            2 * CIPHER_SEGMENT_SIZE + 500 + crypt4gh.lib.CIPHER_DIFF + ENVELOPE_SIZE,
         ),
     ],
 )

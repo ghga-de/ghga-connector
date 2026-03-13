@@ -25,8 +25,6 @@ from pydantic import computed_field
 
 log = logging.getLogger(__name__)
 
-NONCE_LENGTH = 12
-AUTH_TAG_LENGTH = 16
 ENVELOPE_SIZE = 124  # for one recipient (i.e. GHGA)
 MIN_PART_SIZE = 5 * 1024**2  # 5 MiB (S3 minimum for multipart parts)
 MAX_PART_SIZE = 5 * 1024**3  # 5 GiB (S3 maximum for multipart parts)
@@ -51,18 +49,15 @@ class CoreFileInfo:
         """The expected size of the encrypted file content, INCLUDING envelope."""
         # The number of encrypted chunks produced during encryption depends on the file
         #  size. ChaCha20Poly1305 encrypts SEGMENT_SIZE bytes at a time
-        chunks = self.decrypted_size // crypt4gh.lib.SEGMENT_SIZE
+        chunks, unencrypted_remainder = divmod(
+            self.decrypted_size, crypt4gh.lib.SEGMENT_SIZE
+        )
 
-        # Each full-length encrypted chunk in the file is CIPHER_SEGMENT_SIZE bytes long
-        # The difference is 28 bytes. This comes from a 12-byte NONCE and a 16-byte auth tag.
-        chunk_size = crypt4gh.lib.CIPHER_SEGMENT_SIZE
-
-        # The last bytes of the file, which are less than SEGMENT_SIZE, are encrypted as
-        #  is - no magic padding. So if there are 40 straggler bytes, it's 68 when encrypted.
-        unencrypted_remainder = self.decrypted_size - crypt4gh.lib.SEGMENT_SIZE * chunks
-        size_sans_envelope = chunk_size * chunks
+        # Each full-length encrypted chunk gains 28 bytes of information, which comes
+        #  from a 12-byte NONCE and a 16-byte auth tag.
+        size_sans_envelope = self.decrypted_size + chunks * crypt4gh.lib.CIPHER_DIFF
         if unencrypted_remainder:
-            size_sans_envelope += unencrypted_remainder + NONCE_LENGTH + AUTH_TAG_LENGTH
+            size_sans_envelope += crypt4gh.lib.CIPHER_DIFF
         return size_sans_envelope + ENVELOPE_SIZE
 
 

@@ -16,6 +16,7 @@
 """Batch processing for the upload process"""
 
 import logging
+import signal
 
 from pydantic import SecretBytes
 
@@ -28,37 +29,31 @@ from ghga_connector.core.uploading.uploader import Uploader
 log = logging.getLogger(__name__)
 
 
-async def perform_cleanup(
-    *, uploader: Uploader, alias: str, caused_by_user: bool
-) -> None:
+def _signal_handler(signum, frame):
+    """Capture KeyboardInterrupt"""
+    CLIMessageDisplay.display("Cleanup in progress, please wait…")
+
+
+async def perform_cleanup(*, uploader: Uploader, alias: str) -> None:
     """Perform file cleanup after an error or user cancellation.
 
     Prevents subsequent keyboard cancellations from disrupting cleanup process.
     """
-    while True:
-        try:
-            await uploader.delete_file()
-        except KeyboardInterrupt:
-            CLIMessageDisplay.display("Cleanup in progress, please wait…")
-        except BaseException as exc:
-            CLIMessageDisplay.failure(str(exc))
-            CLIMessageDisplay.failure(
-                "Failed to cancel in-progress upload after unhandled exception."
-            )
-            break
-        else:
-            if caused_by_user:
-                CLIMessageDisplay.success(
-                    f"File upload {alias} successfully cancelled."
-                )
-            else:
-                CLIMessageDisplay.display(f"File upload for {alias} was cancelled.")
-            # in both cases, follow up with:
-            CLIMessageDisplay.display(
-                "Upload process stopped. If applicable, any previously completed"
-                + " file uploads remain uploaded."
-            )
-            break
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    try:
+        await uploader.delete_file()
+    except BaseException as exc:
+        CLIMessageDisplay.failure(str(exc))
+        CLIMessageDisplay.failure(
+            "Failed to cancel in-progress upload after unhandled exception."
+        )
+    else:
+        CLIMessageDisplay.display(f"File upload for {alias} was cancelled.")
+        CLIMessageDisplay.display(
+            "Upload process stopped. If applicable, any previously completed"
+            + " file uploads remain uploaded."
+        )
 
 
 async def upload_files_from_list(
@@ -104,18 +99,14 @@ async def upload_files_from_list(
             CLIMessageDisplay.failure(
                 f"User aborted upload for {file_info.alias}, (file ID {file_id}), deleting."
             )
-            await perform_cleanup(
-                uploader=uploader, alias=file_info.alias, caused_by_user=True
-            )
+            await perform_cleanup(uploader=uploader, alias=file_info.alias)
         except BaseException as err:
             # All other errors are handled here
             CLIMessageDisplay.failure(str(err))
             CLIMessageDisplay.failure(
                 f"Failed to upload {file_info.alias}, (file ID {file_id}), deleting."
             )
-            await perform_cleanup(
-                uploader=uploader, alias=file_info.alias, caused_by_user=False
-            )
+            await perform_cleanup(uploader=uploader, alias=file_info.alias)
         else:
             # This is the success case
             CLIMessageDisplay.success(f"Successfully uploaded {file_info.alias}.")

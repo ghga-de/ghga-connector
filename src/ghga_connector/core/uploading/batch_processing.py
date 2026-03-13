@@ -28,6 +28,39 @@ from ghga_connector.core.uploading.uploader import Uploader
 log = logging.getLogger(__name__)
 
 
+async def perform_cleanup(
+    *, uploader: Uploader, alias: str, caused_by_user: bool
+) -> None:
+    """Perform file cleanup after an error or user cancellation.
+
+    Prevents subsequent keyboard cancellations from disrupting cleanup process.
+    """
+    while True:
+        try:
+            await uploader.delete_file()
+        except KeyboardInterrupt:
+            CLIMessageDisplay.display("Cleanup in progress, please wait…")
+        except BaseException as exc:
+            CLIMessageDisplay.failure(str(exc))
+            CLIMessageDisplay.failure(
+                "Failed to cancel in-progress upload after unhandled exception."
+            )
+            break
+        else:
+            if caused_by_user:
+                CLIMessageDisplay.success(
+                    f"File upload {alias} successfully cancelled."
+                )
+            else:
+                CLIMessageDisplay.display(f"File upload for {alias} was cancelled.")
+            # in both cases, follow up with:
+            CLIMessageDisplay.display(
+                "Upload process stopped. If applicable, any previously completed"
+                + " file uploads remain uploaded."
+            )
+            break
+
+
 async def upload_files_from_list(
     *,
     upload_client: UploadClient,
@@ -71,11 +104,8 @@ async def upload_files_from_list(
             CLIMessageDisplay.failure(
                 f"User aborted upload for {file_info.alias}, (file ID {file_id}), deleting."
             )
-            await uploader.delete_file()
-            CLIMessageDisplay.success(
-                f"File upload for {file_info.alias} successfully cancelled."
-                + "\nUpload process stopped. If applicable, any previously completed"
-                + " file uploads remain uploaded."
+            await perform_cleanup(
+                uploader=uploader, alias=file_info.alias, caused_by_user=True
             )
         except BaseException as err:
             # All other errors are handled here
@@ -83,9 +113,8 @@ async def upload_files_from_list(
             CLIMessageDisplay.failure(
                 f"Failed to upload {file_info.alias}, (file ID {file_id}), deleting."
             )
-            await uploader.delete_file()
-            CLIMessageDisplay.display(
-                f"File upload for {file_info.alias} was cancelled."
+            await perform_cleanup(
+                uploader=uploader, alias=file_info.alias, caused_by_user=False
             )
         else:
             # This is the success case

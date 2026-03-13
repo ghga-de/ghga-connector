@@ -83,10 +83,12 @@ async def test_create_file_upload_success(
 ):
     """Test that create_file_upload posts the correct body and returns the file ID."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads"
+    decrypted_size = 20 * 1024**3
+    encrypted_size = 20 * 1024**3 + 2000  # larger due to encryption padding & envelope
     body = {
         "alias": FILE_ALIAS,
-        "decrypted_size": 1000,
-        "encrypted_size": 1100,
+        "decrypted_size": decrypted_size,
+        "encrypted_size": encrypted_size,
         "part_size": 100,
     }
 
@@ -94,7 +96,10 @@ async def test_create_file_upload_success(
         201, url=url, match_json=body, method="POST", json=str(FILE_ID)
     )
     file_id = await upload_client.create_file_upload(
-        file_alias=FILE_ALIAS, decrypted_size=1000, encrypted_size=1100, part_size=100
+        file_alias=FILE_ALIAS,
+        decrypted_size=decrypted_size,
+        encrypted_size=encrypted_size,
+        part_size=100,
     )
     assert file_id == FILE_ID
 
@@ -108,8 +113,8 @@ async def test_create_file_upload_success(
     with pytest.raises(exceptions.UnexpectedError):
         _ = await upload_client.create_file_upload(
             file_alias=FILE_ALIAS,
-            decrypted_size=1000,
-            encrypted_size=1100,
+            decrypted_size=decrypted_size,
+            encrypted_size=encrypted_size,
             part_size=100,
         )
 
@@ -429,9 +434,6 @@ async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
     url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
     # Return 403 on both attempts (first call and the bust_cache retry)
-    httpx_mock.add_response(
-        403, url=url, method="GET", json={"exception_id": "authorizationError"}
-    )
     httpx_mock.add_response(
         403, url=url, method="GET", json={"exception_id": "authorizationError"}
     )

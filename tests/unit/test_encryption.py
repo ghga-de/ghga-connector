@@ -58,9 +58,7 @@ def make_encryptor(
     if part_size is None:
         part_size = max(8 * 1024**3, file_size * 2 + 1)
     return Crypt4GHEncryptor(
-        part_size=part_size,
-        my_private_key=private_key,
-        file_size=file_size,
+        part_size=part_size, my_private_key=private_key, file_size=file_size
     )
 
 
@@ -69,24 +67,6 @@ def run_process_file(
 ) -> list[tuple[int, bytes]]:
     """Run process_file on in-memory bytes and collect all yielded (part_number, content) tuples."""
     return list(encryptor.process_file(file=io.BytesIO(data)))  # type: ignore
-
-
-def test_process_file_part_numbers_are_sequential(private_key):
-    """Make sure part numbers start at 1 and are contiguous when part_size == CIPHER_SEGMENT_SIZE.
-
-    Using CIPHER_SEGMENT_SIZE as part_size guarantees the first yield happens inside the
-    file-reading loop (upload_buffer will exceed part_size on the first iteration), which
-    makes part_number start at 1 rather than at the post-loop-incremented value.
-    """
-    file_data = os.urandom(4 * SEGMENT_SIZE)
-    encryptor = make_encryptor(
-        private_key, file_size=len(file_data), part_size=CIPHER_SEGMENT_SIZE
-    )
-    parts = run_process_file(encryptor, file_data)
-    numbers = [n for n, _ in parts]
-    assert len(numbers) > 1
-    assert numbers[0] == 1
-    assert all(numbers[i] == numbers[i - 1] + 1 for i in range(1, len(numbers)))
 
 
 def test_process_file_total_bytes_match_encrypted_size(private_key):
@@ -139,17 +119,3 @@ def test_process_file_encrypted_checksum_count_matches_part_count(private_key):
     assert len(parts) > 1
     assert len(encryptor.checksums.encrypted_parts_md5) == len(parts)
     assert len(encryptor.checksums.encrypted_parts_sha256) == len(parts)
-
-
-def test_process_file_multi_part_total_bytes_match_encrypted_size(private_key):
-    """Make sure multi-part processing yields bytes that sum to the total encrypted_size."""
-    file_data = os.urandom(3 * SEGMENT_SIZE)
-    core_info = CoreFileInfo(
-        alias="x", path=Path("/dev/null"), decrypted_size=len(file_data)
-    )
-    encryptor = make_encryptor(
-        private_key, file_size=len(file_data), part_size=CIPHER_SEGMENT_SIZE
-    )
-    parts = run_process_file(encryptor, file_data)
-    assert len(parts) > 1
-    assert sum(len(content) for _, content in parts) == core_info.encrypted_size

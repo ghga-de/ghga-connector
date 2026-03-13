@@ -36,12 +36,12 @@ CIPHER_SEGMENT_SIZE = crypt4gh.lib.CIPHER_SEGMENT_SIZE
 MIN_ALIGNED = ceil(MIN_PART_SIZE / CIPHER_SEGMENT_SIZE) * CIPHER_SEGMENT_SIZE
 MAX_ALIGNED = (MAX_PART_SIZE // CIPHER_SEGMENT_SIZE) * CIPHER_SEGMENT_SIZE
 
-DUMMY_PATH = Path("/dev/null")
-
 
 def make_core_file_info(decrypted_size: int) -> CoreFileInfo:
     """Make a CoreFileInfo instance with the given decrypted size"""
-    return CoreFileInfo(alias="test", path=DUMMY_PATH, decrypted_size=decrypted_size)
+    return CoreFileInfo(
+        alias="test", path=Path("/dev/null"), decrypted_size=decrypted_size
+    )
 
 
 def make_file_info_for_upload(
@@ -123,8 +123,7 @@ def test_part_size_clamped_down_to_max():
 
 def test_part_size_adjusted_for_10k_limit():
     """Make sure that the part size is grown for very large files to keep the part count under 10 000."""
-    # Build a file large enough that even MIN_ALIGNED-sized parts would exceed 10k.
-    # MIN_ALIGNED * 10_000 = 10_000 * ceil(MIN_PART_SIZE / CSEG) * CSEG bytes of ciphertext.
+    # Build a file large enough that default-sized parts would exceed 10k.
     n_segments = ceil(10_000 * MIN_ALIGNED / CIPHER_SEGMENT_SIZE) + 1
     decrypted_size = n_segments * SEGMENT_SIZE  # no remainder == good
     info = make_file_info_for_upload(
@@ -133,4 +132,5 @@ def test_part_size_adjusted_for_10k_limit():
 
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
     assert info.part_size >= MIN_PART_SIZE
+    assert info.part_size <= MAX_PART_SIZE
     assert ceil(info.encrypted_size / info.part_size) < 10_000

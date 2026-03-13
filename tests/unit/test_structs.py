@@ -21,20 +21,20 @@ from pathlib import Path
 import crypt4gh.lib
 import pytest
 
+from ghga_connector.constants import (
+    MAX_ALIGNED_PART_SIZE,
+    MAX_PART_SIZE,
+    MIN_ALIGNED_PART_SIZE,
+    MIN_PART_SIZE,
+)
 from ghga_connector.core.uploading.structs import (
     ENVELOPE_SIZE,
-    MAX_PART_SIZE,
-    MIN_PART_SIZE,
     CoreFileInfo,
     FileInfoForUpload,
 )
 
 SEGMENT_SIZE = crypt4gh.lib.SEGMENT_SIZE
 CIPHER_SEGMENT_SIZE = crypt4gh.lib.CIPHER_SEGMENT_SIZE
-
-# Aligned S3 bounds — same formula as structs.py
-MIN_ALIGNED = ceil(MIN_PART_SIZE / CIPHER_SEGMENT_SIZE) * CIPHER_SEGMENT_SIZE
-MAX_ALIGNED = (MAX_PART_SIZE // CIPHER_SEGMENT_SIZE) * CIPHER_SEGMENT_SIZE
 
 
 def make_core_file_info(decrypted_size: int) -> CoreFileInfo:
@@ -91,8 +91,8 @@ def test_part_size_already_aligned():
 
     MIN_ALIGNED is the smallest multiple of CIPHER_SEGMENT_SIZE that is at least 5 MiB.
     """
-    info = make_file_info_for_upload(100, configured_part_size=MIN_ALIGNED)
-    assert info.part_size == MIN_ALIGNED
+    info = make_file_info_for_upload(100, configured_part_size=MIN_ALIGNED_PART_SIZE)
+    assert info.part_size == MIN_ALIGNED_PART_SIZE
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
 
 
@@ -100,15 +100,17 @@ def test_part_size_rounds_up_to_next_segment():
     """Make sure that a configured part size one byte above an alignment boundary
     is rounded up by exactly one cipher segment.
     """
-    info = make_file_info_for_upload(100, configured_part_size=MIN_ALIGNED + 1)
-    assert info.part_size == MIN_ALIGNED + CIPHER_SEGMENT_SIZE
+    info = make_file_info_for_upload(
+        100, configured_part_size=MIN_ALIGNED_PART_SIZE + 1
+    )
+    assert info.part_size == MIN_ALIGNED_PART_SIZE + CIPHER_SEGMENT_SIZE
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
 
 
 def test_part_size_clamped_up_to_min():
     """Make sure that a configured part size below the S3 5 MiB minimum is raised to MIN_ALIGNED."""
     info = make_file_info_for_upload(100, configured_part_size=1_000)
-    assert info.part_size == MIN_ALIGNED
+    assert info.part_size == MIN_ALIGNED_PART_SIZE
     assert info.part_size >= MIN_PART_SIZE
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
 
@@ -116,7 +118,7 @@ def test_part_size_clamped_up_to_min():
 def test_part_size_clamped_down_to_max():
     """Make sure that a configured part size above the S3 5 GiB maximum is lowered to MAX_ALIGNED."""
     info = make_file_info_for_upload(100, configured_part_size=MAX_PART_SIZE + 1)
-    assert info.part_size == MAX_ALIGNED
+    assert info.part_size == MAX_ALIGNED_PART_SIZE
     assert info.part_size <= MAX_PART_SIZE
     assert info.part_size % CIPHER_SEGMENT_SIZE == 0
 
@@ -124,7 +126,7 @@ def test_part_size_clamped_down_to_max():
 def test_part_size_adjusted_for_10k_limit():
     """Make sure that the part size is grown for very large files to keep the part count under 10 000."""
     # Build a file large enough that default-sized parts would exceed 10k.
-    n_segments = ceil(10_000 * MIN_ALIGNED / CIPHER_SEGMENT_SIZE) + 1
+    n_segments = ceil(10_000 * MIN_ALIGNED_PART_SIZE / CIPHER_SEGMENT_SIZE) + 1
     decrypted_size = n_segments * SEGMENT_SIZE  # no remainder == good
     info = make_file_info_for_upload(
         decrypted_size, configured_part_size=CIPHER_SEGMENT_SIZE

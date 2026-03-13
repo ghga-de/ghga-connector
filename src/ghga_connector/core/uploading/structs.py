@@ -23,11 +23,13 @@ from pathlib import Path
 import crypt4gh.lib
 from pydantic import computed_field
 
-log = logging.getLogger(__name__)
+from ghga_connector.constants import (
+    ENVELOPE_SIZE,
+    MAX_ALIGNED_PART_SIZE,
+    MIN_ALIGNED_PART_SIZE,
+)
 
-ENVELOPE_SIZE = 124  # for one recipient (i.e. GHGA)
-MIN_PART_SIZE = 5 * 1024**2  # 5 MiB (S3 minimum for multipart parts)
-MAX_PART_SIZE = 5 * 1024**3  # 5 GiB (S3 maximum for multipart parts)
+log = logging.getLogger(__name__)
 
 
 class CoreFileInfo:
@@ -105,14 +107,9 @@ class FileInfoForUpload(CoreFileInfo):
             segments_per_part = ceil(new_part_size / crypt4gh.lib.CIPHER_SEGMENT_SIZE)
             adjusted_part_size = segments_per_part * crypt4gh.lib.CIPHER_SEGMENT_SIZE
 
-        min_aligned = (
-            ceil(MIN_PART_SIZE / crypt4gh.lib.CIPHER_SEGMENT_SIZE)
-            * crypt4gh.lib.CIPHER_SEGMENT_SIZE
+        adjusted_part_size = max(
+            MIN_ALIGNED_PART_SIZE, min(MAX_ALIGNED_PART_SIZE, adjusted_part_size)
         )
-        max_aligned = (
-            MAX_PART_SIZE // crypt4gh.lib.CIPHER_SEGMENT_SIZE
-        ) * crypt4gh.lib.CIPHER_SEGMENT_SIZE
-        adjusted_part_size = max(min_aligned, min(max_aligned, adjusted_part_size))
 
         if adjusted_part_size != self.configured_part_size:
             log.info(

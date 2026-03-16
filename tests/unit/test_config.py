@@ -31,8 +31,8 @@ from ghga_connector.config import (
 from ghga_connector.core import async_client
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import mock_external_calls
-from tests.fixtures.utils import TEST_STORAGE_ALIAS1  # noqa: F401
+from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
+from tests.fixtures.utils import TEST_STORAGE_ALIAS1
 
 pytestmark = [
     pytest.mark.asyncio,

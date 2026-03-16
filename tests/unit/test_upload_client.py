@@ -34,8 +34,8 @@ from ghga_connector.core.uploading.api_calls import (
     UploadClient,
     _check_for_request_errors,
 )
-from tests.fixtures import set_runtime_test_config
-from tests.fixtures.utils import TEST_STORAGE_ALIAS1  # noqa: F401
+from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures.utils import TEST_STORAGE_ALIAS1
 
 pytestmark = [
     pytest.mark.asyncio,

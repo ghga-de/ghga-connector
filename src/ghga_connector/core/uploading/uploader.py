@@ -53,8 +53,8 @@ class Uploader:
         )
 
     async def initiate_file_upload(self) -> tuple[UUID4, str]:
-        """Initiate a file upload in the Upload API the file alias for a
-        UUID4 file ID.
+        """Initiate a file upload in the Upload API, exchanging the file alias for a
+        UUID4 file ID and storage alias.
 
         Raises a `CreateFileUploadError` if the operation fails.
         """

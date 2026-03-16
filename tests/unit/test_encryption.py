@@ -30,7 +30,7 @@ from ghga_connector.constants import MAX_ALIGNED_PART_SIZE, MIN_ALIGNED_PART_SIZ
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.uploading.structs import CoreFileInfo
 from ghga_connector.core.utils import get_private_key
-from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE
+from tests.fixtures.utils import PRIVATE_KEY_FILE, PUBLIC_KEY_FILE, TEST_STORAGE_ALIAS1
 
 SEGMENT_SIZE = crypt4gh.lib.SEGMENT_SIZE
 CIPHER_SEGMENT_SIZE = crypt4gh.lib.CIPHER_SEGMENT_SIZE
@@ -61,7 +61,7 @@ def make_encryptor(private_key, file_size: int) -> Crypt4GHEncryptor:
         part_size=part_size,
         my_private_key=private_key,
         file_size=file_size,
-        storage_alias="HD01",
+        storage_alias=TEST_STORAGE_ALIAS1,
     )
 
 

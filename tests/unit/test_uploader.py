@@ -26,7 +26,11 @@ from ghga_connector import exceptions
 from ghga_connector.core.crypt.checksums import Checksums
 from ghga_connector.core.crypt.encryption import FileProcessor
 from ghga_connector.core.uploading.uploader import Uploader
-from tests.fixtures.utils import TEST_FILE_ID, make_file_info_for_upload
+from tests.fixtures.utils import (
+    TEST_FILE_ID,
+    TEST_STORAGE_ALIAS2,
+    make_file_info_for_upload,
+)
 
 pytestmark = pytest.mark.asyncio
 
@@ -73,13 +77,13 @@ async def test_initiate_file_upload_returns_file_id():
     """Make sure initiate_file_upload returns the file ID provided by the upload client."""
     with NamedTemporaryFile() as f:
         upload_client = AsyncMock()
-        upload_client.create_file_upload.return_value = FILE_ID, "HD01"
+        upload_client.create_file_upload.return_value = FILE_ID, TEST_STORAGE_ALIAS2
         uploader = make_uploader(Path(f.name), upload_client=upload_client)
         file_info = uploader._file_info
 
         result = await uploader.initiate_file_upload()
 
-        assert result == (FILE_ID, "HD01")
+        assert result == (FILE_ID, TEST_STORAGE_ALIAS2)
         upload_client.create_file_upload.assert_called_once_with(
             file_alias=FILE_ALIAS,
             decrypted_size=file_info.decrypted_size,

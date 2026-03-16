@@ -34,7 +34,8 @@ from ghga_connector.core.uploading.api_calls import (
     UploadClient,
     _check_for_request_errors,
 )
-from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures import set_runtime_test_config
+from tests.fixtures.utils import TEST_STORAGE_ALIAS1  # noqa: F401
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -95,7 +96,7 @@ async def test_create_file_upload_success(
     response_body = {
         "file_id": str(FILE_ID),
         "alias": FILE_ALIAS,
-        "storage_alias": "HD01",
+        "storage_alias": TEST_STORAGE_ALIAS1,
     }
     httpx_mock.add_response(
         201, url=url, match_json=body, method="POST", json=response_body
@@ -107,7 +108,7 @@ async def test_create_file_upload_success(
         part_size=100,
     )
     assert file_id == FILE_ID
-    assert storage_alias == "HD01"
+    assert storage_alias == TEST_STORAGE_ALIAS1
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore

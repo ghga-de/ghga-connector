@@ -42,6 +42,7 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from pydantic import BaseModel
 
 from ghga_connector.core.client import get_ratelimiting_retry_transport
+from tests.fixtures.utils import TEST_PUBLIC_KEYS, TEST_STORAGE_ALIAS1
 
 WORK = "/work"
 UPLOAD = "/upload"
@@ -279,7 +280,7 @@ async def create_file_upload(box_id: UUID, request: Request):
     file_creation_response_body = {
         "file_id": file_id,
         "alias": alias,
-        "storage_alias": "HD01",
+        "storage_alias": TEST_STORAGE_ALIAS1,
     }
     await init_upload_placeholder(object_id=file_id)
     return JSONResponse(status_code=201, content=file_creation_response_body)
@@ -353,10 +354,7 @@ async def mock_wkvs():
     """Mock the WKVS /values endpoint"""
     api_url = "http://127.0.0.1"
     values: dict[str, Any] = {
-        "crypt4gh_public_keys": {
-            "HD01": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
-            "B": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
-        },
+        "crypt4gh_public_keys": TEST_PUBLIC_KEYS,
         "wps_api_url": f"{api_url}{WORK}",
         "dcs_api_url": f"{api_url}{DOWNLOAD}",
         "ucs_api_url": f"{api_url}{UPLOAD}",

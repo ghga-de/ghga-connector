@@ -31,7 +31,8 @@ from ghga_connector.config import (
 from ghga_connector.core import async_client
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
+from tests.fixtures.mock_api.app import mock_external_calls
+from tests.fixtures.utils import TEST_STORAGE_ALIAS1  # noqa: F401
 
 pytestmark = [
     pytest.mark.asyncio,
@@ -55,7 +56,7 @@ async def test_set_runtime_config(mock_external_calls):  # noqa: F811
     # Make a list of the ctx var retrieval functions
     ctx_var_getter_fns = [
         get_download_api_url,
-        partial(get_crypt4gh_public_key, "HD01"),
+        partial(get_crypt4gh_public_key, TEST_STORAGE_ALIAS1),
         get_upload_api_url,
         get_work_package_api_url,
     ]

@@ -19,8 +19,8 @@ import pytest_asyncio
 from hexkit.utils import set_context_var
 
 from ghga_connector.config import (
+    crypt4gh_public_keys,
     download_api_url_var,
-    ghga_pubkey_var,
     upload_api_url_var,
     work_package_api_url_var,
 )
@@ -38,7 +38,11 @@ async def set_runtime_test_config():
         set_context_var(download_api_url_var, "http://127.0.0.1/download"),
         set_context_var(work_package_api_url_var, "http://127.0.0.1/work"),
         set_context_var(
-            ghga_pubkey_var, "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY="
+            crypt4gh_public_keys,
+            {
+                "HD01": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+                "B": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+            },
         ),
     ):
         yield

@@ -16,13 +16,14 @@
 
 """Tests for API Calls"""
 
+from functools import partial
 from unittest.mock import patch
 
 import pytest
 
 from ghga_connector.config import (
+    get_crypt4gh_public_key,
     get_download_api_url,
-    get_ghga_pubkey,
     get_upload_api_url,
     get_work_package_api_url,
     set_runtime_config,
@@ -54,7 +55,7 @@ async def test_set_runtime_config(mock_external_calls):  # noqa: F811
     # Make a list of the ctx var retrieval functions
     ctx_var_getter_fns = [
         get_download_api_url,
-        get_ghga_pubkey,
+        partial(get_crypt4gh_public_key, "HD01"),
         get_upload_api_url,
         get_work_package_api_url,
     ]
@@ -62,12 +63,12 @@ async def test_set_runtime_config(mock_external_calls):  # noqa: F811
         # Verify that all the context vars are empty before calling config setup
         for func in ctx_var_getter_fns:
             with pytest.raises(ValueError):
-                _ = func()
+                _ = func()  # type: ignore[operator]
 
         # Set up runtime config
         async with set_runtime_config(client):
             # verify values are now set (from mock api)
             for func in ctx_var_getter_fns:
-                value = func()
+                value = func()  # type: ignore[operator]
                 assert isinstance(value, str)
                 assert len(value) > 0

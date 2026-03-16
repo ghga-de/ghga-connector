@@ -27,7 +27,7 @@ import os
 from datetime import datetime
 from email.utils import format_datetime
 from enum import Enum
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
 import httpx
@@ -274,10 +274,15 @@ async def create_file_upload(box_id: UUID, request: Request):
     Due to test constraints, the upload is actually created ahead of time in the test
     fixture itself. This function returns a file ID.
     """
-    _ = json.loads(await request.body())["alias"]
+    alias = json.loads(await request.body())["alias"]
     file_id = str(uuid4())
+    file_creation_response_body = {
+        "file_id": file_id,
+        "alias": alias,
+        "storage_alias": "HD01",
+    }
     await init_upload_placeholder(object_id=file_id)
-    return JSONResponse(status_code=201, content=file_id)
+    return JSONResponse(status_code=201, content=file_creation_response_body)
 
 
 async def update_part_upload_url_placeholder(object_id: str, part_no: int) -> str:
@@ -347,8 +352,11 @@ async def get_upload_wot(package_id: UUID, request: Request):
 async def mock_wkvs():
     """Mock the WKVS /values endpoint"""
     api_url = "http://127.0.0.1"
-    values: dict[str, str] = {
-        "crypt4gh_public_key": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+    values: dict[str, Any] = {
+        "crypt4gh_public_keys": {
+            "HD01": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+            "B": "qx5g31H7rdsq7sgkew9ElkLIXvBje4RxDVcAHcJD8XY=",
+        },
         "wps_api_url": f"{api_url}{WORK}",
         "dcs_api_url": f"{api_url}{DOWNLOAD}",
         "ucs_api_url": f"{api_url}{UPLOAD}",

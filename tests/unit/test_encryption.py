@@ -47,8 +47,8 @@ def patch_ghga_pubkey(monkeypatch):
     """Make the encryptor use the test public key instead of the GHGA production key."""
     pubkey = crypt4gh.keys.get_public_key(PUBLIC_KEY_FILE)
     monkeypatch.setattr(
-        "ghga_connector.core.crypt.encryption.get_ghga_pubkey",
-        lambda: base64.b64encode(pubkey).decode("utf-8"),
+        "ghga_connector.core.crypt.encryption.get_crypt4gh_public_key",
+        lambda storage_alias: base64.b64encode(pubkey).decode("utf-8"),
     )
 
 
@@ -58,7 +58,10 @@ def make_encryptor(private_key, file_size: int) -> Crypt4GHEncryptor:
     part_size = max(MIN_ALIGNED_PART_SIZE, file_size // 2)
     part_size = min(part_size, MAX_ALIGNED_PART_SIZE)
     return Crypt4GHEncryptor(
-        part_size=part_size, my_private_key=private_key, file_size=file_size
+        part_size=part_size,
+        my_private_key=private_key,
+        file_size=file_size,
+        storage_alias="HD01",
     )
 
 

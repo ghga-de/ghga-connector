@@ -46,7 +46,9 @@ pytestmark = [
     ),
 ]
 
-BOX_ID = UUID("6ec579af-3918-45d2-8333-d2cdcfb53d1d")
+# TODO: Are these the same as the other mock box IDs? If so, consolidate
+RDUB_ID = UUID("fd4981eb-5272-4170-8a78-6ab17d92363d")
+FUB_ID = UUID("6ec579af-3918-45d2-8333-d2cdcfb53d1d")
 FILE_ID = UUID("550e8400-e29b-41d4-a716-446655440002")
 FILE_ALIAS = "test-file-1"
 UPLOAD_URL = "http://upload_url"
@@ -62,19 +64,22 @@ async def upload_client(
     The WPAT user input is patched, and the Upload API health
     check is also patched to always return True.
     """
-    mock_work_package_client = AsyncMock()
-    mock_work_package_client.get_upload_wot.return_value = "wot"
-    mock_work_package_client.get_package_box_id.return_value = BOX_ID
-    box_id_mock = AsyncMock()
-    box_id_mock.return_value = BOX_ID
+    # TODO: Why are both of these mocked?
+    box_ids_mock = AsyncMock()
+    box_ids_mock.return_value = (RDUB_ID, FUB_ID)
     monkeypatch.setattr(
-        "ghga_connector.core.work_package.WorkPackageClient.get_package_box_id",
-        box_id_mock,
+        "ghga_connector.core.work_package.WorkPackageClient.get_package_box_ids",
+        box_ids_mock,
     )
 
+    # Mock the health endpoint
     monkeypatch.setattr(
         "ghga_connector.core.uploading.api_calls.is_service_healthy", lambda s: True
     )
+
+    mock_work_package_client = AsyncMock()
+    mock_work_package_client.get_upload_wot.return_value = "wot"
+    mock_work_package_client.get_package_box_ids.return_value = (RDUB_ID, FUB_ID)
     async with async_client() as client:
         yield UploadClient(client=client, work_package_client=mock_work_package_client)
 
@@ -83,7 +88,7 @@ async def test_create_file_upload_success(
     upload_client: UploadClient, httpx_mock: HTTPXMock
 ):
     """Test that create_file_upload posts the correct body and returns the file ID."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads"
     decrypted_size = 20 * 1024**3
     encrypted_size = 20 * 1024**3 + 2000  # larger due to encryption padding & envelope
     body = {
@@ -112,7 +117,10 @@ async def test_create_file_upload_success(
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
-        work_type="create", box_id=BOX_ID, file_id=None, alias=FILE_ALIAS
+        work_type="create",
+        research_data_upload_box_id=RDUB_ID,
+        file_id=None,
+        alias=FILE_ALIAS,
     )
 
     # Test that other status codes will trigger the error translation
@@ -128,14 +136,17 @@ async def test_create_file_upload_success(
 
 async def test_get_part_upload_url(upload_client: UploadClient, httpx_mock: HTTPXMock):
     """Test that get_part_upload_url returns the presigned URL from the API."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads/{FILE_ID}/parts/1"
     httpx_mock.add_response(200, url=url, method="GET", json=UPLOAD_URL)
     upload_url = await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
     assert upload_url == UPLOAD_URL
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
-        work_type="upload", box_id=BOX_ID, file_id=FILE_ID, alias=None
+        work_type="upload",
+        research_data_upload_box_id=RDUB_ID,
+        file_id=FILE_ID,
+        alias=None,
     )
 
     # Test that other status codes will trigger the error translation
@@ -146,7 +157,7 @@ async def test_get_part_upload_url(upload_client: UploadClient, httpx_mock: HTTP
 
 async def test_upload_file_part(upload_client: UploadClient, httpx_mock: HTTPXMock):
     """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads/{FILE_ID}/parts/1"
     httpx_mock.add_response(200, url=url, method="GET", json=UPLOAD_URL)
     httpx_mock.add_response(200, url=UPLOAD_URL, method="PUT", match_content=b"abc123")
     await upload_client.upload_file_part(file_id=FILE_ID, content=b"abc123", part_no=1)
@@ -154,7 +165,7 @@ async def test_upload_file_part(upload_client: UploadClient, httpx_mock: HTTPXMo
 
 async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTTPXMock):
     """Test that complete_file_upload sends the correct checksums in the PATCH request."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads/{FILE_ID}"
     unencrypted_checksum = "abc123"
     encrypted_checksum = "xyz456"
     parts_md5 = ["part1_md5"]
@@ -177,7 +188,10 @@ async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTT
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
-        work_type="close", box_id=BOX_ID, file_id=FILE_ID, alias=None
+        work_type="close",
+        research_data_upload_box_id=RDUB_ID,
+        file_id=FILE_ID,
+        alias=None,
     )
 
     # Test that other status codes will trigger the error translation
@@ -195,13 +209,16 @@ async def test_complete_file_upload(upload_client: UploadClient, httpx_mock: HTT
 
 async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
     """Test that delete_file sends a DELETE request and uses the correct work order token."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads/{FILE_ID}"
     httpx_mock.add_response(204, url=url, method="DELETE")
     await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
-        work_type="delete", box_id=BOX_ID, file_id=FILE_ID, alias=None
+        work_type="delete",
+        research_data_upload_box_id=RDUB_ID,
+        file_id=FILE_ID,
+        alias=None,
     )
 
     # Test that other status codes will trigger the error translation
@@ -211,13 +228,13 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
 
 
 @pytest.mark.parametrize(
-    "status_code, response_json, box_id, file_alias, file_id, expected_error",
+    "status_code, response_json, file_upload_box_id, file_alias, file_id, expected_error",
     [
         # 400 status code - noSuchStorage
         (
             400,
             {"exception_id": "noSuchStorage"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.S3StorageError,
@@ -226,7 +243,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             400,
             {"exception_id": "checksumMismatch"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.ChecksumMismatchError,
@@ -235,7 +252,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             400,
             {"exception_id": "nosuchexceptionid"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UnexpectedError,
@@ -244,7 +261,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             401,
             {"exception_id": "authorizationError"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.AuthorizationError,
@@ -253,7 +270,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             403,
             {"exception_id": "authorizationError"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.AuthorizationError,
@@ -262,7 +279,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "boxNotFound"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.InvalidBoxError,
@@ -271,7 +288,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "fileUploadNotFound"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.InvalidFileUploadError,
@@ -280,7 +297,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "s3UploadDetailsNotFound"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.S3UploadDetailsError,
@@ -289,7 +306,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "s3UploadNotFound"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.S3UploadMissingError,
@@ -298,7 +315,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "nosuchexceptionid"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UnexpectedError,
@@ -307,7 +324,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             409,
             {"exception_id": "boxStateError"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UploadBoxLockedError,
@@ -316,7 +333,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             409,
             {"exception_id": "fileUploadAlreadyExists"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UploadAlreadyExistsError,
@@ -325,7 +342,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             409,
             {"exception_id": "orphanedMultipartUpload"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.OrphanedUploadError,
@@ -334,7 +351,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             400,
             {"exception_id": "nosuchexceptionid"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UnexpectedError,
@@ -343,7 +360,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             500,
             {"exception_id": "internalServerError"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             FILE_ID,
             exceptions.UnexpectedError,
@@ -370,7 +387,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             404,
             {"exception_id": "fileUploadNotFound"},
-            BOX_ID,
+            FUB_ID,
             None,
             FILE_ID,
             exceptions.InvalidFileUploadError,
@@ -379,7 +396,7 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
         (
             409,
             {"exception_id": "orphanedMultipartUpload"},
-            BOX_ID,
+            FUB_ID,
             FILE_ALIAS,
             None,
             exceptions.OrphanedUploadError,
@@ -390,7 +407,7 @@ async def test_handle_bad_status_codes(
     upload_client: UploadClient,
     status_code: int,
     response_json: dict[str, Any],
-    box_id: UUID4 | None,
+    file_upload_box_id: UUID4 | None,
     file_alias: str | None,
     file_id: UUID4 | None,
     expected_error: type[Exception],
@@ -401,7 +418,7 @@ async def test_handle_bad_status_codes(
         upload_client._handle_bad_status_codes(
             status_code=status_code,
             response=response,
-            box_id=box_id,
+            file_upload_box_id=file_upload_box_id,
             file_alias=file_alias,
             file_id=file_id,
         )
@@ -439,7 +456,7 @@ async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_
     upload_client: UploadClient, httpx_mock: HTTPXMock
 ):
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
-    url = f"{upload_client._upload_api_url}/boxes/{BOX_ID}/uploads/{FILE_ID}/parts/1"
+    url = f"{upload_client._upload_api_url}/boxes/{FUB_ID}/uploads/{FILE_ID}/parts/1"
     # Return 403 on both attempts (first call and the bust_cache retry)
     httpx_mock.add_response(
         403, url=url, method="GET", json={"exception_id": "authorizationError"}

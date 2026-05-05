@@ -155,7 +155,9 @@ async def test_upload_process_stops_on_failure():
         second_uploader.upload_file.assert_not_called()
 
         # Verify the user sees the error detail and the stop notification
-        failure_messages = [call.args[0] for call in mock_display.failure.call_args_list]
+        failure_messages = [
+            call.args[0] for call in mock_display.failure.call_args_list
+        ]
         assert any("file-one" in msg for msg in failure_messages)
         assert (
             "Upload process stopped."

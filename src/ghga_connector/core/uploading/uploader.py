@@ -20,6 +20,7 @@ import logging
 from pydantic import UUID4
 
 from ghga_connector import exceptions
+from ghga_connector.constants import MAX_RETRIES, UPLOAD_RETRY_BACKOFF_SEC
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor, FileProcessor
 from ghga_connector.core.progress_bar import UploadProgressBar
 from ghga_connector.core.tasks import TaskHandler
@@ -52,7 +53,9 @@ class Uploader:
             file_name=self._file_alias, file_size=self._file_info.decrypted_size
         )
 
-    async def initiate_file_upload(self) -> tuple[UUID4, str]:
+    async def initiate_file_upload(
+        self, *, tries_left: int = MAX_RETRIES
+    ) -> tuple[UUID4, str]:
         """Initiate a file upload in the Upload API, exchanging the file alias for a
         UUID4 file ID and storage alias.
 
@@ -67,6 +70,19 @@ class Uploader:
                 part_size=self._file_info.part_size,
             )
             return self._file_id, storage_alias
+        except exceptions.TooManyRequestsError as err:
+            # Files are currently processed sequentially - a 429 might mean
+            #  some transient lag in UCS in updating FileUpload state after uploading.
+            #  Perform a few retries before letting the error bubble up
+            if tries_left:
+                tries_left -= 1
+                await asyncio.sleep(
+                    UPLOAD_RETRY_BACKOFF_SEC * (MAX_RETRIES - tries_left)
+                )  # increase backoff interval
+                return await self.initiate_file_upload(tries_left=tries_left)
+            raise exceptions.CreateFileUploadError(
+                file_alias=self._file_alias, reason=str(err)
+            ) from err
         except Exception as err:
             raise exceptions.CreateFileUploadError(
                 file_alias=self._file_alias, reason=str(err)

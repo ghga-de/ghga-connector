@@ -80,15 +80,14 @@ class Uploader:
             #  perhaps parallel Connector usage by the submitter.
             #  Perform a few retries before letting the error bubble up
             if tries_left:
-                tries_left -= 1
-                retry_num = MAX_RETRIES - tries_left
+                times_already_retried = MAX_RETRIES - tries_left
                 await asyncio.sleep(
                     min(
-                        UPLOAD_RETRY_BACKOFF_SEC * (2**retry_num),
+                        UPLOAD_RETRY_BACKOFF_SEC * (2**times_already_retried),
                         MAX_UPLOAD_BACKOFF_SEC,
                     )
                 )
-                return await self.initiate_file_upload(tries_left=tries_left)
+                return await self.initiate_file_upload(tries_left=tries_left - 1)
             raise exceptions.CreateFileUploadError(
                 file_alias=self._file_alias, reason=str(err)
             ) from err

@@ -235,8 +235,8 @@ async def test_initiate_file_upload_retries_on_429_with_increasing_backoff():
 
         # Examine/confirm the sleep args were correct
         assert mock_sleep.call_args_list == [
+            call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**0), MAX_UPLOAD_BACKOFF_SEC)),
             call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**1), MAX_UPLOAD_BACKOFF_SEC)),
-            call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**2), MAX_UPLOAD_BACKOFF_SEC)),
         ]
 
 
@@ -270,7 +270,7 @@ async def test_initiate_file_upload_raises_after_exhausted_429_retries():
         # Confirm the sleep duration for each retry
         expected_sleep_calls = [
             call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**n), MAX_UPLOAD_BACKOFF_SEC))
-            for n in range(1, MAX_RETRIES + 1)
+            for n in range(MAX_RETRIES)
         ]
         assert mock_sleep.call_args_list == expected_sleep_calls
 

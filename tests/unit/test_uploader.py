@@ -23,7 +23,11 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 import pytest
 
 from ghga_connector import exceptions
-from ghga_connector.constants import MAX_RETRIES, UPLOAD_RETRY_BACKOFF_SEC
+from ghga_connector.constants import (
+    MAX_RETRIES,
+    MAX_UPLOAD_BACKOFF_SEC,
+    UPLOAD_RETRY_BACKOFF_SEC,
+)
 from ghga_connector.core.crypt.checksums import Checksums
 from ghga_connector.core.crypt.encryption import FileProcessor
 from ghga_connector.core.uploading.uploader import Uploader
@@ -231,8 +235,8 @@ async def test_initiate_file_upload_retries_on_429_with_increasing_backoff():
 
         # Examine/confirm the sleep args were correct
         assert mock_sleep.call_args_list == [
-            call(UPLOAD_RETRY_BACKOFF_SEC * 1),
-            call(UPLOAD_RETRY_BACKOFF_SEC * 2),
+            call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**1), MAX_UPLOAD_BACKOFF_SEC)),
+            call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**2), MAX_UPLOAD_BACKOFF_SEC)),
         ]
 
 
@@ -265,7 +269,8 @@ async def test_initiate_file_upload_raises_after_exhausted_429_retries():
 
         # Confirm the sleep duration for each retry
         expected_sleep_calls = [
-            call(UPLOAD_RETRY_BACKOFF_SEC * n) for n in range(1, MAX_RETRIES + 1)
+            call(min(UPLOAD_RETRY_BACKOFF_SEC * (2**n), MAX_UPLOAD_BACKOFF_SEC))
+            for n in range(1, MAX_RETRIES + 1)
         ]
         assert mock_sleep.call_args_list == expected_sleep_calls
 

@@ -363,6 +363,8 @@ def _handle_400(*, exception_id: str, work_package_id: UUID4):
             raise exceptions.ChecksumMismatchError()
         case "invalidPartSize":
             raise exceptions.InvalidPartSize()
+        case "uploadSizeMismatch":
+            raise exceptions.UploadSizeMismatchError()
 
 
 def _handle_404(

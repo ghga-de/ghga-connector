@@ -544,6 +544,17 @@ class UploadNotRegisteredError(RuntimeError):
         super().__init__(message)
 
 
+class UploadSizeMismatchError(RuntimeError):
+    """Raised when the size of the uploaded file doesn't match the declared size."""
+
+    def __init__(self):
+        msg = (
+            "The size of the uploaded file does not match the size declared when the"
+            " upload was initiated."
+        )
+        super().__init__(msg)
+
+
 class WellKnownValueNotFound(RuntimeError):
     """
     Thrown when a 404 is returned from a call to the well-known-value-service for a

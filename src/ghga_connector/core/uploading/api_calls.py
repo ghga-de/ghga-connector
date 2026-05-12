@@ -361,6 +361,8 @@ def _handle_400(*, exception_id: str, work_package_id: UUID4):
             raise exceptions.S3StorageError(work_package_id=work_package_id)
         case "checksumMismatch":
             raise exceptions.ChecksumMismatchError()
+        case "invalidPartSize":
+            raise exceptions.InvalidPartSize()
 
 
 def _handle_404(

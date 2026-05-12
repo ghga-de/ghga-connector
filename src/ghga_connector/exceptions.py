@@ -222,6 +222,17 @@ class InvalidFileUploadError(RuntimeError):
         super().__init__(msg)
 
 
+class InvalidPartSize(RuntimeError):
+    """Raised when the server rejects the upload initialization due to an invalid part size."""
+
+    def __init__(self):
+        message = (
+            "The file upload could not be initialized because an acceptable part size"
+            " could not be determined."
+        )
+        super().__init__(message)
+
+
 class InvalidWorkPackageToken(RuntimeError):
     """Thrown when the work package string pasted by the user could not be parsed"""
 

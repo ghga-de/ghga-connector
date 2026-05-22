@@ -2,7 +2,7 @@
 # but are allowed to be removed in the current repository
 
 Dockerfile
-Dockerfile.debian
+Dockerfile.dhi
 
 scripts/script_utils/fastapi_app_location.py
 .devcontainer/dev_launcher

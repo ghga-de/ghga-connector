@@ -1,0 +1,203 @@
+# Copyright 2021 - 2026 Universität Tübingen, DKFZ, EMBL, and Universität zu Köln
+# for the German Human Genome-Phenome Archive (GHGA)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Unit tests for the interactive upload box shell."""
+
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+from ghga_connector.core.uploading import ubox_shell
+from ghga_connector.core.uploading.structs import UploadedFileInfo
+from ghga_connector.core.uploading.ubox_shell import (
+    UboxShell,
+    _expand_globs,
+    _extract_alias,
+    _format_listing,
+    _human_readable_size,
+)
+
+
+class FakeUploadClient:
+    """A stand-in for UploadClient that records interactions."""
+
+    def __init__(self, uploads: list[UploadedFileInfo] | None = None):
+        self.uploads = uploads if uploads is not None else []
+        self.deleted: list[tuple] = []
+
+    async def get_box_uploads(self) -> list[UploadedFileInfo]:
+        """Return the current box contents."""
+        return list(self.uploads)
+
+    async def delete_file(self, *, file_id, file_alias) -> None:
+        """Record the deletion and drop the file from the box."""
+        self.deleted.append((file_id, file_alias))
+        self.uploads = [u for u in self.uploads if u.file_id != file_id]
+
+
+def _make_info(alias: str, **kwargs) -> UploadedFileInfo:
+    return UploadedFileInfo.model_validate(
+        {"id": str(uuid4()), "alias": alias, **kwargs}
+    )
+
+
+def test_extract_alias_variants():
+    """The --alias option is parsed in both space and equals forms."""
+    assert _extract_alias(["--alias", "foo", "a.bam"]) == ("foo", ["a.bam"])
+    assert _extract_alias(["--alias=bar", "a.bam"]) == ("bar", ["a.bam"])
+    assert _extract_alias(["a.bam", "b.bam"]) == (None, ["a.bam", "b.bam"])
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["--alias"],
+        ["--alias="],
+        ["--alias", "x", "--alias", "y", "path"],
+    ],
+)
+def test_extract_alias_errors(args):
+    """Invalid --alias usage raises a ValueError."""
+    with pytest.raises(ValueError):
+        _extract_alias(args)
+
+
+def test_expand_globs(tmp_path: Path):
+    """Globs are expanded; non-matching tokens pass through unchanged."""
+    (tmp_path / "one.bam").write_text("data")
+    (tmp_path / "two.bam").write_text("data")
+
+    expanded = _expand_globs([str(tmp_path / "*.bam")])
+    assert sorted(Path(p).name for p in expanded) == ["one.bam", "two.bam"]
+
+    # Non-matching token is preserved verbatim for downstream validation
+    missing = str(tmp_path / "missing_*.xyz")
+    assert _expand_globs([missing]) == [missing]
+
+
+def test_human_readable_size():
+    """Byte counts are rendered compactly."""
+    assert _human_readable_size(None) == "-"
+    assert _human_readable_size(512) == "512 B"
+    assert _human_readable_size(1024) == "1.0 KiB"
+    assert _human_readable_size(1024**2) == "1.0 MiB"
+
+
+def test_format_listing_contains_fields():
+    """The listing table contains the header and per-file values."""
+    info = _make_info("a.bam", decrypted_size=2048, state="inbox")
+    rendered = _format_listing([info])
+    assert "ALIAS" in rendered
+    assert "a.bam" in rendered
+    assert "inbox" in rendered
+    assert str(info.file_id) in rendered
+
+
+@pytest.mark.asyncio
+async def test_do_ls_empty(capsys):
+    """The ls command on an empty box reports that it is empty."""
+    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=None)
+    await shell._do_ls([])
+    assert "empty" in capsys.readouterr().out.lower()
+
+
+@pytest.mark.asyncio
+async def test_do_rm_success():
+    """The rm command resolves an alias to its file ID and deletes it."""
+    info = _make_info("a.bam", decrypted_size=2048)
+    client = FakeUploadClient([info])
+    shell = UboxShell(upload_client=client, my_private_key=None)
+
+    await shell._do_rm(["a.bam"])
+
+    assert client.deleted == [(info.file_id, "a.bam")]
+    assert client.uploads == []
+
+
+@pytest.mark.asyncio
+async def test_do_rm_unknown_alias(capsys):
+    """The rm command on a missing alias reports an error and deletes nothing."""
+    client = FakeUploadClient([_make_info("a.bam")])
+    shell = UboxShell(upload_client=client, my_private_key=None)
+
+    await shell._do_rm(["does-not-exist"])
+
+    assert client.deleted == []
+    assert "does-not-exist" in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_do_upload_glob(monkeypatch, tmp_path: Path):
+    """The upload command with a glob uploads each match using its file name."""
+    for name in ("one.bam", "two.bam"):
+        (tmp_path / name).write_text("plaintext content")
+
+    captured: list[list[tuple[str, str]]] = []
+
+    async def fake_upload_files_from_list(
+        *, upload_client, file_info_list, my_private_key, max_concurrent_uploads
+    ):
+        captured.append([(fi.alias, Path(fi.path).name) for fi in file_info_list])
+
+    monkeypatch.setattr(
+        ubox_shell, "upload_files_from_list", fake_upload_files_from_list
+    )
+
+    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    await shell._do_upload([str(tmp_path / "*.bam")])
+
+    assert len(captured) == 1
+    assert sorted(captured[0]) == [("one.bam", "one.bam"), ("two.bam", "two.bam")]
+
+
+@pytest.mark.asyncio
+async def test_do_upload_with_alias(monkeypatch, tmp_path: Path):
+    """The upload command with --alias uploads a single file under that alias."""
+    target = tmp_path / "data.bam"
+    target.write_text("plaintext content")
+
+    captured: list[list[tuple[str, str]]] = []
+
+    async def fake_upload_files_from_list(
+        *, upload_client, file_info_list, my_private_key, max_concurrent_uploads
+    ):
+        captured.append([(fi.alias, Path(fi.path).name) for fi in file_info_list])
+
+    monkeypatch.setattr(
+        ubox_shell, "upload_files_from_list", fake_upload_files_from_list
+    )
+
+    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    await shell._do_upload(["--alias", "custom", str(target)])
+
+    assert captured == [[("custom", "data.bam")]]
+
+
+@pytest.mark.asyncio
+async def test_do_upload_alias_rejects_multiple(monkeypatch, tmp_path: Path, capsys):
+    """The upload command with --alias and multiple matched files is rejected."""
+    for name in ("one.bam", "two.bam"):
+        (tmp_path / name).write_text("plaintext content")
+
+    async def fail_if_called(**kwargs):  # pragma: no cover - must not run
+        raise AssertionError("upload should not be attempted")
+
+    monkeypatch.setattr(ubox_shell, "upload_files_from_list", fail_if_called)
+
+    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    await shell._do_upload(["--alias", "custom", str(tmp_path / "*.bam")])
+
+    assert "exactly one" in capsys.readouterr().err

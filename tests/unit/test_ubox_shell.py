@@ -19,8 +19,10 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from pydantic import SecretBytes
 
 from ghga_connector.core.uploading import ubox_shell
+from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.uploading.structs import UploadedFileInfo
 from ghga_connector.core.uploading.ubox_shell import (
     UboxShell,
@@ -31,8 +33,12 @@ from ghga_connector.core.uploading.ubox_shell import (
 )
 
 
-class FakeUploadClient:
-    """A stand-in for UploadClient that records interactions."""
+class FakeUploadClient(UploadClient):
+    """A stand-in for UploadClient that records interactions.
+
+    Only the methods exercised by the ``ls`` and ``rm`` commands are
+    implemented; the upload path is patched out in the tests that need it.
+    """
 
     def __init__(self, uploads: list[UploadedFileInfo] | None = None):
         self.uploads = uploads if uploads is not None else []
@@ -109,7 +115,7 @@ def test_format_listing_contains_fields():
 @pytest.mark.asyncio
 async def test_do_ls_empty(capsys):
     """The ls command on an empty box reports that it is empty."""
-    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=None)
+    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=SecretBytes(b""))
     await shell._do_ls([])
     assert "empty" in capsys.readouterr().out.lower()
 
@@ -119,7 +125,7 @@ async def test_do_rm_success():
     """The rm command resolves an alias to its file ID and deletes it."""
     info = _make_info("a.bam", decrypted_size=2048)
     client = FakeUploadClient([info])
-    shell = UboxShell(upload_client=client, my_private_key=None)
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
 
     await shell._do_rm(["a.bam"])
 
@@ -131,7 +137,7 @@ async def test_do_rm_success():
 async def test_do_rm_unknown_alias(capsys):
     """The rm command on a missing alias reports an error and deletes nothing."""
     client = FakeUploadClient([_make_info("a.bam")])
-    shell = UboxShell(upload_client=client, my_private_key=None)
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
 
     await shell._do_rm(["does-not-exist"])
 
@@ -156,7 +162,9 @@ async def test_do_upload_glob(monkeypatch, tmp_path: Path):
         ubox_shell, "upload_files_from_list", fake_upload_files_from_list
     )
 
-    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    shell = UboxShell(
+        upload_client=FakeUploadClient(), my_private_key=SecretBytes(b"key")
+    )
     await shell._do_upload([str(tmp_path / "*.bam")])
 
     assert len(captured) == 1
@@ -180,7 +188,9 @@ async def test_do_upload_with_alias(monkeypatch, tmp_path: Path):
         ubox_shell, "upload_files_from_list", fake_upload_files_from_list
     )
 
-    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    shell = UboxShell(
+        upload_client=FakeUploadClient(), my_private_key=SecretBytes(b"key")
+    )
     await shell._do_upload(["--alias", "custom", str(target)])
 
     assert captured == [[("custom", "data.bam")]]
@@ -197,7 +207,9 @@ async def test_do_upload_alias_rejects_multiple(monkeypatch, tmp_path: Path, cap
 
     monkeypatch.setattr(ubox_shell, "upload_files_from_list", fail_if_called)
 
-    shell = UboxShell(upload_client=FakeUploadClient(), my_private_key=b"key")
+    shell = UboxShell(
+        upload_client=FakeUploadClient(), my_private_key=SecretBytes(b"key")
+    )
     await shell._do_upload(["--alias", "custom", str(tmp_path / "*.bam")])
 
     assert "exactly one" in capsys.readouterr().err

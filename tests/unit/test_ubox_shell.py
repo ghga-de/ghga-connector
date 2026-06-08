@@ -19,12 +19,14 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from prompt_toolkit.document import Document
 from pydantic import SecretBytes
 
 from ghga_connector.core.uploading import ubox_shell
 from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.uploading.structs import UploadedFileInfo
 from ghga_connector.core.uploading.ubox_shell import (
+    UboxCompleter,
     UboxShell,
     _expand_globs,
     _extract_alias,
@@ -213,3 +215,100 @@ async def test_do_upload_alias_rejects_multiple(monkeypatch, tmp_path: Path, cap
     await shell._do_upload(["--alias", "custom", str(tmp_path / "*.bam")])
 
     assert "exactly one" in capsys.readouterr().err
+
+
+async def _complete(completer: UboxCompleter, text: str) -> list[str]:
+    """Collect the completion texts the completer yields for the given input."""
+    document = Document(text, cursor_position=len(text))
+    return [
+        completion.text
+        async for completion in completer.get_completions_async(document, None)
+    ]
+
+
+@pytest.mark.asyncio
+async def test_complete_command_names():
+    """The first word completes against the known command names."""
+    completer = UboxCompleter(upload_client=FakeUploadClient())
+
+    assert set(await _complete(completer, "")) == {
+        "upload",
+        "ls",
+        "rm",
+        "help",
+        "exit",
+        "quit",
+    }
+    assert await _complete(completer, "r") == ["rm"]
+    assert sorted(await _complete(completer, "e")) == ["exit"]
+
+
+@pytest.mark.asyncio
+async def test_complete_rm_remote_aliases():
+    """The rm command completes against box aliases, prefix-filtered."""
+    client = FakeUploadClient([_make_info("alpha.vcf"), _make_info("beta.bam")])
+    completer = UboxCompleter(upload_client=client)
+
+    assert sorted(await _complete(completer, "rm ")) == ["alpha.vcf", "beta.bam"]
+    assert await _complete(completer, "rm al") == ["alpha.vcf"]
+    # rm takes a single alias, so a second argument is not completed.
+    assert await _complete(completer, "rm alpha.vcf ") == []
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_local_paths(tmp_path: Path):
+    """The upload command completes against local filesystem paths."""
+    (tmp_path / "sample1.txt").write_text("data")
+    (tmp_path / "sample2.txt").write_text("data")
+    completer = UboxCompleter(upload_client=FakeUploadClient())
+
+    completions = await _complete(completer, f"upload {tmp_path}/sam")
+    # PathCompleter completes the remainder after the typed prefix.
+    assert sorted(completions) == ["ple1.txt", "ple2.txt"]
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_alias_flag():
+    """A leading dash on an upload argument completes the --alias flag."""
+    completer = UboxCompleter(upload_client=FakeUploadClient())
+    assert await _complete(completer, "upload -") == ["--alias"]
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_suppresses_alias_value(tmp_path: Path):
+    """No completion is offered for the user-chosen value right after --alias."""
+    (tmp_path / "sample.txt").write_text("data")
+    completer = UboxCompleter(upload_client=FakeUploadClient())
+
+    # Typing the alias value itself yields nothing...
+    assert await _complete(completer, "upload --alias my") == []
+    # ...but the following positional argument resumes path completion.
+    assert await _complete(completer, f"upload --alias myname {tmp_path}/sam") == [
+        "ple.txt"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_complete_rm_alias_cache(monkeypatch):
+    """Remote aliases are cached within the TTL and refetched once it elapses."""
+    calls = 0
+
+    class CountingClient(FakeUploadClient):
+        async def get_box_uploads(self):
+            nonlocal calls
+            calls += 1
+            return list(self.uploads)
+
+    client = CountingClient([_make_info("alpha.vcf")])
+    completer = UboxCompleter(upload_client=client)
+
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(ubox_shell.time, "monotonic", lambda: clock["now"])
+
+    await _complete(completer, "rm ")
+    await _complete(completer, "rm a")
+    assert calls == 1  # second lookup served from cache
+
+    clock["now"] += ubox_shell._ALIAS_CACHE_TTL + 1
+    await _complete(completer, "rm ")
+    assert calls == 2  # cache expired, refetched

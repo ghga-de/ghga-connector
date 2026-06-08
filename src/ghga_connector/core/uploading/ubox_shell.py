@@ -22,7 +22,12 @@ authenticated session, so the access token only has to be entered once.
 import glob
 import logging
 import shlex
+import time
+from collections.abc import AsyncIterator, Iterator
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion, PathCompleter
+from prompt_toolkit.document import Document
 from pydantic import SecretBytes
 
 from ghga_connector.config import get_config
@@ -45,6 +50,95 @@ HELP_TEXT = """Available commands:
   help                        Show this help text.
   exit | quit                 Leave the shell (Ctrl+D also works).
 """
+
+
+COMMANDS = ("upload", "ls", "rm", "help", "exit", "quit")
+
+# How long (seconds) to reuse a cached box listing for remote-alias completion
+# before refetching, so repeated Tab presses don't hammer the API.
+_ALIAS_CACHE_TTL = 5.0
+
+
+class UboxCompleter(Completer):
+    """Context-aware tab completion for the ubox shell.
+
+    - The first word completes against the available command names.
+    - ``upload`` arguments complete against local filesystem paths.
+    - ``rm`` completes against the remote aliases currently in the upload box.
+    """
+
+    def __init__(self, *, upload_client: UploadClient):
+        self._upload_client = upload_client
+        self._path_completer = PathCompleter(expanduser=True)
+        self._alias_cache: list[str] | None = None
+        self._alias_cache_at = 0.0
+
+    def get_completions(self, document: Document, complete_event):
+        """Synchronous entry point (unused; completion runs via the async path)."""
+        return iter(())
+
+    async def _remote_aliases(self) -> list[str]:
+        """Return the box's aliases, using a short-lived cache."""
+        now = time.monotonic()
+        if self._alias_cache is None or now - self._alias_cache_at > _ALIAS_CACHE_TTL:
+            uploads = await self._upload_client.get_box_uploads()
+            self._alias_cache = [upload.alias for upload in uploads]
+            self._alias_cache_at = now
+        return self._alias_cache
+
+    async def get_completions_async(  # type: ignore[override]
+        self, document: Document, complete_event
+    ) -> AsyncIterator[Completion]:
+        """Yield completions appropriate to the command under the cursor."""
+        text = document.text_before_cursor
+        # Split on whitespace, preserving whether the cursor sits on a fresh word.
+        ends_with_space = bool(text) and text[-1].isspace()
+        words = text.split()
+        if ends_with_space or not words:
+            current, preceding = "", words
+        else:
+            current, preceding = words[-1], words[:-1]
+
+        if not preceding:
+            # Completing the command name itself.
+            for command in COMMANDS:
+                if command.startswith(current):
+                    yield Completion(command, start_position=-len(current))
+            return
+
+        command = preceding[0].lower()
+        if command == "upload":
+            for completion in self._complete_upload(preceding, current, complete_event):
+                yield completion
+        elif command == "rm":
+            async for completion in self._complete_rm(preceding, current):
+                yield completion
+
+    def _complete_upload(
+        self, preceding: list[str], current: str, complete_event
+    ) -> Iterator[Completion]:
+        """Complete ``upload`` arguments: the ``--alias`` flag or local paths."""
+        # Don't complete the value that follows --alias; it's user-chosen.
+        if preceding[-1] == "--alias":
+            return
+        if current.startswith("-"):
+            if "--alias".startswith(current):
+                yield Completion("--alias", start_position=-len(current))
+            return
+        # Delegate local path completion to prompt_toolkit's PathCompleter.
+        sub_document = Document(current, cursor_position=len(current))
+        yield from self._path_completer.get_completions(sub_document, complete_event)
+
+    async def _complete_rm(
+        self, preceding: list[str], current: str
+    ) -> AsyncIterator[Completion]:
+        """Complete ``rm`` against the remote aliases in the upload box."""
+        # rm takes a single alias; only complete the first argument.
+        if len(preceding) > 1:
+            return
+        for alias in await self._remote_aliases():
+            if alias.startswith(current):
+                yield Completion(alias, start_position=-len(current))
 
 
 def _human_readable_size(num_bytes: int | None) -> str:
@@ -74,9 +168,13 @@ class UboxShell:
             "Entering upload box shell. Type 'help' for a list of commands and"
             + " 'exit' to leave."
         )
+        session: PromptSession[str] = PromptSession(
+            completer=UboxCompleter(upload_client=self._upload_client),
+            complete_while_typing=False,
+        )
         while True:
             try:
-                line = input(self.PROMPT)
+                line = await session.prompt_async(self.PROMPT)
             except EOFError:
                 # Ctrl+D - print a newline so the next prompt isn't glued to it
                 CLIMessageDisplay.display("")

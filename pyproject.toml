@@ -30,6 +30,7 @@ dependencies = [
     "hexkit[s3]>=8.2.1",
     "rich>=14.0, <15",
     "async-lru >= 2.1.0",
+    "prompt_toolkit>=3.0, <4",
 ]
 
 [project.license]

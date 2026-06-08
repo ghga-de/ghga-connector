@@ -110,8 +110,26 @@ def test_format_listing_contains_fields():
     rendered = _format_listing([info])
     assert "ALIAS" in rendered
     assert "a.bam" in rendered
-    assert "inbox" in rendered
+    # The raw "inbox" state is shown under its user-facing label.
+    assert "re-encrypting..." in rendered
+    assert "inbox" not in rendered
     assert str(info.file_id) in rendered
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("inbox", "re-encrypting..."),
+        ("interrogated", "re-encrypted"),
+        ("cancelled", "deleted"),
+        ("Cancelled", "deleted"),  # case-insensitive
+        ("populated", "populated"),  # unmapped states pass through
+        (None, "-"),
+    ],
+)
+def test_display_state(state, expected):
+    """Raw API states are mapped to user-facing labels."""
+    assert ubox_shell._display_state(state) == expected
 
 
 @pytest.mark.asyncio
@@ -141,8 +159,8 @@ async def test_do_ls_hides_cancelled_by_default(capsys):
 
 
 @pytest.mark.asyncio
-async def test_do_ls_show_cancelled(capsys):
-    """The --show-cancelled flag includes cancelled files in the listing."""
+async def test_do_ls_show_deleted(capsys):
+    """The --show-deleted flag includes cancelled files, shown as 'deleted'."""
     client = FakeUploadClient(
         [
             _make_info("active.bam", state="inbox"),
@@ -151,15 +169,16 @@ async def test_do_ls_show_cancelled(capsys):
     )
     shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
 
-    await shell._do_ls(["--show-cancelled"])
+    await shell._do_ls(["--show-deleted"])
 
     out = capsys.readouterr().out
     assert "active.bam" in out
     assert "gone.bam" in out
+    assert "deleted" in out
 
 
 @pytest.mark.asyncio
-async def test_do_ls_all_cancelled_message(capsys):
+async def test_do_ls_all_deleted_message(capsys):
     """A box holding only cancelled files reports that, not 'empty'."""
     client = FakeUploadClient([_make_info("gone.bam", state="Cancelled")])
     shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
@@ -167,8 +186,8 @@ async def test_do_ls_all_cancelled_message(capsys):
     await shell._do_ls([])
 
     out = capsys.readouterr().out.lower()
-    assert "cancelled" in out
-    assert "--show-cancelled" in out
+    assert "deleted" in out
+    assert "--show-deleted" in out
 
 
 @pytest.mark.asyncio
@@ -305,13 +324,13 @@ async def test_complete_command_names():
 
 @pytest.mark.asyncio
 async def test_complete_ls_flag():
-    """The ls command completes --show-cancelled, but only once."""
+    """The ls command completes --show-deleted, but only once."""
     completer = UboxCompleter(upload_client=FakeUploadClient())
 
-    assert await _complete(completer, "ls ") == ["--show-cancelled"]
-    assert await _complete(completer, "ls --s") == ["--show-cancelled"]
+    assert await _complete(completer, "ls ") == ["--show-deleted"]
+    assert await _complete(completer, "ls --s") == ["--show-deleted"]
     # Already present, so it is not offered again.
-    assert await _complete(completer, "ls --show-cancelled ") == []
+    assert await _complete(completer, "ls --show-deleted ") == []
 
 
 @pytest.mark.asyncio

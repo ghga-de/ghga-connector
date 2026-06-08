@@ -45,8 +45,8 @@ HELP_TEXT = """Available commands:
   upload PATH [PATH ...]      Upload one or more files/globs, using each local
                               file name as its alias.
   upload --alias ALIAS PATH   Upload a single file under the given alias.
-  ls [--show-cancelled]       List the contents of the upload box. Cancelled
-                              files are hidden unless --show-cancelled is given.
+  ls [--show-deleted]         List the contents of the upload box. Deleted
+                              files are hidden unless --show-deleted is given.
   rm ALIAS                    Delete the file with the given alias from the box.
   help                        Show this help text.
   exit | quit                 Leave the shell (Ctrl+D also works).
@@ -116,10 +116,10 @@ class UboxCompleter(Completer):
                 yield completion
         elif (
             command == "ls"
-            and "--show-cancelled" not in preceding
-            and "--show-cancelled".startswith(current)
+            and "--show-deleted" not in preceding
+            and "--show-deleted".startswith(current)
         ):
-            yield Completion("--show-cancelled", start_position=-len(current))
+            yield Completion("--show-deleted", start_position=-len(current))
 
     def _complete_upload(
         self, preceding: list[str], current: str, complete_event
@@ -151,10 +151,25 @@ class UboxCompleter(Completer):
 #: The file state, as reported by the Upload API, that marks a cancelled upload.
 _CANCELLED_STATE = "cancelled"
 
+#: Maps raw API state values to the labels shown to the user. States not listed
+#: here are displayed verbatim. The API vocabulary itself is unchanged.
+_STATE_DISPLAY = {
+    "inbox": "re-encrypting...",
+    "interrogated": "re-encrypted",
+    "cancelled": "deleted",
+}
+
 
 def _is_cancelled(upload: UploadedFileInfo) -> bool:
     """Return True if the upload is in the cancelled state (case-insensitive)."""
     return (upload.state or "").lower() == _CANCELLED_STATE
+
+
+def _display_state(state: str | None) -> str:
+    """Render a raw API state as the user-facing label."""
+    if state is None:
+        return "-"
+    return _STATE_DISPLAY.get(state.lower(), state)
 
 
 def _human_readable_size(num_bytes: int | None) -> str:
@@ -295,12 +310,12 @@ class UboxShell:
 
     async def _do_ls(self, args: list[str]) -> None:
         """Handle the 'ls' command."""
-        show_cancelled = False
+        show_deleted = False
         for arg in args:
-            if arg == "--show-cancelled":
-                show_cancelled = True
+            if arg == "--show-deleted":
+                show_deleted = True
             else:
-                CLIMessageDisplay.failure("Usage: ls [--show-cancelled]")
+                CLIMessageDisplay.failure("Usage: ls [--show-deleted]")
                 return
 
         uploads = await self._upload_client.get_box_uploads()
@@ -309,12 +324,12 @@ class UboxShell:
             return
 
         visible = uploads
-        if not show_cancelled:
+        if not show_deleted:
             visible = [upload for upload in uploads if not _is_cancelled(upload)]
         if not visible:
             CLIMessageDisplay.display(
-                "All files in the upload box are cancelled. Use 'ls"
-                + " --show-cancelled' to list them."
+                "All files in the upload box are deleted. Use 'ls"
+                + " --show-deleted' to list them."
             )
             return
 
@@ -395,7 +410,7 @@ def _format_listing(uploads: list[UploadedFileInfo]) -> str:
         (
             upload.alias,
             _human_readable_size(upload.decrypted_size),
-            upload.state or "-",
+            _display_state(upload.state),
             str(upload.file_id),
         )
         for upload in uploads

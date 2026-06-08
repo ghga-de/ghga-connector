@@ -45,7 +45,8 @@ HELP_TEXT = """Available commands:
   upload PATH [PATH ...]      Upload one or more files/globs, using each local
                               file name as its alias.
   upload --alias ALIAS PATH   Upload a single file under the given alias.
-  ls                          List the contents of the upload box.
+  ls [--show-cancelled]       List the contents of the upload box. Cancelled
+                              files are hidden unless --show-cancelled is given.
   rm ALIAS                    Delete the file with the given alias from the box.
   help                        Show this help text.
   exit | quit                 Leave the shell (Ctrl+D also works).
@@ -113,6 +114,12 @@ class UboxCompleter(Completer):
         elif command == "rm":
             async for completion in self._complete_rm(preceding, current):
                 yield completion
+        elif (
+            command == "ls"
+            and "--show-cancelled" not in preceding
+            and "--show-cancelled".startswith(current)
+        ):
+            yield Completion("--show-cancelled", start_position=-len(current))
 
     def _complete_upload(
         self, preceding: list[str], current: str, complete_event
@@ -139,6 +146,15 @@ class UboxCompleter(Completer):
         for alias in await self._remote_aliases():
             if alias.startswith(current):
                 yield Completion(alias, start_position=-len(current))
+
+
+#: The file state, as reported by the Upload API, that marks a cancelled upload.
+_CANCELLED_STATE = "cancelled"
+
+
+def _is_cancelled(upload: UploadedFileInfo) -> bool:
+    """Return True if the upload is in the cancelled state (case-insensitive)."""
+    return (upload.state or "").lower() == _CANCELLED_STATE
 
 
 def _human_readable_size(num_bytes: int | None) -> str:
@@ -279,16 +295,30 @@ class UboxShell:
 
     async def _do_ls(self, args: list[str]) -> None:
         """Handle the 'ls' command."""
-        if args:
-            CLIMessageDisplay.failure("Usage: ls (takes no arguments)")
-            return
+        show_cancelled = False
+        for arg in args:
+            if arg == "--show-cancelled":
+                show_cancelled = True
+            else:
+                CLIMessageDisplay.failure("Usage: ls [--show-cancelled]")
+                return
 
         uploads = await self._upload_client.get_box_uploads()
         if not uploads:
             CLIMessageDisplay.display("The upload box is empty.")
             return
 
-        CLIMessageDisplay.display(_format_listing(uploads))
+        visible = uploads
+        if not show_cancelled:
+            visible = [upload for upload in uploads if not _is_cancelled(upload)]
+        if not visible:
+            CLIMessageDisplay.display(
+                "All files in the upload box are cancelled. Use 'ls"
+                + " --show-cancelled' to list them."
+            )
+            return
+
+        CLIMessageDisplay.display(_format_listing(visible))
 
     async def _do_rm(self, args: list[str]) -> None:
         """Handle the 'rm' command."""

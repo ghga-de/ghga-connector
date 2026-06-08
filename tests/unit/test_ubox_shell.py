@@ -123,6 +123,66 @@ async def test_do_ls_empty(capsys):
 
 
 @pytest.mark.asyncio
+async def test_do_ls_hides_cancelled_by_default(capsys):
+    """Cancelled files are omitted from the listing unless requested."""
+    client = FakeUploadClient(
+        [
+            _make_info("active.bam", state="inbox"),
+            _make_info("gone.bam", state="cancelled"),
+        ]
+    )
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
+
+    await shell._do_ls([])
+
+    out = capsys.readouterr().out
+    assert "active.bam" in out
+    assert "gone.bam" not in out
+
+
+@pytest.mark.asyncio
+async def test_do_ls_show_cancelled(capsys):
+    """The --show-cancelled flag includes cancelled files in the listing."""
+    client = FakeUploadClient(
+        [
+            _make_info("active.bam", state="inbox"),
+            _make_info("gone.bam", state="cancelled"),
+        ]
+    )
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
+
+    await shell._do_ls(["--show-cancelled"])
+
+    out = capsys.readouterr().out
+    assert "active.bam" in out
+    assert "gone.bam" in out
+
+
+@pytest.mark.asyncio
+async def test_do_ls_all_cancelled_message(capsys):
+    """A box holding only cancelled files reports that, not 'empty'."""
+    client = FakeUploadClient([_make_info("gone.bam", state="Cancelled")])
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
+
+    await shell._do_ls([])
+
+    out = capsys.readouterr().out.lower()
+    assert "cancelled" in out
+    assert "--show-cancelled" in out
+
+
+@pytest.mark.asyncio
+async def test_do_ls_rejects_unknown_flag(capsys):
+    """An unrecognised ls argument is rejected with a usage message."""
+    client = FakeUploadClient([_make_info("active.bam", state="inbox")])
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
+
+    await shell._do_ls(["--nope"])
+
+    assert "usage" in capsys.readouterr().err.lower()
+
+
+@pytest.mark.asyncio
 async def test_do_rm_success():
     """The rm command resolves an alias to its file ID and deletes it."""
     info = _make_info("a.bam", decrypted_size=2048)
@@ -241,6 +301,17 @@ async def test_complete_command_names():
     }
     assert await _complete(completer, "r") == ["rm"]
     assert sorted(await _complete(completer, "e")) == ["exit"]
+
+
+@pytest.mark.asyncio
+async def test_complete_ls_flag():
+    """The ls command completes --show-cancelled, but only once."""
+    completer = UboxCompleter(upload_client=FakeUploadClient())
+
+    assert await _complete(completer, "ls ") == ["--show-cancelled"]
+    assert await _complete(completer, "ls --s") == ["--show-cancelled"]
+    # Already present, so it is not offered again.
+    assert await _complete(completer, "ls --show-cancelled ") == []
 
 
 @pytest.mark.asyncio

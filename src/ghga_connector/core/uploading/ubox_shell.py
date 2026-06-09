@@ -25,6 +25,7 @@ import shlex
 import time
 from collections.abc import AsyncIterator, Iterator
 
+import typer
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
@@ -161,6 +162,15 @@ _STATE_DISPLAY = {
     "cancelled": "deleted",
 }
 
+#: Maps raw API state values to the colour their label is shown in. States not
+#: listed here are rendered in the default colour.
+_STATE_COLOR = {
+    "init": typer.colors.YELLOW,
+    "inbox": typer.colors.YELLOW,
+    "interrogated": typer.colors.GREEN,
+    "cancelled": typer.colors.RED,
+}
+
 
 def _is_cancelled(upload: UploadedFileInfo) -> bool:
     """Return True if the upload is in the cancelled state (case-insensitive)."""
@@ -172,6 +182,13 @@ def _display_state(state: str | None) -> str:
     if state is None:
         return "-"
     return _STATE_DISPLAY.get(state.lower(), state)
+
+
+def _state_color(state: str | None) -> str | None:
+    """Return the colour for a raw API state, or None for the default colour."""
+    if state is None:
+        return None
+    return _STATE_COLOR.get(state.lower())
 
 
 def _human_readable_size(num_bytes: int | None) -> str:
@@ -425,14 +442,30 @@ def _format_listing(uploads: list[UploadedFileInfo]) -> str:
         for upload in uploads
     ]
 
+    state_col = headers.index("STATE")
     widths = [
         max(len(headers[col]), *(len(row[col]) for row in rows))
         for col in range(len(headers))
     ]
 
-    def _format_row(row: tuple[str, ...]) -> str:
-        return "  ".join(value.ljust(widths[col]) for col, value in enumerate(row))
+    def _cell(col: int, value: str, color: str | None) -> str:
+        # Pad based on the visible length, then colour only the value so that
+        # any embedded ANSI codes don't throw off the column alignment.
+        padding = " " * (widths[col] - len(value))
+        text = typer.style(value, fg=color) if color else value
+        return text + padding
 
-    lines = [_format_row(headers)]
-    lines.extend(_format_row(row) for row in rows)
+    def _format_row(row: tuple[str, ...], colors: tuple[str | None, ...]) -> str:
+        return "  ".join(
+            _cell(col, value, colors[col]) for col, value in enumerate(row)
+        )
+
+    no_color: tuple[str | None, ...] = (None,) * len(headers)
+    lines = [_format_row(headers, no_color)]
+    for upload, row in zip(uploads, rows, strict=True):
+        colors = tuple(
+            _state_color(upload.state) if col == state_col else None
+            for col in range(len(headers))
+        )
+        lines.append(_format_row(row, colors))
     return "\n".join(lines)

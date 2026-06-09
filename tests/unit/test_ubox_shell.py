@@ -15,10 +15,12 @@
 
 """Unit tests for the interactive upload box shell."""
 
+import re
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
+import typer
 from prompt_toolkit.document import Document
 from pydantic import SecretBytes
 
@@ -132,6 +134,42 @@ def test_format_listing_contains_fields():
 def test_display_state(state, expected):
     """Raw API states are mapped to user-facing labels."""
     assert ubox_shell._display_state(state) == expected
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("init", typer.colors.YELLOW),
+        ("inbox", typer.colors.YELLOW),
+        ("interrogated", typer.colors.GREEN),
+        ("cancelled", typer.colors.RED),
+        ("Cancelled", typer.colors.RED),  # case-insensitive
+        ("populated", None),  # unmapped states use the default colour
+        (None, None),
+    ],
+)
+def test_state_color(state, expected):
+    """Raw API states are mapped to display colours."""
+    assert ubox_shell._state_color(state) == expected
+
+
+def test_format_listing_colors_state_and_keeps_alignment():
+    """The STATE cell is colourised without disturbing column alignment."""
+    rows = [
+        _make_info("a.bam", decrypted_size=2048, state="interrogated"),
+        _make_info("longer-alias.bam", decrypted_size=2048, state="cancelled"),
+    ]
+    rendered = _format_listing(rows)
+
+    # The state value is wrapped in the expected colour code.
+    assert typer.style("re-encrypted", fg=typer.colors.GREEN) in rendered
+    assert typer.style("deleted", fg=typer.colors.RED) in rendered
+
+    # With the ANSI codes stripped, the columns still line up.
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", rendered)
+    file_id_col = plain.splitlines()[0].index("FILE ID")
+    for line in plain.splitlines()[1:]:
+        assert line[file_id_col:].lstrip() == line[file_id_col:]
 
 
 @pytest.mark.asyncio

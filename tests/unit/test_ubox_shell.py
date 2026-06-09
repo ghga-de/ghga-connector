@@ -33,6 +33,7 @@ from ghga_connector.core.uploading.ubox_shell import (
     _format_listing,
     _human_readable_size,
 )
+from ghga_connector.exceptions import FileNotInBoxError
 
 
 class FakeUploadClient(UploadClient):
@@ -119,6 +120,7 @@ def test_format_listing_contains_fields():
 @pytest.mark.parametrize(
     ("state", "expected"),
     [
+        ("init", "uploading..."),
         ("inbox", "re-encrypting..."),
         ("interrogated", "re-encrypted"),
         ("cancelled", "deleted"),
@@ -224,6 +226,25 @@ async def test_do_rm_unknown_alias(capsys):
 
     assert client.deleted == []
     assert "does-not-exist" in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_do_rm_delete_404(capsys):
+    """A 404 from the DELETE call is reported as the file not existing."""
+
+    class VanishingClient(FakeUploadClient):
+        async def delete_file(self, *, file_id, file_alias):
+            # Simulate the file being removed between listing and deletion.
+            raise FileNotInBoxError(file_alias=file_alias)
+
+    client = VanishingClient([_make_info("a.bam")])
+    shell = UboxShell(upload_client=client, my_private_key=SecretBytes(b""))
+
+    await shell._do_rm(["a.bam"])
+
+    captured = capsys.readouterr()
+    assert "a.bam" in captured.err
+    assert "deleted" not in captured.out.lower()
 
 
 @pytest.mark.asyncio

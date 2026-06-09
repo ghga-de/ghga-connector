@@ -38,6 +38,7 @@ from ghga_connector.core.uploading.batch_processing import (
     upload_files_from_list,
 )
 from ghga_connector.core.uploading.structs import FileInfoForUpload, UploadedFileInfo
+from ghga_connector.exceptions import FileNotInBoxError
 
 log = logging.getLogger(__name__)
 
@@ -342,15 +343,22 @@ class UboxShell:
             return
 
         alias = args[0]
+        # The DELETE endpoint is addressed by file ID, so the alias has to be
+        # resolved against the box listing first.
         uploads = await self._upload_client.get_box_uploads()
         match = next((upload for upload in uploads if upload.alias == alias), None)
         if match is None:
-            CLIMessageDisplay.failure(
-                f"No file with alias '{alias}' was found in the upload box."
-            )
+            CLIMessageDisplay.failure(str(FileNotInBoxError(file_alias=alias)))
             return
 
-        await self._upload_client.delete_file(file_id=match.file_id, file_alias=alias)
+        try:
+            await self._upload_client.delete_file(
+                file_id=match.file_id, file_alias=alias
+            )
+        except FileNotInBoxError as err:
+            # The file disappeared between listing and deletion (e.g. a concurrent rm).
+            CLIMessageDisplay.failure(str(err))
+            return
         CLIMessageDisplay.success(f"Deleted '{alias}' from the upload box.")
 
 

@@ -155,6 +155,7 @@ _CANCELLED_STATE = "cancelled"
 #: Maps raw API state values to the labels shown to the user. States not listed
 #: here are displayed verbatim. The API vocabulary itself is unchanged.
 _STATE_DISPLAY = {
+    "init": "uploading...",
     "inbox": "re-encrypting...",
     "interrogated": "re-encrypted",
     "cancelled": "deleted",

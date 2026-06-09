@@ -281,7 +281,8 @@ async def test_do_rm_delete_404(capsys):
     await shell._do_rm(["a.bam"])
 
     captured = capsys.readouterr()
-    assert "a.bam" in captured.err
+    err_txt = "No file with alias 'a.bam' was found in the upload box."
+    assert captured.err.strip() == err_txt
     assert "deleted" not in captured.out.lower()
 
 

@@ -1,6 +1,6 @@
 [project]
 name = "ghga_connector"
-version = "2.1.0"
+version = "3.0.0"
 description = "GHGA Connector - A CLI client application for interacting with the GHGA system."
 dependencies = [
     "typer~=0.19",

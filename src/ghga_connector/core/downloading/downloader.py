@@ -33,7 +33,6 @@ from ghga_connector.exceptions import (
     RequestFailedError,
     UnauthorizedAPICallError,
     UnexpectedRetryResponseError,
-    extract_reason,
 )
 
 from ..progress_bar import DownloadProgressBar
@@ -213,8 +212,8 @@ class Downloader:
                         url=download_url, start=part_range.start, end=part_range.stop
                     )
                     await self._queue.put((offset, bytes))
-            except Exception as exception:
-                raise DownloadError(reason=extract_reason(exception)) from exception
+            except Exception as exc:
+                raise DownloadError(exception=exc) from exc
 
     async def _drain_queue_to_file(
         self,

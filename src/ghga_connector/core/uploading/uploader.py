@@ -35,7 +35,6 @@ from ghga_connector.exceptions import (
     DeleteFileUploadError,
     TooManyRequestsError,
     UploadFileError,
-    extract_reason,
 )
 
 log = logging.getLogger(__name__)
@@ -81,7 +80,7 @@ class Uploader:
                 part_size=self._file_info.part_size,
             )
             return self._file_id, storage_alias
-        except TooManyRequestsError as err:
+        except TooManyRequestsError as exc:
             # Files are currently processed sequentially - a 429 might mean
             #  some transient lag in UCS in updating FileUpload state after uploading or
             #  perhaps parallel Connector usage by the submitter.
@@ -97,13 +96,13 @@ class Uploader:
                 return await self.initiate_file_upload(tries_left=tries_left - 1)
             raise CreateFileUploadError(
                 file_alias=self._file_alias,
-                reason=extract_reason(err),
-            ) from err
-        except Exception as err:
+                exception=exc,
+            ) from exc
+        except Exception as exc:
             raise CreateFileUploadError(
                 file_alias=self._file_alias,
-                reason=extract_reason(err),
-            ) from err
+                exception=exc,
+            ) from exc
 
     async def delete_file(self) -> None:
         """Delete a file from its FileUploadBox
@@ -114,12 +113,12 @@ class Uploader:
             await self._upload_client.delete_file(
                 file_id=self._file_id, file_alias=self._file_alias
             )
-        except Exception as err:
+        except Exception as exc:
             raise DeleteFileUploadError(
                 file_alias=self._file_alias,
                 file_id=self._file_id,
-                reason=extract_reason(err),
-            ) from err
+                exception=exc,
+            ) from exc
 
     async def _upload_file_part(self, file_processor: FileProcessor) -> None:
         """Encrypt and upload a file part.
@@ -149,7 +148,7 @@ class Uploader:
                     raise
                 raise UploadFileError(
                     file_alias=self._file_alias,
-                    reason=extract_reason(exc),
+                    exception=exc,
                 ) from exc
 
     async def upload_file(self, *, encryptor: Crypt4GHEncryptor):
@@ -189,8 +188,8 @@ class Uploader:
                 encrypted_parts_sha256=encryptor.checksums.encrypted_parts_sha256,
             )
             log.info("(4/4) Finished upload for %s.", self._file_id)
-        except Exception as err:
+        except Exception as exc:
             raise CompleteFileUploadError(
                 file_alias=self._file_alias,
-                reason=extract_reason(err),
-            ) from err
+                exception=exc,
+            ) from exc

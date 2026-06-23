@@ -19,7 +19,6 @@ import logging
 
 from pydantic import UUID4
 
-from ghga_connector import exceptions
 from ghga_connector.constants import (
     MAX_RETRIES,
     MAX_UPLOAD_BACKOFF_SEC,
@@ -30,6 +29,14 @@ from ghga_connector.core.progress_bar import UploadProgressBar
 from ghga_connector.core.tasks import TaskHandler
 from ghga_connector.core.uploading.api_calls import UploadClient
 from ghga_connector.core.uploading.structs import FileInfoForUpload
+from ghga_connector.exceptions import (
+    CompleteFileUploadError,
+    CreateFileUploadError,
+    DeleteFileUploadError,
+    TooManyRequestsError,
+    UploadFileError,
+    extract_reason,
+)
 
 log = logging.getLogger(__name__)
 
@@ -74,7 +81,7 @@ class Uploader:
                 part_size=self._file_info.part_size,
             )
             return self._file_id, storage_alias
-        except exceptions.TooManyRequestsError as err:
+        except TooManyRequestsError as err:
             # Files are currently processed sequentially - a 429 might mean
             #  some transient lag in UCS in updating FileUpload state after uploading or
             #  perhaps parallel Connector usage by the submitter.
@@ -88,12 +95,14 @@ class Uploader:
                     )
                 )
                 return await self.initiate_file_upload(tries_left=tries_left - 1)
-            raise exceptions.CreateFileUploadError(
-                file_alias=self._file_alias, reason=str(err)
+            raise CreateFileUploadError(
+                file_alias=self._file_alias,
+                reason=extract_reason(err),
             ) from err
         except Exception as err:
-            raise exceptions.CreateFileUploadError(
-                file_alias=self._file_alias, reason=str(err)
+            raise CreateFileUploadError(
+                file_alias=self._file_alias,
+                reason=extract_reason(err),
             ) from err
 
     async def delete_file(self) -> None:
@@ -106,8 +115,10 @@ class Uploader:
                 file_id=self._file_id, file_alias=self._file_alias
             )
         except Exception as err:
-            raise exceptions.DeleteFileUploadError(
-                file_alias=self._file_alias, file_id=self._file_id, reason=str(err)
+            raise DeleteFileUploadError(
+                file_alias=self._file_alias,
+                file_id=self._file_id,
+                reason=extract_reason(err),
             ) from err
 
     async def _upload_file_part(self, file_processor: FileProcessor) -> None:
@@ -136,8 +147,9 @@ class Uploader:
                 # on semaphore lock release
                 if isinstance(exc, asyncio.CancelledError):
                     raise
-                raise exceptions.UploadFileError(
-                    file_alias=self._file_alias, reason=str(exc)
+                raise UploadFileError(
+                    file_alias=self._file_alias,
+                    reason=extract_reason(exc),
                 ) from exc
 
     async def upload_file(self, *, encryptor: Crypt4GHEncryptor):
@@ -178,6 +190,7 @@ class Uploader:
             )
             log.info("(4/4) Finished upload for %s.", self._file_id)
         except Exception as err:
-            raise exceptions.CompleteFileUploadError(
-                file_alias=self._file_alias, reason=str(err)
+            raise CompleteFileUploadError(
+                file_alias=self._file_alias,
+                reason=extract_reason(err),
             ) from err

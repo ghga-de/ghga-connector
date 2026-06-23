@@ -24,6 +24,22 @@ from pydantic import UUID4
 from ghga_connector.constants import MAX_PART_NUMBER
 
 
+def extract_reason(exc: BaseException) -> str:
+    """Build a human-readable reason string from an exception.
+
+    Fall back to a default message pointing to the qualified error type if there's no
+    message from which the reason can be extracted.
+    """
+    message = str(exc).strip()
+    if message:
+        return message
+    exc_type = type(exc)
+    return (
+        f"An exception of type '{exc_type.__module__}.{exc_type.__qualname__}'"
+        " was raised without a message."
+    )
+
+
 class AbortBatchProcessError(RuntimeError):
     """Thrown when user selected to not proceed with batch processing"""
 
@@ -75,10 +91,14 @@ class _FileUploadError(RuntimeError):
         self, *, action: str, file_alias: str, reason: str, file_id: UUID4 | None = None
     ):
         # Make sure we only use one period at the end of the error message
-        reason = reason.removesuffix(".")
+        reason = reason.removesuffix(".").strip()
 
-        # Make first character of 'reason' lowercase
-        reason = reason[0].lower() + reason[1:]
+        # Make first character of 'reason' lowercase, guarding against a blank
+        # reason (e.g. derived from an exception whose str() is empty)
+        if reason:
+            reason = reason[0].lower() + reason[1:]
+        else:
+            reason = "an unknown error occurred"
 
         # Calculate whether to show the file ID and if so format it
         file_id_portion = f" ({file_id=})" if file_id else ""

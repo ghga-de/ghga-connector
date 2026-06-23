@@ -91,7 +91,7 @@ class _FileUploadError(RuntimeError):
         self, *, action: str, file_alias: str, reason: str, file_id: UUID4 | None = None
     ):
         # Make sure we only use one period at the end of the error message
-        reason = reason.removesuffix(".").strip()
+        reason = reason.rstrip(". \n")
 
         # Make first character of 'reason' lowercase, guarding against a blank
         # reason (e.g. derived from an exception whose str() is empty)

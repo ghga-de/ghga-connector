@@ -52,13 +52,15 @@ async def async_batch_upload(  # noqa: PLR0913
     passphrase: str | None = None,
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
+    shorten: bool = False,
 ):
     """Upload a batch of files described by a TSV file asynchronously.
 
     The TSV is expected to have the file path in the first column and the file alias
     in the second column. Files already present in the upload box are skipped and any
     files that fail to upload are retried up to `max_retries` times. If `dry_run` is
-    True, the files that would be uploaded are listed but no uploads are performed.
+    True, the files that would be uploaded are listed but no uploads are performed. If
+    `shorten` is set, long aliases and paths are middle-elided in the output.
     """
     core_file_info_list = load_file_info_from_tsv(tsv)
     async with async_client() as client, set_runtime_config(client=client):
@@ -70,6 +72,7 @@ async def async_batch_upload(  # noqa: PLR0913
             passphrase=passphrase,
             max_retries=max_retries,
             dry_run=dry_run,
+            shorten=shorten,
         )
 
 
@@ -82,12 +85,14 @@ async def upload_files(  # noqa: PLR0913
     passphrase: str | None = None,
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
+    shorten: bool = False,
 ) -> None:
     """Core command to upload a batch of files. Can be called by CLI, GUI, etc.
 
     Files already present in the upload box are skipped and failures are retried up to
     `max_retries` times. If `dry_run` is True, the files that would be uploaded are
-    listed but no uploads are performed.
+    listed but no uploads are performed. If `shorten` is set, long aliases and paths
+    are middle-elided in the output.
     """
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)
@@ -110,6 +115,7 @@ async def upload_files(  # noqa: PLR0913
         max_concurrent_uploads=config.max_concurrent_uploads,
         max_retries=max_retries,
         dry_run=dry_run,
+        shorten=shorten,
     )
 
 

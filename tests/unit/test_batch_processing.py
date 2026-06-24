@@ -272,6 +272,44 @@ async def test_upload_files_from_list_halts_on_box_full():
         second_uploader.initiate_file_upload.assert_not_called()
 
 
+async def test_upload_files_from_list_shortens_alias_in_messages():
+    """With shorten=True, long aliases are middle-elided in live upload messages."""
+    long_alias = "sample-" + "z" * 90
+    with NamedTemporaryFile() as f:
+        file_info = make_file_info_for_upload(path=Path(f.name), alias=long_alias)
+        mock_uploader = make_mock_uploader()
+
+        with (
+            patch(
+                "ghga_connector.core.uploading.batch_processing.Uploader",
+                return_value=mock_uploader,
+            ) as mock_uploader_cls,
+            patch("ghga_connector.core.uploading.batch_processing.Crypt4GHEncryptor"),
+            patch(
+                "ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"
+            ) as mock_display,
+        ):
+            await upload_files_from_list(
+                upload_client=AsyncMock(),
+                file_info_list=[file_info],
+                my_private_key=SecretBytes(b"\x00" * 32),
+                max_concurrent_uploads=1,
+                shorten=True,
+            )
+
+        messages = " ".join(
+            str(call.args[0]) for call in mock_display.success.call_args_list
+        )
+        assert " … " in messages  # the alias was elided
+        assert long_alias not in messages
+
+        # The progress bar (Uploader.display_name) also gets the elided name, while the
+        # full alias is preserved for the API calls.
+        display_name = mock_uploader_cls.call_args.kwargs["display_name"]
+        assert " … " in display_name
+        assert long_alias not in display_name
+
+
 def _make_upload_client(box_contents: list[UploadedFileInfo]) -> AsyncMock:
     """Create a mock UploadClient whose get_box_uploads returns box_contents."""
     upload_client = AsyncMock()
@@ -453,6 +491,65 @@ async def test_run_batch_upload_dry_run_aligns_columns(tmp_path):
     assert header.index("ALIAS") == len("  - ")
     assert header.index("PATH") == lines[0].index("->") + len("->  ")
     assert header.index("SIZE") + len("SIZE") == lines[0].index(")")
+
+
+async def _dry_run_lines(file_infos, *, shorten):
+    """Run a dry-run and return the per-file table rows that were displayed."""
+    with (
+        patch(
+            "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
+            AsyncMock(),
+        ),
+        patch(
+            "ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"
+        ) as mock_display,
+    ):
+        await run_batch_upload(
+            upload_client=_make_upload_client([]),
+            file_info_list=file_infos,
+            my_private_key=SecretBytes(b"\x00" * 32),
+            max_concurrent_uploads=1,
+            dry_run=True,
+            shorten=shorten,
+        )
+    return [
+        str(call.args[0])
+        for call in mock_display.display.call_args_list
+        if str(call.args[0]).startswith("  - ")
+    ]
+
+
+async def test_run_batch_upload_dry_run_elides_long_fields_when_shortened():
+    """With shorten=True, very long aliases and paths are middle-elided."""
+    long_alias = "alias-" + "x" * 90
+    long_path = Path("/data/" + "deep/" * 30 + "final-file.bam")
+    file_infos = [
+        make_file_info_for_upload(path=long_path, alias=long_alias, decrypted_size=10)
+    ]
+
+    (line,) = await _dry_run_lines(file_infos, shorten=True)
+
+    # The full values are not shown verbatim, but their start and end survive.
+    assert " … " in line  # ellipsis is surrounded by spaces
+    assert long_alias not in line
+    assert str(long_path) not in line
+    assert long_alias[:10] in line  # head of the alias kept
+    assert "final-file.bam" in line  # tail of the path kept
+
+
+async def test_run_batch_upload_dry_run_shows_full_names_by_default():
+    """With shorten=False (default), long aliases and paths are shown in full."""
+    long_alias = "alias-" + "x" * 90
+    long_path = Path("/data/" + "deep/" * 30 + "final-file.bam")
+    file_infos = [
+        make_file_info_for_upload(path=long_path, alias=long_alias, decrypted_size=10)
+    ]
+
+    (line,) = await _dry_run_lines(file_infos, shorten=False)
+
+    assert "…" not in line
+    assert long_alias in line
+    assert str(long_path) in line
 
 
 async def test_run_batch_upload_elides_long_skip_list():

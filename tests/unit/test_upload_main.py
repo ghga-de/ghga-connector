@@ -123,6 +123,7 @@ async def test_upload_files_applies_config_part_size(
         max_concurrent_uploads,
         max_retries,
         dry_run,
+        shorten,
     ):
         captured.extend(file_info_list)
 

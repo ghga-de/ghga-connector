@@ -67,6 +67,14 @@ def batch_upload(  # noqa: PLR0913
         help="List the files that would be uploaded (after skipping any already in the"
         + " upload box) without uploading anything.",
     ),
+    shorten_names: bool = typer.Option(
+        False,
+        "--shorten-names",
+        help="Shorten very long aliases and file paths in the output, keeping the start"
+        + " and end (e.g. '/data/run … /final.bam'). Full names are shown by default."
+        + " This is only for improving readability and does not affect how"
+        + " data is sent to GHGA.",
+    ),
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."
     ),
@@ -85,6 +93,7 @@ def batch_upload(  # noqa: PLR0913
             passphrase=passphrase,
             max_retries=max_retries,
             dry_run=dry_run,
+            shorten=shorten_names,
         )
     )
 

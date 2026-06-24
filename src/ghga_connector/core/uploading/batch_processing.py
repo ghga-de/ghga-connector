@@ -17,11 +17,13 @@
 
 import logging
 import signal
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
+from ghga_connector.constants import MAX_RETRIES
 from ghga_connector.core import CLIMessageDisplay, utils
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.uploading.api_calls import UploadClient
@@ -29,6 +31,10 @@ from ghga_connector.core.uploading.structs import CoreFileInfo, FileInfoForUploa
 from ghga_connector.core.uploading.uploader import Uploader
 
 log = logging.getLogger(__name__)
+
+# The file state, as reported by the Upload API, that marks a cancelled (deleted)
+#  upload. A file in any other state is considered already present in the box.
+_CANCELLED_STATE = "cancelled"
 
 
 def parse_file_info_for_upload(file_info: list[str]) -> list[CoreFileInfo]:
@@ -68,6 +74,71 @@ def parse_file_info_for_upload(file_info: list[str]) -> list[CoreFileInfo]:
     return items
 
 
+def load_file_info_from_tsv(tsv_path: Path) -> list[CoreFileInfo]:
+    """Load file alias/path pairs from a TSV file.
+
+    The TSV is expected to contain the file path in the first column and the file
+    alias in the second column, matching the format used by the GHGA Data Steward
+    Kit. Blank lines are ignored, and a final ``decrypted_size`` is derived for each
+    file from disk.
+
+    Raises:
+        FileDoesNotExistError: If the TSV itself, or one of the referenced files,
+            does not exist.
+        RuntimeError: If a non-blank line does not contain both a path and an alias.
+        ValueError: If duplicate aliases or file paths are detected.
+    """
+    if not tsv_path.is_file():
+        raise exceptions.FileDoesNotExistError(file_path=tsv_path)
+
+    items: list[CoreFileInfo] = []
+    with open(tsv_path, encoding="utf-8") as tsv_file:
+        for line_number, raw_line in enumerate(tsv_file, 1):
+            line = raw_line.strip()
+            if not line:
+                continue
+            columns = line.split("\t")
+            if len(columns) < 2:
+                # No tab was found on a non-empty line. The most common cause is a file
+                # that uses spaces rather than tabs, so call that out explicitly.
+                hint = (
+                    " It looks like this line separates the columns with spaces rather"
+                    + " than a tab."
+                    if " " in line
+                    else ""
+                )
+                raise RuntimeError(
+                    f"Line {line_number} of '{tsv_path}' could not be parsed: the file"
+                    + " must be tab-separated, with the file path in the first column"
+                    + f" and the alias in the second.{hint}"
+                )
+            path = columns[0].strip()
+            alias = columns[1].strip()
+            if not path or not alias:
+                raise RuntimeError(
+                    f"Line {line_number} of '{tsv_path}' is missing a file path or"
+                    + " alias. Each non-empty line must have a file path and an alias"
+                    + " separated by a tab."
+                )
+            validated_path = utils.parse_file_upload_path(path)
+            items.append(
+                CoreFileInfo(
+                    alias=alias,
+                    path=validated_path,
+                    decrypted_size=validated_path.stat().st_size,
+                )
+            )
+
+    if not items:
+        raise RuntimeError(f"No file entries were found in '{tsv_path}'.")
+
+    # Ensure unique aliases and file paths
+    for field_name in ["alias", "path"]:
+        utils.detect_duplicates([getattr(x, field_name) for x in items], field_name)
+
+    return items
+
+
 def _signal_handler(signum, frame):
     """Capture KeyboardInterrupt"""
     CLIMessageDisplay.display("Cleanup in progress, please wait…")
@@ -95,20 +166,39 @@ async def perform_cleanup(*, uploader: Uploader, alias: str) -> None:
         )
 
 
+@dataclass
+class BatchPassResult:
+    """The outcome of a single pass over a list of files in a batch upload.
+
+    Attributes:
+        failed: The files that did not upload successfully during this pass.
+        halted: True if the batch was stopped before all files were attempted
+            (e.g. the upload box ran out of space or the user aborted). When set,
+            the caller should not retry, since retrying cannot help.
+    """
+
+    failed: list[FileInfoForUpload] = field(default_factory=list)
+    halted: bool = False
+
+
 async def upload_files_from_list(
     *,
     upload_client: UploadClient,
     file_info_list: list[FileInfoForUpload],
     my_private_key: SecretBytes,
     max_concurrent_uploads: int,
-):
+) -> BatchPassResult:
     """Upload all files in the provided list of file paths.
 
     If the user cancels the upload, e.g. via CTRL+C, or if an unexpected error occurs,
     the in progress file will be cancelled and the upload process halted.
+
+    Returns a ``BatchPassResult`` describing which files failed and whether the pass was
+    halted before all files were attempted.
     """
     CLIMessageDisplay.display(f"Starting batch upload of {len(file_info_list)} files")
-    for file_info in file_info_list:
+    failed: list[FileInfoForUpload] = []
+    for index, file_info in enumerate(file_info_list):
         uploader = Uploader(
             upload_client=upload_client,
             file_info=file_info,
@@ -128,9 +218,13 @@ async def upload_files_from_list(
                     "Upload process stopped. If applicable, any previously completed"
                     + " file uploads remain uploaded."
                 )
-                return
+                # The current file plus any not yet attempted did not upload. Retrying
+                # cannot free space, so mark the pass as halted.
+                failed.extend(file_info_list[index:])
+                return BatchPassResult(failed=failed, halted=True)
 
             # For other errors, go to next file because there's nothing else to do here
+            failed.append(file_info)
             continue
         log.info(
             "File upload successfully initialized for %s."
@@ -155,6 +249,10 @@ async def upload_files_from_list(
                 f"User aborted upload for {file_info.alias}, (file ID {file_id}), deleting."
             )
             await perform_cleanup(uploader=uploader, alias=file_info.alias)
+            # An explicit user abort stops the whole batch rather than retrying.
+            failed.append(file_info)
+            failed.extend(file_info_list[index + 1 :])
+            return BatchPassResult(failed=failed, halted=True)
         except BaseException as err:
             # All other errors are handled here
             CLIMessageDisplay.failure(str(err))
@@ -162,6 +260,135 @@ async def upload_files_from_list(
                 f"Failed to upload {file_info.alias}, (file ID {file_id}), deleting."
             )
             await perform_cleanup(uploader=uploader, alias=file_info.alias)
+            failed.append(file_info)
         else:
             # This is the success case
             CLIMessageDisplay.success(f"Successfully uploaded {file_info.alias}.")
+
+    return BatchPassResult(failed=failed, halted=False)
+
+
+async def _already_uploaded_aliases(upload_client: UploadClient) -> set[str]:
+    """Return the set of aliases already present (non-cancelled) in the upload box.
+
+    These are queried from the Upload API and are used to skip files that have
+    already been uploaded, e.g. by a previous invocation of the batch upload.
+    """
+    uploads = await upload_client.get_box_uploads()
+    return {
+        upload.alias
+        for upload in uploads
+        if (upload.state or "").lower() != _CANCELLED_STATE
+    }
+
+
+def _report_dry_run(pending: list[FileInfoForUpload]) -> None:
+    """Print the files that would be uploaded, without uploading anything.
+
+    The alias, path and size columns are padded to the widest value in each column
+    so they line up vertically for readability.
+    """
+    total_size = sum(fi.decrypted_size for fi in pending)
+    CLIMessageDisplay.display(
+        f"Dry run: {len(pending)} file(s) would be uploaded"
+        + f" ({utils.human_readable_size(total_size)}). No data will be sent."
+    )
+
+    rows = [
+        (fi.alias, str(fi.path), utils.human_readable_size(fi.decrypted_size))
+        for fi in pending
+    ]
+    # Column widths account for both the values and the header labels.
+    alias_width = max(len("ALIAS"), *(len(alias) for alias, _, _ in rows))
+    path_width = max(len("PATH"), *(len(path) for _, path, _ in rows))
+    size_width = max(len("SIZE"), *(len(size) for _, _, size in rows))
+
+    # Header row. The blank runs match the widths of the bullet ("  - "), arrow
+    # ("  ->  ") and "  (" decorations in the data rows below, so the labels line up
+    # over their columns.
+    CLIMessageDisplay.display(
+        f"    {'ALIAS':<{alias_width}}      {'PATH':<{path_width}}"
+        + f"   {'SIZE':>{size_width}}"
+    )
+    for alias, path, size in rows:
+        CLIMessageDisplay.display(
+            f"  - {alias:<{alias_width}}  ->  {path:<{path_width}}"
+            + f"  ({size:>{size_width}})"
+        )
+
+
+async def run_batch_upload(  # noqa: PLR0913
+    *,
+    upload_client: UploadClient,
+    file_info_list: list[FileInfoForUpload],
+    my_private_key: SecretBytes,
+    max_concurrent_uploads: int,
+    max_retries: int = MAX_RETRIES,
+    dry_run: bool = False,
+) -> None:
+    """Upload a batch of files, skipping those already uploaded and retrying failures.
+
+    Files whose alias is already present in the upload box (in any non-cancelled
+    state) are skipped, so re-running the command resumes where a previous run left
+    off. Files that fail to upload are retried up to ``max_retries`` times.
+
+    If ``dry_run`` is True, the upload box is still queried so that already-uploaded
+    files are reported as skipped, but the files that remain are only listed - no
+    uploads are initiated.
+    """
+    already_uploaded = await _already_uploaded_aliases(upload_client)
+    skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]
+    if skipped:
+        CLIMessageDisplay.display(
+            f"Skipping {len(skipped)} file(s) already present in the upload box: "
+            + ", ".join(skipped)
+        )
+
+    pending = [fi for fi in file_info_list if fi.alias not in already_uploaded]
+    if not pending:
+        CLIMessageDisplay.success("All files are already uploaded. Nothing to do.")
+        return
+
+    if dry_run:
+        _report_dry_run(pending)
+        return
+
+    attempt = 0
+    halted = False
+    while True:
+        result = await upload_files_from_list(
+            upload_client=upload_client,
+            file_info_list=pending,
+            my_private_key=my_private_key,
+            max_concurrent_uploads=max_concurrent_uploads,
+        )
+        pending = result.failed
+
+        if not pending:
+            CLIMessageDisplay.success(
+                "Batch upload complete. All files uploaded successfully."
+            )
+            return
+
+        # A halted pass (box full or user abort) is not retried.
+        if result.halted or attempt >= max_retries:
+            halted = result.halted
+            break
+
+        attempt += 1
+        CLIMessageDisplay.display(
+            f"Retrying {len(pending)} failed file(s) (retry {attempt}/{max_retries})..."
+        )
+
+    aliases = ", ".join(fi.alias for fi in pending)
+    if halted:
+        # The stop reason was already reported by upload_files_from_list.
+        CLIMessageDisplay.failure(
+            f"{len(pending)} file(s) were not uploaded: {aliases}"
+        )
+    else:
+        retry_word = "retry" if max_retries == 1 else "retries"
+        CLIMessageDisplay.failure(
+            f"{len(pending)} file(s) did not upload after {max_retries} {retry_word}:"
+            + f" {aliases}"
+        )

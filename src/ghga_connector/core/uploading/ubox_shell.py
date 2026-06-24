@@ -39,6 +39,7 @@ from ghga_connector.core.uploading.batch_processing import (
     upload_files_from_list,
 )
 from ghga_connector.core.uploading.structs import FileInfoForUpload, UploadedFileInfo
+from ghga_connector.core.utils import human_readable_size
 from ghga_connector.exceptions import FileNotInBoxError
 
 log = logging.getLogger(__name__)
@@ -189,18 +190,6 @@ def _state_color(state: str | None) -> str | None:
     if state is None:
         return None
     return _STATE_COLOR.get(state.lower())
-
-
-def _human_readable_size(num_bytes: int | None) -> str:
-    """Render a byte count in a compact, human-readable form."""
-    if num_bytes is None:
-        return "-"
-    size = float(num_bytes)
-    for unit in ("B", "KiB", "MiB", "GiB", "TiB", "PiB"):
-        if abs(size) < 1024 or unit == "PiB":
-            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} PiB"
 
 
 class UboxShell:
@@ -435,7 +424,7 @@ def _format_listing(uploads: list[UploadedFileInfo]) -> str:
     rows = [
         (
             upload.alias,
-            _human_readable_size(upload.decrypted_size),
+            human_readable_size(upload.decrypted_size),
             _display_state(upload.state),
             str(upload.file_id),
         )

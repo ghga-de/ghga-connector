@@ -90,10 +90,8 @@ def parse_file_info_for_upload(file_info: list[str]) -> list[CoreFileInfo]:
 def load_file_info_from_tsv(tsv_path: Path) -> list[CoreFileInfo]:
     """Load file alias/path pairs from a TSV file.
 
-    The TSV is expected to contain the file path in the first column and the file
-    alias in the second column, matching the format used by the GHGA Data Steward
-    Kit. Blank lines are ignored, and a final ``decrypted_size`` is derived for each
-    file from disk.
+    The first column must contain the file path and the second column must contain the
+    file alias. Blank lines are ignored.
 
     Raises:
         FileDoesNotExistError: If the TSV itself, or one of the referenced files,

@@ -24,6 +24,7 @@ import pytest
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
+from ghga_connector.constants import BATCH_RETRY_BACKOFF_SEC
 from ghga_connector.core.uploading.batch_processing import (
     BatchPassResult,
     run_batch_upload,
@@ -454,6 +455,35 @@ async def test_run_batch_upload_dry_run_aligns_columns(tmp_path):
     assert header.index("SIZE") + len("SIZE") == lines[0].index(")")
 
 
+async def test_run_batch_upload_elides_long_skip_list():
+    """A long list of already-uploaded files is elided in the skip message."""
+    file_infos = [
+        make_file_info_for_upload(path=Path(f"/tmp/file-{i}.bam"), alias=f"file-{i}")
+        for i in range(12)
+    ]
+    box = [
+        UploadedFileInfo(id=uuid4(), alias=f"file-{i}", state="interrogated")
+        for i in range(12)
+    ]
+    with patch(
+        "ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"
+    ) as mock_display:
+        await run_batch_upload(
+            upload_client=_make_upload_client(box),
+            file_info_list=file_infos,
+            my_private_key=SecretBytes(b"\x00" * 32),
+            max_concurrent_uploads=1,
+        )
+
+    messages = " ".join(
+        str(call.args[0]) for call in mock_display.display.call_args_list
+    )
+    assert "Skipping 12 file(s)" in messages
+    # Only the first 10 aliases are listed; the remainder are summarized.
+    assert "(+2 more)" in messages
+    assert "file-11" not in messages
+
+
 async def test_run_batch_upload_retries_failures():
     """Failed files are retried, and a retry that succeeds ends the loop."""
     with NamedTemporaryFile() as f:
@@ -469,9 +499,15 @@ async def test_run_batch_upload_retries_failures():
                 return BatchPassResult(failed=[failing], halted=False)
             return BatchPassResult(failed=[], halted=False)
 
-        with patch(
-            "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
-            fake_batch_cycle,
+        with (
+            patch(
+                "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
+                fake_batch_cycle,
+            ),
+            patch(
+                "ghga_connector.core.uploading.batch_processing.asyncio.sleep",
+                AsyncMock(),
+            ),
         ):
             await run_batch_upload(
                 upload_client=upload_client,
@@ -497,9 +533,15 @@ async def test_run_batch_upload_stops_after_max_retries():
             call_count += 1
             return BatchPassResult(failed=[failing], halted=False)
 
-        with patch(
-            "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
-            fake_batch_cycle,
+        with (
+            patch(
+                "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
+                fake_batch_cycle,
+            ),
+            patch(
+                "ghga_connector.core.uploading.batch_processing.asyncio.sleep",
+                AsyncMock(),
+            ) as mock_sleep,
         ):
             await run_batch_upload(
                 upload_client=upload_client,
@@ -511,6 +553,9 @@ async def test_run_batch_upload_stops_after_max_retries():
 
         # 1 initial pass + 2 retries
         assert call_count == 3
+        # One backoff wait precedes each of the 2 retries.
+        assert mock_sleep.await_count == 2
+        assert mock_sleep.await_args_list[0].args == (BATCH_RETRY_BACKOFF_SEC,)
 
 
 async def test_run_batch_upload_does_not_retry_when_halted():

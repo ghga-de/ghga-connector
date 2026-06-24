@@ -21,7 +21,7 @@ from pathlib import Path
 import httpx
 
 from ghga_connector.config import get_config, set_runtime_config
-from ghga_connector.constants import MAX_RETRIES
+from ghga_connector.constants import DEFAULT_BATCH_MAX_RETRIES
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.batch_processing import FileStager
@@ -50,7 +50,7 @@ async def async_batch_upload(  # noqa: PLR0913
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
-    max_retries: int = MAX_RETRIES,
+    max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
 ):
     """Upload a batch of files described by a TSV file asynchronously.
@@ -80,7 +80,7 @@ async def upload_files(  # noqa: PLR0913
     my_public_key_path: Path,
     my_private_key_path: Path,
     passphrase: str | None = None,
-    max_retries: int = MAX_RETRIES,
+    max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
 ) -> None:
     """Core command to upload a batch of files. Can be called by CLI, GUI, etc.
@@ -103,7 +103,6 @@ async def upload_files(  # noqa: PLR0913
         for cfi in core_file_info_list
     ]
 
-    CLIMessageDisplay.display(f"Preparing to upload {len(core_file_info_list)} files")
     await run_batch_upload(
         upload_client=upload_client,
         file_info_list=full_file_info,

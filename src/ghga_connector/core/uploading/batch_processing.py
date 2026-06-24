@@ -15,6 +15,7 @@
 
 """Batch processing for the upload process"""
 
+import asyncio
 import logging
 import signal
 from dataclasses import dataclass, field
@@ -23,7 +24,7 @@ from pathlib import Path
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
-from ghga_connector.constants import MAX_RETRIES
+from ghga_connector.constants import BATCH_RETRY_BACKOFF_SEC, DEFAULT_BATCH_MAX_RETRIES
 from ghga_connector.core import CLIMessageDisplay, utils
 from ghga_connector.core.crypt.encryption import Crypt4GHEncryptor
 from ghga_connector.core.uploading.api_calls import UploadClient
@@ -35,6 +36,18 @@ log = logging.getLogger(__name__)
 # The file state, as reported by the Upload API, that marks a cancelled (deleted)
 #  upload. A file in any other state is considered already present in the box.
 _CANCELLED_STATE = "cancelled"
+
+# When listing skipped or failed aliases in a message, show at most this many before
+#  eliding the rest, so a large resume doesn't print a wall of text.
+_MAX_LISTED_ALIASES = 10
+
+
+def _summarize_aliases(aliases: list[str]) -> str:
+    """Render a list of aliases as a comma-separated string, eliding long lists."""
+    if len(aliases) <= _MAX_LISTED_ALIASES:
+        return ", ".join(aliases)
+    shown = ", ".join(aliases[:_MAX_LISTED_ALIASES])
+    return f"{shown}, ... (+{len(aliases) - _MAX_LISTED_ALIASES} more)"
 
 
 def parse_file_info_for_upload(file_info: list[str]) -> list[CoreFileInfo]:
@@ -196,7 +209,6 @@ async def upload_files_from_list(
     Returns a ``BatchPassResult`` describing which files failed and whether the pass was
     halted before all files were attempted.
     """
-    CLIMessageDisplay.display(f"Starting batch upload of {len(file_info_list)} files")
     failed: list[FileInfoForUpload] = []
     for index, file_info in enumerate(file_info_list):
         uploader = Uploader(
@@ -323,14 +335,15 @@ async def run_batch_upload(  # noqa: PLR0913
     file_info_list: list[FileInfoForUpload],
     my_private_key: SecretBytes,
     max_concurrent_uploads: int,
-    max_retries: int = MAX_RETRIES,
+    max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
 ) -> None:
     """Upload a batch of files, skipping those already uploaded and retrying failures.
 
     Files whose alias is already present in the upload box (in any non-cancelled
     state) are skipped, so re-running the command resumes where a previous run left
-    off. Files that fail to upload are retried up to ``max_retries`` times.
+    off. Files that fail to upload are retried up to ``max_retries`` times, waiting
+    ``BATCH_RETRY_BACKOFF_SEC`` seconds between passes.
 
     If ``dry_run`` is True, the upload box is still queried so that already-uploaded
     files are reported as skipped, but the files that remain are only listed - no
@@ -341,7 +354,7 @@ async def run_batch_upload(  # noqa: PLR0913
     if skipped:
         CLIMessageDisplay.display(
             f"Skipping {len(skipped)} file(s) already present in the upload box: "
-            + ", ".join(skipped)
+            + _summarize_aliases(skipped)
         )
 
     pending = [fi for fi in file_info_list if fi.alias not in already_uploaded]
@@ -353,6 +366,7 @@ async def run_batch_upload(  # noqa: PLR0913
         _report_dry_run(pending)
         return
 
+    CLIMessageDisplay.display(f"Uploading {len(pending)} file(s)...")
     attempt = 0
     halted = False
     while True:
@@ -377,10 +391,12 @@ async def run_batch_upload(  # noqa: PLR0913
 
         attempt += 1
         CLIMessageDisplay.display(
-            f"Retrying {len(pending)} failed file(s) (retry {attempt}/{max_retries})..."
+            f"Retrying {len(pending)} failed file(s) in {BATCH_RETRY_BACKOFF_SEC}s"
+            + f" (retry {attempt}/{max_retries})..."
         )
+        await asyncio.sleep(BATCH_RETRY_BACKOFF_SEC)
 
-    aliases = ", ".join(fi.alias for fi in pending)
+    aliases = _summarize_aliases([fi.alias for fi in pending])
     if halted:
         # The stop reason was already reported by upload_files_from_list.
         CLIMessageDisplay.failure(

@@ -21,7 +21,7 @@ from pathlib import Path
 import typer
 
 from ghga_connector import exceptions
-from ghga_connector.constants import C4GH, MAX_RETRIES
+from ghga_connector.constants import C4GH, DEFAULT_BATCH_MAX_RETRIES
 from ghga_connector.core import CLIMessageDisplay
 from ghga_connector.core.main import (
     async_batch_upload,
@@ -59,7 +59,7 @@ def batch_upload(  # noqa: PLR0913
         + "Only needs to be provided if the key is actually encrypted.",
     ),
     max_retries: int = typer.Option(
-        MAX_RETRIES,
+        DEFAULT_BATCH_MAX_RETRIES,
         help="Maximum number of automatic retries for files that fail to upload.",
     ),
     dry_run: bool = typer.Option(

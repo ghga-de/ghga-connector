@@ -309,6 +309,7 @@ class UboxShell:
             FileInfoForUpload(core_file_info=cfi, configured_part_size=config.part_size)
             for cfi in core_file_info
         ]
+        CLIMessageDisplay.display(f"Uploading {len(file_info_list)} file(s)...")
         await upload_files_from_list(
             upload_client=self._upload_client,
             file_info_list=file_info_list,

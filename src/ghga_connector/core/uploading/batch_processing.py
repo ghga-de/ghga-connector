@@ -268,8 +268,7 @@ async def upload_files_from_list(
                     "Upload process stopped. If applicable, any previously completed"
                     + " file uploads remain uploaded."
                 )
-                # The current file plus any not yet attempted did not upload. Retrying
-                # cannot free space, so mark the pass as halted.
+                # Retrying is futile, so mark the pass as halted.
                 failed.extend(file_info_list[index:])
                 return BatchPassResult(failed=failed, halted=True)
 
@@ -432,8 +431,12 @@ async def run_batch_upload(  # noqa: PLR0913
             return
 
         # A halted pass (box full or user abort) is not retried.
+        # Note: If `halted=True`, the cause is already logged via CLIMessageDisplay
         if result.halted or attempt >= max_retries:
             halted = result.halted
+
+            if attempt >= max_retries:
+                CLIMessageDisplay.failure("All retries exhausted.")
             break
 
         attempt += 1

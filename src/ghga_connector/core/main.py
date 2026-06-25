@@ -60,7 +60,7 @@ async def async_batch_upload(  # noqa: PLR0913
     in the second column. Files already present in the upload box are skipped and any
     files that fail to upload are retried up to `max_retries` times. If `dry_run` is
     True, the files that would be uploaded are listed but no uploads are performed. If
-    `shorten` is set, long aliases and paths are middle-elided in the output.
+    `shorten` is set, long aliases are middle-elided in the output.
     """
     core_file_info_list = load_file_info_from_tsv(tsv)
     async with async_client() as client, set_runtime_config(client=client):
@@ -91,8 +91,8 @@ async def upload_files(  # noqa: PLR0913
 
     Files already present in the upload box are skipped and failures are retried up to
     `max_retries` times. If `dry_run` is True, the files that would be uploaded are
-    listed but no uploads are performed. If `shorten` is set, long aliases and paths
-    are middle-elided in the output.
+    listed but no uploads are performed. If `shorten` is set, long aliases are
+    middle-elided in the output.
     """
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)

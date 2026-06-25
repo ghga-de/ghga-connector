@@ -41,31 +41,32 @@ _CANCELLED_STATE = "cancelled"
 #  eliding the rest, so a large resume doesn't print a wall of text.
 _MAX_LISTED_ALIASES = 10
 
-# Names (aliases/paths) longer than this are middle-elided (keeping the start and end)
-#  when name shortening is enabled, so very long paths don't blow out the output.
+# Aliases longer than this are middle-elided (keeping the start and end) when name
+#  shortening is enabled, so very long aliases don't blow out the output.
 _MAX_NAME_WIDTH = 60
 
 # The marker inserted in place of an elided middle, with surrounding spaces so the
 #  break is visually clear.
 _ELLIPSIS = " … "
 
+# Only elide when doing so shortens the displayed text by at least this many characters.
+#  An elided alias is always _MAX_NAME_WIDTH chars long, so this avoids situations where
+#  we'd only save a few chars
+_MIN_ELISION_SAVINGS = 10
+
 
 def _elide_middle(text: str, max_len: int = _MAX_NAME_WIDTH) -> str:
     """Shorten ``text`` to ``max_len`` chars by replacing its middle with an ellipsis.
 
-    The beginning and end are preserved, which keeps the most useful parts of a path
-    (its root and filename) visible. Text already within ``max_len`` is returned
-    unchanged.
+    The beginning and end are preserved, which keeps the most useful parts of an alias
+    visible. Text is only elided when this saves at least ``_MIN_ELISION_SAVINGS``
+    characters of width; shorter text is returned unchanged.
     """
-    if len(text) <= max_len:
+    if len(text) < max_len + _MIN_ELISION_SAVINGS:
         return text
     keep = max_len - len(_ELLIPSIS)  # reserve room for the ellipsis marker
-    if keep <= 0:
-        return text[:max_len]
     head = (keep + 1) // 2
     tail = keep - head
-    if tail <= 0:
-        return f"{text[:head]}{_ELLIPSIS}"
     return f"{text[:head]}{_ELLIPSIS}{text[-tail:]}"
 
 
@@ -336,7 +337,7 @@ def _report_dry_run(pending: list[FileInfoForUpload], *, shorten: bool) -> None:
 
     The alias, path and size columns are padded to the widest value in each column
     so they line up vertically for readability. If ``shorten`` is set, long aliases
-    and paths are middle-elided.
+    are middle-elided.
     """
     total_size = sum(fi.decrypted_size for fi in pending)
     CLIMessageDisplay.display(
@@ -347,7 +348,7 @@ def _report_dry_run(pending: list[FileInfoForUpload], *, shorten: bool) -> None:
     rows = [
         (
             _display_name(fi.alias, shorten=shorten),
-            _display_name(str(fi.path), shorten=shorten),
+            str(fi.path),
             utils.human_readable_size(fi.decrypted_size),
         )
         for fi in pending
@@ -392,7 +393,7 @@ async def run_batch_upload(  # noqa: PLR0913
     files are reported as skipped, but the files that remain are only listed - no
     uploads are initiated.
 
-    If ``shorten`` is set, long aliases and paths are middle-elided in the output.
+    If ``shorten`` is set, long aliases are middle-elided in the output.
     """
     already_uploaded = await _already_uploaded_aliases(upload_client)
     skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]

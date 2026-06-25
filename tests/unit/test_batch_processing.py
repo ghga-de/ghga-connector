@@ -26,7 +26,10 @@ from pydantic import SecretBytes
 from ghga_connector import exceptions
 from ghga_connector.constants import BATCH_RETRY_BACKOFF_SEC
 from ghga_connector.core.uploading.batch_processing import (
+    _MAX_NAME_WIDTH,
+    _MIN_ELISION_SAVINGS,
     BatchPassResult,
+    _elide_middle,
     run_batch_upload,
     upload_files_from_list,
 )
@@ -519,8 +522,35 @@ async def _dry_run_lines(file_infos, *, shorten):
     ]
 
 
-async def test_run_batch_upload_dry_run_elides_long_fields_when_shortened():
-    """With shorten=True, very long aliases and paths are middle-elided."""
+async def test_elide_middle_keeps_text_below_savings_threshold():
+    """An alias only marginally over the width limit is returned unchanged, since
+    eliding it would hide content for little width benefit.
+    """
+    # One char short of the point where eliding would save _MIN_ELISION_SAVINGS chars.
+    text = "a" * (_MAX_NAME_WIDTH + _MIN_ELISION_SAVINGS - 1)
+    assert _elide_middle(text) == text
+
+
+async def test_elide_middle_elides_once_savings_threshold_met():
+    """Once eliding saves at least _MIN_ELISION_SAVINGS chars, the alias is middle-elided
+    down to the width limit.
+    """
+    text = "head" + "x" * (_MAX_NAME_WIDTH + _MIN_ELISION_SAVINGS) + "tail"
+    assert len(text) >= _MAX_NAME_WIDTH + _MIN_ELISION_SAVINGS
+
+    result = _elide_middle(text)
+
+    assert result != text
+    assert len(result) == _MAX_NAME_WIDTH
+    assert " … " in result
+    assert result.startswith("head")
+    assert result.endswith("tail")
+
+
+async def test_run_batch_upload_dry_run_elides_long_alias_when_shortened():
+    """With shorten=True, very long aliases are middle-elided but paths are shown
+    in full.
+    """
     long_alias = "alias-" + "x" * 90
     long_path = Path("/data/" + "deep/" * 30 + "final-file.bam")
     file_infos = [
@@ -529,12 +559,11 @@ async def test_run_batch_upload_dry_run_elides_long_fields_when_shortened():
 
     (line,) = await _dry_run_lines(file_infos, shorten=True)
 
-    # The full values are not shown verbatim, but their start and end survive.
+    # The alias is elided, keeping its start and end, while the path is left intact.
     assert " … " in line  # ellipsis is surrounded by spaces
     assert long_alias not in line
-    assert str(long_path) not in line
     assert long_alias[:10] in line  # head of the alias kept
-    assert "final-file.bam" in line  # tail of the path kept
+    assert str(long_path) in line  # path is never elided
 
 
 async def test_run_batch_upload_dry_run_shows_full_names_by_default():

@@ -70,8 +70,8 @@ def batch_upload(  # noqa: PLR0913
     shorten_names: bool = typer.Option(
         False,
         "--shorten-names",
-        help="Shorten very long aliases and file paths in the output, keeping the start"
-        + " and end (e.g. '/data/run … /final.bam'). Full names are shown by default."
+        help="Shorten very long file aliases in the output, keeping the start and end"
+        + " (e.g. 'sample-001 … -run5.bam'). Full aliases are shown by default."
         + " This is only for improving readability and does not affect how"
         + " data is sent to GHGA.",
     ),

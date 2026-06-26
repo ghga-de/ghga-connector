@@ -127,8 +127,7 @@ async def test_perform_cleanup_restores_sigint_handler(delete_raises):
     if delete_raises is not None:
         uploader.delete_file.side_effect = delete_raises
 
-    with patch("ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"):
-        await perform_cleanup(uploader=uploader, alias="some-file")
+    await perform_cleanup(uploader=uploader, alias="some-file")
 
     assert signal.getsignal(signal.SIGINT) is sentinel_handler
 

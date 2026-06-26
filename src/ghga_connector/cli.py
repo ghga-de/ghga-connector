@@ -42,7 +42,7 @@ def _catch_cancellations(coroutine) -> None:
     try:
         asyncio.run(coroutine)
     except KeyboardInterrupt:
-        CLIMessageDisplay.failure("The operation was aborted.")
+        CLIMessageDisplay.failure("The operation was aborted by the user.")
         raise typer.Exit(code=_SIGINT_EXIT_CODE) from None
 
 

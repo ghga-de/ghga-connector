@@ -135,8 +135,7 @@ async def test_perform_cleanup_restores_sigint_handler(delete_raises):
 _ABORT_EXCEPTIONS = [KeyboardInterrupt(), asyncio.CancelledError()]
 
 
-@pytest.mark.parametrize("error", _ABORT_EXCEPTIONS)
-async def test_upload_files_from_list_halts_on_abort_during_init(error: BaseException):
+async def test_upload_files_from_list_halts_on_abort_during_init():
     """Test that keyboard cancel during initiate_file_upload() stops batch processing
     and performs cleanup. The current and remaining files should be listed as failed.
     """
@@ -149,7 +148,7 @@ async def test_upload_files_from_list_halts_on_abort_during_init(error: BaseExce
 
         # Rig a mock uploader to error during initiation
         aborting_uploader = AsyncMock()
-        aborting_uploader.initiate_file_upload.side_effect = error
+        aborting_uploader.initiate_file_upload.side_effect = KeyboardInterrupt
         second_uploader = make_mock_uploader()
 
         # Patch in the exploding mock uploader

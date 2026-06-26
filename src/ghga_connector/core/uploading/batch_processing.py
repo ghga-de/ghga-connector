@@ -269,12 +269,13 @@ async def upload_files_from_list(
 
         try:
             file_id, storage_alias = await uploader.initiate_file_upload()
-        except _USER_ABORT_EXCEPTIONS:
+        except KeyboardInterrupt:
             # Ctrl+C during initiation (before any bytes flow) halts the batch cleanly,
             # mirroring the abort handling around upload_file() below. Note: initiation
             # may already have created a server-side FileUpload before the interrupt;
             # because no file_id was returned, we can't delete it here, so an orphan may
             # be left in the "init" state. It can be removed manually with `ubox rm`.
+            # TODO: Automatically check for and delete stuck files so user doesn't have to
             CLIMessageDisplay.failure(
                 f"Cancelled upload for {display_alias}. It is possible that the server-"
                 + "side upload was created anyway. If you are unable to create a new"

@@ -33,6 +33,8 @@ from ghga_connector.core.uploading.uploader import Uploader
 
 log = logging.getLogger(__name__)
 
+USER_ABORT_EXCEPTIONS = (KeyboardInterrupt, asyncio.CancelledError)
+
 # The file state, as reported by the Upload API, that marks a cancelled (deleted)
 #  upload. A file in any other state is considered already present in the box.
 _CANCELLED_STATE = "cancelled"
@@ -183,9 +185,6 @@ def load_file_info_from_tsv(tsv_path: Path) -> list[CoreFileInfo]:
     return items
 
 
-_USER_ABORT_EXCEPTIONS = (KeyboardInterrupt, asyncio.CancelledError)
-
-
 def _signal_handler(signum, frame):
     """Capture KeyboardInterrupt"""
     CLIMessageDisplay.display("Cleanup in progress, please wait…")
@@ -317,7 +316,7 @@ async def upload_files_from_list(
         )
         try:
             await uploader.upload_file(encryptor=encryptor)
-        except _USER_ABORT_EXCEPTIONS:
+        except USER_ABORT_EXCEPTIONS:
             # User cancellation is handled here.
             CLIMessageDisplay.failure(
                 f"Upload aborted for {display_alias}, (file ID {file_id}), deleting."

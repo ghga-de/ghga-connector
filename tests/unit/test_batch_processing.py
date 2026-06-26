@@ -15,7 +15,6 @@
 
 """Unit tests for upload_files_from_list in batch_processing"""
 
-import asyncio
 import signal
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -30,6 +29,7 @@ from ghga_connector.constants import BATCH_RETRY_BACKOFF_SEC
 from ghga_connector.core.uploading.batch_processing import (
     _MAX_NAME_WIDTH,
     _MIN_ELISION_SAVINGS,
+    USER_ABORT_EXCEPTIONS,
     BatchPassResult,
     _elide_middle,
     perform_cleanup,
@@ -132,9 +132,6 @@ async def test_perform_cleanup_restores_sigint_handler(delete_raises):
     assert signal.getsignal(signal.SIGINT) is sentinel_handler
 
 
-_ABORT_EXCEPTIONS = [KeyboardInterrupt(), asyncio.CancelledError()]
-
-
 async def test_upload_files_from_list_halts_on_abort_during_init():
     """Test that keyboard cancel during initiate_file_upload() stops batch processing
     and performs cleanup. The current and remaining files should be listed as failed.
@@ -175,7 +172,7 @@ async def test_upload_files_from_list_halts_on_abort_during_init():
         aborting_uploader.delete_file.assert_not_called()
 
 
-@pytest.mark.parametrize("abort", _ABORT_EXCEPTIONS)
+@pytest.mark.parametrize("abort", USER_ABORT_EXCEPTIONS)
 async def test_upload_files_from_list_halts_on_abort_during_upload(
     abort: BaseException,
 ):

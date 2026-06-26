@@ -61,6 +61,9 @@ async def async_batch_upload(  # noqa: PLR0913
     files that fail to upload are retried up to `max_retries` times. If `dry_run` is
     True, the files that would be uploaded are listed but no uploads are performed. If
     `shorten` is set, long aliases are middle-elided in the output.
+
+    A note on file paths: Relative file paths interpreted in the context of the current
+    working directory when the batch upload command is executed.
     """
     core_file_info_list = load_file_info_from_tsv(tsv)
     async with async_client() as client, set_runtime_config(client=client):

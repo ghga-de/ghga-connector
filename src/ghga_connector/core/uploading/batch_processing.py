@@ -55,16 +55,16 @@ _ELLIPSIS = " … "
 _MIN_ELISION_SAVINGS = 10
 
 
-def _elide_middle(text: str, max_len: int = _MAX_NAME_WIDTH) -> str:
+def _elide_middle(text: str) -> str:
     """Shorten ``text`` to ``max_len`` chars by replacing its middle with an ellipsis.
 
     The beginning and end are preserved, which keeps the most useful parts of an alias
     visible. Text is only elided when this saves at least ``_MIN_ELISION_SAVINGS``
     characters of width; shorter text is returned unchanged.
     """
-    if len(text) < max_len + _MIN_ELISION_SAVINGS:
+    if len(text) < _MAX_NAME_WIDTH + _MIN_ELISION_SAVINGS:
         return text
-    keep = max_len - len(_ELLIPSIS)  # reserve room for the ellipsis marker
+    keep = _MAX_NAME_WIDTH - len(_ELLIPSIS)  # reserve room for the ellipsis marker
     head = (keep + 1) // 2
     tail = keep - head
     return f"{text[:head]}{_ELLIPSIS}{text[-tail:]}"

@@ -40,7 +40,9 @@ def batch_upload(  # noqa: PLR0913
         ...,
         help=(
             "Path to a TSV file describing the files to upload. The first column must"
-            + " contain the file path and the second column the file alias."
+            + " contain the file path and the second column the file alias. Relative"
+            + " file paths can only be used if this command is run from same directory."
+            + " Prefer to use absolute paths."
         ),
     ),
     my_public_key_path: Path = typer.Option(

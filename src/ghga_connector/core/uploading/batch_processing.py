@@ -343,6 +343,17 @@ async def upload_files_from_list(  # noqa: PLR0913
             failed.extend(file_info_list[index:])
             return BatchPassResult(failed=failed, halted=True)
         except Exception as err:
+            # A file already in the box without --overwrite isn't an error, just
+            # nothing to do - skip it quietly instead of reporting a failure. (With
+            # --overwrite a clash here is a genuine problem, so let it fall through.)
+            if not overwrite and isinstance(
+                err.__cause__, exceptions.UploadAlreadyExistsError
+            ):
+                CLIMessageDisplay.display(
+                    f"Skipping alias '{display_alias}', already exists."
+                )
+                continue
+
             CLIMessageDisplay.failure(str(err))
 
             # Exit if the error is because the upload box lacks sufficient space

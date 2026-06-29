@@ -861,8 +861,8 @@ async def test_upload_files_from_list_overwrites_existing_alias():
         assert result.failed == []
 
 
-async def test_upload_files_from_list_existing_alias_fails_without_overwrite():
-    """Without overwrite, a duplicate-alias rejection fails the file and deletes nothing."""
+async def test_upload_files_from_list_skips_existing_alias_without_overwrite():
+    """Without overwrite, a duplicate-alias rejection is skipped quietly, not failed."""
     with NamedTemporaryFile() as f:
         file_infos = [make_file_info_for_upload(path=Path(f.name), alias="dup")]
 
@@ -877,7 +877,9 @@ async def test_upload_files_from_list_existing_alias_fails_without_overwrite():
                 "ghga_connector.core.uploading.batch_processing.Uploader",
                 side_effect=[uploader],
             ),
-            patch("ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"),
+            patch(
+                "ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"
+            ) as mock_display,
         ):
             result = await upload_files_from_list(
                 upload_client=upload_client,
@@ -888,7 +890,11 @@ async def test_upload_files_from_list_existing_alias_fails_without_overwrite():
 
         upload_client.delete_file.assert_not_called()
         uploader.upload_file.assert_not_called()
-        assert [fi.alias for fi in result.failed] == ["dup"]
+        # The file is skipped (not counted as failed) and reported gently, not as a failure.
+        assert result.failed == []
+        mock_display.failure.assert_not_called()
+        display_messages = [call.args[0] for call in mock_display.display.call_args_list]
+        assert "Skipping alias 'dup', already exists." in display_messages
 
 
 async def test_run_batch_upload_overwrite_does_not_skip_existing():

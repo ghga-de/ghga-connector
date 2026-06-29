@@ -234,9 +234,7 @@ class BatchPassResult:
     halted: bool = False
 
 
-async def _delete_existing_upload(
-    *, upload_client: UploadClient, alias: str
-) -> bool:
+async def _delete_existing_upload(*, upload_client: UploadClient, alias: str) -> bool:
     """Delete the upload with the given alias from the box, whatever its state.
 
     Used by the overwrite path: the existing upload is removed regardless of the state
@@ -269,9 +267,7 @@ async def _initiate_with_overwrite(
     try:
         return await uploader.initiate_file_upload()
     except Exception as err:
-        already_exists = isinstance(
-            err.__cause__, exceptions.UploadAlreadyExistsError
-        )
+        already_exists = isinstance(err.__cause__, exceptions.UploadAlreadyExistsError)
         if not (overwrite and already_exists):
             raise
 

@@ -893,7 +893,9 @@ async def test_upload_files_from_list_skips_existing_alias_without_overwrite():
         # The file is skipped (not counted as failed) and reported gently, not as a failure.
         assert result.failed == []
         mock_display.failure.assert_not_called()
-        display_messages = [call.args[0] for call in mock_display.display.call_args_list]
+        display_messages = [
+            call.args[0] for call in mock_display.display.call_args_list
+        ]
         assert "Skipping alias 'dup', already exists." in display_messages
 
 

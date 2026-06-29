@@ -807,3 +807,123 @@ async def test_run_batch_upload_does_not_retry_when_halted():
             )
 
         assert call_count == 1
+
+
+def _make_already_exists_error() -> exceptions.CreateFileUploadError:
+    """Build the error raised when the Upload API rejects a duplicate alias.
+
+    Mirrors how ``Uploader.initiate_file_upload`` wraps the underlying
+    ``UploadAlreadyExistsError`` as the ``__cause__`` of a ``CreateFileUploadError``.
+    """
+    cause = exceptions.UploadAlreadyExistsError(work_package_id=uuid4())
+    error = exceptions.CreateFileUploadError(file_alias="dup", exception=cause)
+    error.__cause__ = cause
+    return error
+
+
+async def test_upload_files_from_list_overwrites_existing_alias():
+    """With overwrite=True, an alias already in the box is deleted then re-uploaded."""
+    with NamedTemporaryFile() as f:
+        file_infos = [make_file_info_for_upload(path=Path(f.name), alias="dup")]
+
+        uploader = make_mock_uploader()
+        # Initiation is rejected once (alias exists), then succeeds after the delete.
+        uploader.initiate_file_upload.side_effect = [
+            _make_already_exists_error(),
+            (TEST_FILE_ID, TEST_STORAGE_ALIAS1),
+        ]
+
+        existing = UploadedFileInfo(id=uuid4(), alias="dup", state="interrogated")
+        upload_client = _make_upload_client([existing])
+
+        with (
+            patch(
+                "ghga_connector.core.uploading.batch_processing.Uploader",
+                side_effect=[uploader],
+            ),
+            patch("ghga_connector.core.uploading.batch_processing.Crypt4GHEncryptor"),
+            patch("ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"),
+        ):
+            result = await upload_files_from_list(
+                upload_client=upload_client,
+                file_info_list=file_infos,
+                my_private_key=SecretBytes(b"\x00" * 32),
+                max_concurrent_uploads=1,
+                overwrite=True,
+            )
+
+        # The pre-existing upload was deleted, then initiation retried and the file sent.
+        upload_client.delete_file.assert_awaited_once_with(
+            file_id=existing.file_id, file_alias="dup"
+        )
+        assert uploader.initiate_file_upload.await_count == 2
+        uploader.upload_file.assert_awaited_once()
+        assert result.failed == []
+
+
+async def test_upload_files_from_list_existing_alias_fails_without_overwrite():
+    """Without overwrite, a duplicate-alias rejection fails the file and deletes nothing."""
+    with NamedTemporaryFile() as f:
+        file_infos = [make_file_info_for_upload(path=Path(f.name), alias="dup")]
+
+        uploader = make_mock_uploader()
+        uploader.initiate_file_upload.side_effect = _make_already_exists_error()
+        upload_client = _make_upload_client(
+            [UploadedFileInfo(id=uuid4(), alias="dup", state="interrogated")]
+        )
+
+        with (
+            patch(
+                "ghga_connector.core.uploading.batch_processing.Uploader",
+                side_effect=[uploader],
+            ),
+            patch("ghga_connector.core.uploading.batch_processing.CLIMessageDisplay"),
+        ):
+            result = await upload_files_from_list(
+                upload_client=upload_client,
+                file_info_list=file_infos,
+                my_private_key=SecretBytes(b"\x00" * 32),
+                max_concurrent_uploads=1,
+            )
+
+        upload_client.delete_file.assert_not_called()
+        uploader.upload_file.assert_not_called()
+        assert [fi.alias for fi in result.failed] == ["dup"]
+
+
+async def test_run_batch_upload_overwrite_does_not_skip_existing():
+    """With overwrite=True, files already in the box are uploaded rather than skipped."""
+    with NamedTemporaryFile() as f1, NamedTemporaryFile() as f2:
+        file_infos = [
+            make_file_info_for_upload(path=Path(f1.name), alias="already"),
+            make_file_info_for_upload(path=Path(f2.name), alias="fresh"),
+        ]
+        upload_client = _make_upload_client(
+            [UploadedFileInfo(id=uuid4(), alias="already", state="interrogated")]
+        )
+
+        captured: list[list[str]] = []
+        captured_overwrite: list[bool] = []
+
+        async def fake_batch_cycle(*, file_info_list, overwrite=False, **_kwargs):
+            captured.append([fi.alias for fi in file_info_list])
+            captured_overwrite.append(overwrite)
+            return BatchPassResult(failed=[], halted=False)
+
+        with patch(
+            "ghga_connector.core.uploading.batch_processing.upload_files_from_list",
+            fake_batch_cycle,
+        ):
+            await run_batch_upload(
+                upload_client=upload_client,
+                file_info_list=file_infos,
+                my_private_key=SecretBytes(b"\x00" * 32),
+                max_concurrent_uploads=1,
+                max_retries=0,
+                overwrite=True,
+            )
+
+        # Both files pass through and the box is never consulted for skipping.
+        assert captured == [["already", "fresh"]]
+        assert captured_overwrite == [True]
+        upload_client.get_box_uploads.assert_not_called()

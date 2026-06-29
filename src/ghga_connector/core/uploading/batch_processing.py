@@ -21,7 +21,7 @@ import signal
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pydantic import SecretBytes
+from pydantic import UUID4, SecretBytes
 
 from ghga_connector import exceptions
 from ghga_connector.constants import BATCH_RETRY_BACKOFF_SEC, DEFAULT_BATCH_MAX_RETRIES
@@ -234,13 +234,62 @@ class BatchPassResult:
     halted: bool = False
 
 
-async def upload_files_from_list(
+async def _delete_existing_upload(
+    *, upload_client: UploadClient, alias: str
+) -> bool:
+    """Delete the upload with the given alias from the box, whatever its state.
+
+    Used by the overwrite path: the existing upload is removed regardless of the state
+    it is in so that a fresh upload can take its place. Returns True if a matching upload
+    was found and deleted, False if no upload with that alias is present.
+    """
+    uploads = await upload_client.get_box_uploads()
+    match = next((upload for upload in uploads if upload.alias == alias), None)
+    if match is None:
+        return False
+    await upload_client.delete_file(file_id=match.file_id, file_alias=alias)
+    return True
+
+
+async def _initiate_with_overwrite(
+    *,
+    uploader: Uploader,
+    upload_client: UploadClient,
+    file_info: FileInfoForUpload,
+    display_alias: str,
+    overwrite: bool,
+) -> tuple[UUID4, str]:
+    """Initiate a file upload, optionally overwriting a pre-existing alias.
+
+    If ``overwrite`` is set and initiation is rejected because the alias already exists
+    in the box, the existing upload is deleted (regardless of its state) and initiation
+    is attempted once more. Any error other than the alias clash, and the retried
+    initiation itself, propagate to the caller unchanged.
+    """
+    try:
+        return await uploader.initiate_file_upload()
+    except Exception as err:
+        already_exists = isinstance(
+            err.__cause__, exceptions.UploadAlreadyExistsError
+        )
+        if not (overwrite and already_exists):
+            raise
+
+    CLIMessageDisplay.display(
+        f"An upload for '{display_alias}' already exists; deleting it and re-uploading."
+    )
+    await _delete_existing_upload(upload_client=upload_client, alias=file_info.alias)
+    return await uploader.initiate_file_upload()
+
+
+async def upload_files_from_list(  # noqa: PLR0913
     *,
     upload_client: UploadClient,
     file_info_list: list[FileInfoForUpload],
     my_private_key: SecretBytes,
     max_concurrent_uploads: int,
     shorten: bool = False,
+    overwrite: bool = False,
 ) -> BatchPassResult:
     """Upload all files in the provided list of file paths.
 
@@ -248,6 +297,10 @@ async def upload_files_from_list(
     the in progress file will be cancelled and the upload process halted.
 
     If ``shorten`` is set, long aliases are middle-elided in user-facing messages.
+
+    If ``overwrite`` is set, a file whose upload is rejected because its alias already
+    exists in the box has the existing upload deleted (regardless of its state) before
+    the upload is retried.
 
     Returns a ``BatchPassResult`` describing which files failed and whether the pass was
     halted before all files were attempted.
@@ -267,7 +320,13 @@ async def upload_files_from_list(
         log.debug("Full file path is %s", str(file_info.path.resolve()))
 
         try:
-            file_id, storage_alias = await uploader.initiate_file_upload()
+            file_id, storage_alias = await _initiate_with_overwrite(
+                uploader=uploader,
+                upload_client=upload_client,
+                file_info=file_info,
+                display_alias=display_alias,
+                overwrite=overwrite,
+            )
         except KeyboardInterrupt:
             # Ctrl+C during initiation (before any bytes flow) halts the batch cleanly,
             # mirroring the abort handling around upload_file() below. Note: initiation
@@ -404,6 +463,7 @@ async def run_batch_upload(  # noqa: PLR0913
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
     shorten: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """Upload a batch of files, skipping those already uploaded and retrying failures.
 
@@ -417,8 +477,15 @@ async def run_batch_upload(  # noqa: PLR0913
     uploads are initiated.
 
     If ``shorten`` is set, long aliases are middle-elided in the output.
+
+    If ``overwrite`` is set, files already present in the upload box are no longer
+    skipped; their existing uploads are deleted and replaced as part of the upload.
     """
-    already_uploaded = await _already_uploaded_aliases(upload_client)
+    # When overwriting, don't skip files already in the box - they are meant to be
+    # replaced, so every file is treated as pending and goes through the overwrite path.
+    already_uploaded = (
+        set() if overwrite else await _already_uploaded_aliases(upload_client)
+    )
     skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]
     if skipped:
         CLIMessageDisplay.display(
@@ -445,6 +512,7 @@ async def run_batch_upload(  # noqa: PLR0913
             my_private_key=my_private_key,
             max_concurrent_uploads=max_concurrent_uploads,
             shorten=shorten,
+            overwrite=overwrite,
         )
         pending = result.failed
 

@@ -48,6 +48,8 @@ HELP_TEXT = """Available commands:
   upload PATH [PATH ...]      Upload one or more files/globs, using each local
                               file name as its alias.
   upload --alias ALIAS PATH   Upload a single file under the given alias.
+  upload --overwrite ...      Replace any file already in the box with the same
+                              alias (deletes it first) instead of failing.
   ls [--show-deleted]         List the contents of the upload box. Deleted
                               files are hidden unless --show-deleted is given.
   rm ALIAS                    Delete the file with the given alias from the box.
@@ -134,6 +136,8 @@ class UboxCompleter(Completer):
         if current.startswith("-"):
             if "--alias".startswith(current):
                 yield Completion("--alias", start_position=-len(current))
+            if "--overwrite" not in preceding and "--overwrite".startswith(current):
+                yield Completion("--overwrite", start_position=-len(current))
             return
         # Delegate local path completion to prompt_toolkit's PathCompleter.
         sub_document = Document(current, cursor_position=len(current))
@@ -275,8 +279,15 @@ class UboxShell:
     async def _do_upload(self, args: list[str]) -> None:
         """Handle the 'upload' command."""
         if not args:
-            CLIMessageDisplay.failure("Usage: upload [--alias ALIAS] PATH [PATH ...]")
+            CLIMessageDisplay.failure(
+                "Usage: upload [--overwrite] [--alias ALIAS] PATH [PATH ...]"
+            )
             return
+
+        # A file already in the box normally causes the upload to be rejected; with
+        # --overwrite the existing upload is deleted first and then replaced.
+        overwrite = "--overwrite" in args
+        args = [arg for arg in args if arg != "--overwrite"]
 
         try:
             alias, path_tokens = _extract_alias(args)
@@ -315,6 +326,7 @@ class UboxShell:
             file_info_list=file_info_list,
             my_private_key=self._my_private_key,
             max_concurrent_uploads=config.max_concurrent_uploads,
+            overwrite=overwrite,
         )
 
     async def _do_ls(self, args: list[str]) -> None:

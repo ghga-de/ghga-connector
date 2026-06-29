@@ -53,6 +53,7 @@ async def async_batch_upload(  # noqa: PLR0913
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
     shorten: bool = False,
+    overwrite: bool = False,
 ):
     """Upload a batch of files described by a TSV file asynchronously.
 
@@ -76,6 +77,7 @@ async def async_batch_upload(  # noqa: PLR0913
             max_retries=max_retries,
             dry_run=dry_run,
             shorten=shorten,
+            overwrite=overwrite,
         )
 
 
@@ -89,6 +91,7 @@ async def upload_files(  # noqa: PLR0913
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
     shorten: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """Core command to upload a batch of files. Can be called by CLI, GUI, etc.
 
@@ -119,6 +122,7 @@ async def upload_files(  # noqa: PLR0913
         max_retries=max_retries,
         dry_run=dry_run,
         shorten=shorten,
+        overwrite=overwrite,
     )
 
 

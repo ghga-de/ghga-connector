@@ -295,7 +295,12 @@ async def test_do_upload_glob(monkeypatch, tmp_path: Path):
     captured: list[list[tuple[str, str]]] = []
 
     async def fake_upload_files_from_list(
-        *, upload_client, file_info_list, my_private_key, max_concurrent_uploads
+        *,
+        upload_client,
+        file_info_list,
+        my_private_key,
+        max_concurrent_uploads,
+        overwrite=False,
     ):
         captured.append([(fi.alias, Path(fi.path).name) for fi in file_info_list])
 
@@ -319,11 +324,18 @@ async def test_do_upload_with_alias(monkeypatch, tmp_path: Path):
     target.write_text("plaintext content")
 
     captured: list[list[tuple[str, str]]] = []
+    captured_overwrite: list[bool] = []
 
     async def fake_upload_files_from_list(
-        *, upload_client, file_info_list, my_private_key, max_concurrent_uploads
+        *,
+        upload_client,
+        file_info_list,
+        my_private_key,
+        max_concurrent_uploads,
+        overwrite=False,
     ):
         captured.append([(fi.alias, Path(fi.path).name) for fi in file_info_list])
+        captured_overwrite.append(overwrite)
 
     monkeypatch.setattr(
         ubox_shell, "upload_files_from_list", fake_upload_files_from_list
@@ -335,6 +347,40 @@ async def test_do_upload_with_alias(monkeypatch, tmp_path: Path):
     await shell._do_upload(["--alias", "custom", str(target)])
 
     assert captured == [[("custom", "data.bam")]]
+    assert captured_overwrite == [False]
+
+
+@pytest.mark.asyncio
+async def test_do_upload_overwrite_flag(monkeypatch, tmp_path: Path):
+    """The --overwrite flag is parsed out and forwarded, wherever it appears."""
+    target = tmp_path / "data.bam"
+    target.write_text("plaintext content")
+
+    captured: list[tuple[list[tuple[str, str]], bool]] = []
+
+    async def fake_upload_files_from_list(
+        *,
+        upload_client,
+        file_info_list,
+        my_private_key,
+        max_concurrent_uploads,
+        overwrite=False,
+    ):
+        captured.append(
+            ([(fi.alias, Path(fi.path).name) for fi in file_info_list], overwrite)
+        )
+
+    monkeypatch.setattr(
+        ubox_shell, "upload_files_from_list", fake_upload_files_from_list
+    )
+
+    shell = UboxShell(
+        upload_client=FakeUploadClient(), my_private_key=SecretBytes(b"key")
+    )
+    # The flag may sit before the path or between --alias and the path.
+    await shell._do_upload(["--overwrite", "--alias", "custom", str(target)])
+
+    assert captured == [([("custom", "data.bam")], True)]
 
 
 @pytest.mark.asyncio
@@ -419,9 +465,11 @@ async def test_complete_upload_local_paths(tmp_path: Path):
 
 @pytest.mark.asyncio
 async def test_complete_upload_alias_flag():
-    """A leading dash on an upload argument completes the --alias flag."""
+    """A leading dash on an upload argument completes the upload flags."""
     completer = UboxCompleter(upload_client=FakeUploadClient())
-    assert await _complete(completer, "upload -") == ["--alias"]
+    assert sorted(await _complete(completer, "upload -")) == ["--alias", "--overwrite"]
+    # Once --overwrite has been given, it is no longer offered again.
+    assert await _complete(completer, "upload --overwrite -") == ["--alias"]
 
 
 @pytest.mark.asyncio

@@ -81,6 +81,13 @@ def batch_upload(  # noqa: PLR0913
         help="List the files that would be uploaded (after skipping any already in the"
         + " upload box) without uploading anything.",
     ),
+    overwrite: bool = typer.Option(
+        False,
+        "--overwrite",
+        help="Re-upload files whose alias already exists in the upload box instead of"
+        + " skipping them. The existing upload is deleted first, regardless of its"
+        + " state, and then replaced.",
+    ),
     shorten_names: bool = typer.Option(
         False,
         "--shorten-names",
@@ -108,6 +115,7 @@ def batch_upload(  # noqa: PLR0913
             max_retries=max_retries,
             dry_run=dry_run,
             shorten=shorten_names,
+            overwrite=overwrite,
         )
     )
 

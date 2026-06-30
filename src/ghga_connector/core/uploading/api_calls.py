@@ -443,11 +443,6 @@ def _handle_404(
                 work_package_id=work_package_id,
                 file_id=file_id,  # type: ignore
             )
-        case "s3UploadDetailsNotFound":
-            raise exceptions.S3UploadDetailsError(
-                file_alias=file_alias,  # type: ignore
-                work_package_id=work_package_id,
-            )
         case "s3UploadNotFound":
             raise exceptions.S3UploadMissingError()
 
@@ -468,6 +463,8 @@ def _handle_409(
             raise exceptions.UploadBoxLockedError(work_package_id=work_package_id)
         case "fileUploadAlreadyExists":
             raise exceptions.UploadAlreadyExistsError(work_package_id=work_package_id)
+        case "fileUploadStateError":
+            raise exceptions.FileUploadStateError()
         case "orphanedMultipartUpload":
             raise exceptions.OrphanedUploadError(
                 file_alias=file_alias,  # type: ignore

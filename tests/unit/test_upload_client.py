@@ -423,15 +423,6 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
             FILE_ID,
             exceptions.FileNotInBoxError,
         ),
-        # 404 status codes - s3UploadDetailsNotFound
-        (
-            404,
-            {"exception_id": "s3UploadDetailsNotFound"},
-            TEST_FUB_ID,
-            FILE_ALIAS,
-            FILE_ID,
-            exceptions.S3UploadDetailsError,
-        ),
         # 404 status codes - s3UploadNotFound
         (
             404,
@@ -476,6 +467,15 @@ async def test_delete_file(upload_client: UploadClient, httpx_mock: HTTPXMock):
             FILE_ALIAS,
             FILE_ID,
             exceptions.OrphanedUploadError,
+        ),
+        # 409 status codes - fileUploadStateError
+        (
+            409,
+            {"exception_id": "fileUploadStateError"},
+            TEST_FUB_ID,
+            FILE_ALIAS,
+            FILE_ID,
+            exceptions.FileUploadStateError,
         ),
         # 507 status code - boxMaxSizeExceeded
         (

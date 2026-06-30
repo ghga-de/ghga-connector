@@ -24,6 +24,7 @@ from tenacity import RetryError
 
 from ghga_connector import exceptions
 from ghga_connector.config import get_upload_api_url
+from ghga_connector.constants import UPLOAD_LISTING_PAGE_SIZE
 from ghga_connector.core.api_calls.utils import is_service_healthy
 from ghga_connector.core.uploading.structs import UploadedFileInfo
 from ghga_connector.core.work_package import WorkPackageClient
@@ -116,7 +117,9 @@ class UploadClient:
     async def get_box_uploads(self) -> list[UploadedFileInfo]:
         """Contact the Upload API to list the FileUploads in the FileUploadBox.
 
-        Returns a list of UploadedFileInfo objects describing the box contents.
+        The listing endpoint is paginated, so successive pages are requested until the
+        whole box has been retrieved. Returns a list of UploadedFileInfo objects
+        describing the box contents.
         """
         rdub_id, fub_id = await self._work_package_client.get_package_box_ids()
 
@@ -131,21 +134,38 @@ class UploadClient:
         url = f"{self._upload_api_url}/boxes/{fub_id}/uploads"
         headers = _form_authorization_headers(view_wot)
 
-        try:
-            log.debug("Requesting box upload listing at url %s", url)
-            response = await self._client.get(url, headers=headers)
-        except RetryError as retry_error:
-            _check_for_request_errors(retry_error, url)
-            response = retry_error.last_attempt.result()
+        uploads: list[UploadedFileInfo] = []
+        skip = 0
+        while True:
+            params = {"skip": skip, "limit": UPLOAD_LISTING_PAGE_SIZE}
+            try:
+                log.debug(
+                    "Requesting box upload listing at url %s (skip=%i)", url, skip
+                )
+                response = await self._client.get(url, headers=headers, params=params)
+            except RetryError as retry_error:
+                _check_for_request_errors(retry_error, url)
+                response = retry_error.last_attempt.result()
 
-        if response.status_code != 200:
-            self._handle_bad_status_codes(
-                status_code=response.status_code,
-                response=response,
-                file_upload_box_id=fub_id,
+            if response.status_code != 200:
+                self._handle_bad_status_codes(
+                    status_code=response.status_code,
+                    response=response,
+                    file_upload_box_id=fub_id,
+                )
+
+            page = response.json()
+            uploads.extend(
+                UploadedFileInfo.model_validate(item) for item in page["items"]
             )
 
-        return [UploadedFileInfo.model_validate(item) for item in response.json()]
+            # Stop once the whole box has been collected. The empty-page guard protects
+            #  against an unexpectedly low total_count causing an infinite loop.
+            if not page["items"] or len(uploads) >= page["total_count"]:
+                break
+            skip += UPLOAD_LISTING_PAGE_SIZE
+
+        return uploads
 
     async def create_file_upload(
         self,

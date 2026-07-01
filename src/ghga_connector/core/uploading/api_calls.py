@@ -174,8 +174,15 @@ class UploadClient:
         decrypted_size: int,
         encrypted_size: int,
         part_size: int,
+        overwrite: bool = False,
     ) -> tuple[UUID4, str]:
-        """Contact the Upload API to initiate a new upload for a file alias"""
+        """Contact the Upload API to initiate a new upload for a file alias.
+
+        When ``overwrite`` is True, the Upload API automatically replaces any existing
+        FileUpload for this alias that is in a cancelled or failed state (or an active
+        init/inbox state), rather than rejecting the request. This is used when
+        re-initiating an upload for a file that previously failed or was cancelled.
+        """
         rdub_id, fub_id = await self._work_package_client.get_package_box_ids()
 
         # Shouldn't need to worry about cache busting here
@@ -194,6 +201,7 @@ class UploadClient:
             "decrypted_size": decrypted_size,
             "encrypted_size": encrypted_size,
             "part_size": part_size,
+            "overwrite": overwrite,
         }
 
         try:

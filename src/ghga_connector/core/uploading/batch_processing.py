@@ -235,13 +235,14 @@ class BatchPassResult:
     halted: bool = False
 
 
-async def upload_files_from_list(
+async def upload_files_from_list(  # noqa: PLR0913
     *,
     upload_client: UploadClient,
     file_info_list: list[FileInfoForUpload],
     my_private_key: SecretBytes,
     max_concurrent_uploads: int,
     shorten: bool = False,
+    overwrite: bool = False,
 ) -> BatchPassResult:
     """Upload all files in the provided list of file paths.
 
@@ -249,6 +250,9 @@ async def upload_files_from_list(
     the in progress file will be cancelled and the upload process halted.
 
     If ``shorten`` is set, long aliases are middle-elided in user-facing messages.
+
+    If ``overwrite`` is set, every file is initiated with overwrite=True, so the Upload
+    API replaces any existing FileUpload for the alias instead of rejecting the request.
 
     Returns a ``BatchPassResult`` describing which files failed and whether the pass was
     halted before all files were attempted.
@@ -263,6 +267,7 @@ async def upload_files_from_list(
             file_info=file_info,
             max_concurrent_uploads=max_concurrent_uploads,
             display_name=display_alias,
+            overwrite=overwrite,
         )
         log.info("Initializing upload for %s", file_info.alias)
         log.debug("Full file path is %s", str(file_info.path.resolve()))
@@ -405,6 +410,7 @@ async def run_batch_upload(  # noqa: PLR0913
     max_retries: int = DEFAULT_BATCH_MAX_RETRIES,
     dry_run: bool = False,
     shorten: bool = False,
+    overwrite: bool = False,
 ) -> None:
     """Upload a batch of files, skipping those already uploaded and retrying failures.
 
@@ -418,6 +424,10 @@ async def run_batch_upload(  # noqa: PLR0913
     uploads are initiated.
 
     If ``shorten`` is set, long aliases are middle-elided in the output.
+
+    If ``overwrite`` is set, each uploaded (non-skipped) file is initiated with
+    overwrite=True, so the Upload API replaces any existing FileUpload for the alias
+    instead of rejecting the request.
     """
     already_uploaded = await _already_uploaded_aliases(upload_client)
     skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]
@@ -446,6 +456,7 @@ async def run_batch_upload(  # noqa: PLR0913
             my_private_key=my_private_key,
             max_concurrent_uploads=max_concurrent_uploads,
             shorten=shorten,
+            overwrite=overwrite,
         )
         pending = result.failed
 

@@ -96,6 +96,7 @@ async def test_create_file_upload_success(
         "decrypted_size": decrypted_size,
         "encrypted_size": encrypted_size,
         "part_size": 100,
+        "overwrite": False,
     }
 
     response_body = {
@@ -132,6 +133,42 @@ async def test_create_file_upload_success(
             encrypted_size=encrypted_size,
             part_size=100,
         )
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+async def test_create_file_upload_sends_overwrite(
+    upload_client: UploadClient, httpx_mock: HTTPXMock, overwrite: bool
+):
+    """Make sure create_file_upload forwards the overwrite flag in the request body."""
+    url = f"{upload_client._upload_api_url}/boxes/{TEST_FUB_ID}/uploads"
+    decrypted_size = 2000
+    encrypted_size = 2124
+    body = {
+        "alias": FILE_ALIAS,
+        "decrypted_size": decrypted_size,
+        "encrypted_size": encrypted_size,
+        "part_size": 100,
+        "overwrite": overwrite,
+    }
+    response_body = {
+        "file_id": str(FILE_ID),
+        "alias": FILE_ALIAS,
+        "storage_alias": TEST_STORAGE_ALIAS1,
+    }
+    # The response is only returned if the request body matches the expected body,
+    # including the overwrite flag.
+    httpx_mock.add_response(
+        201, url=url, match_json=body, method="POST", json=response_body
+    )
+
+    file_id, _ = await upload_client.create_file_upload(
+        file_alias=FILE_ALIAS,
+        decrypted_size=decrypted_size,
+        encrypted_size=encrypted_size,
+        part_size=100,
+        overwrite=overwrite,
+    )
+    assert file_id == FILE_ID
 
 
 async def test_get_box_uploads(upload_client: UploadClient, httpx_mock: HTTPXMock):

@@ -425,9 +425,8 @@ async def run_batch_upload(  # noqa: PLR0913
 
     If ``shorten`` is set, long aliases are middle-elided in the output.
 
-    If ``overwrite`` is set, each uploaded (non-skipped) file is initiated with
-    overwrite=True, so the Upload API replaces any existing FileUpload for the alias
-    instead of rejecting the request.
+    If `overwrite` is True, each uploaded file replaces any existing FileUpload for
+    its alias as long as it has not reached the "interrogated" state (re-encrypted).
     """
     already_uploaded = await _already_uploaded_aliases(upload_client)
     skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]

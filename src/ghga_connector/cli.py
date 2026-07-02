@@ -92,9 +92,9 @@ def batch_upload(  # noqa: PLR0913
     overwrite: bool = typer.Option(
         False,
         help="Replace any existing upload for each file's alias in the upload box,"
-        + " instead of the request being rejected as a duplicate. Use this to re-upload"
-        + " files whose previous upload failed or was cancelled. Note that this does"
-        + " not overwrite files that have already been re-encrypted.",
+        + " instead of the request being rejected as a duplicate. Use this to replace"
+        + " existing, ongoing file uploads. Note that this does not overwrite files"
+        + " that have already been re-encrypted.",
     ),
     debug: bool = typer.Option(
         False, help="Set this option in order to view traceback for errors."

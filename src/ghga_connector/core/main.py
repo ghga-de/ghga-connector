@@ -62,7 +62,8 @@ async def async_batch_upload(  # noqa: PLR0913
     files that fail to upload are retried up to `max_retries` times. If `dry_run` is
     True, the files that would be uploaded are listed but no uploads are performed. If
     `shorten` is set, long aliases are middle-elided in the output. If `overwrite` is
-    True, each uploaded file replaces any existing FileUpload for its alias.
+    True, each uploaded file replaces any existing FileUpload for its alias as long as
+    it has not reached the "interrogated" state (re-encrypted).
 
     A note on file paths: Relative file paths interpreted in the context of the current
     working directory when the batch upload command is executed.
@@ -100,7 +101,8 @@ async def upload_files(  # noqa: PLR0913
     `max_retries` times. If `dry_run` is True, the files that would be uploaded are
     listed but no uploads are performed. If `shorten` is set, long aliases are
     middle-elided in the output. If `overwrite` is True, each uploaded file replaces any
-    existing FileUpload for its alias instead of being rejected as a duplicate.
+    existing FileUpload for its alias as long as it has not reached the "interrogated"
+    state (re-encrypted).
     """
     my_public_key = utils.get_public_key(my_public_key_path)
     my_private_key = utils.get_private_key(my_private_key_path, passphrase)

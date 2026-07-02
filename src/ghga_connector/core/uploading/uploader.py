@@ -57,9 +57,8 @@ class Uploader:
         ``display_name`` is used only for the progress bar label; if omitted, the file
         alias is used. The alias sent to the Upload API is always the full alias.
 
-        ``overwrite`` is forwarded to the Upload API when initiating the upload; set it
-        when re-initiating an upload for a file that previously failed or was cancelled,
-        so the existing FileUpload is replaced instead of causing a conflict.
+        If `overwrite` is True, each uploaded file replaces any existing FileUpload for
+        its alias as long as it has not reached the "interrogated" state (re-encrypted).
         """
         self._upload_client = upload_client
         self._file_alias = file_info.alias

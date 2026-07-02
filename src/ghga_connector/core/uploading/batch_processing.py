@@ -252,7 +252,7 @@ async def upload_files_from_list(  # noqa: PLR0913
     If ``shorten`` is set, long aliases are middle-elided in user-facing messages.
 
     If ``overwrite`` is set, every file is initiated with overwrite=True, so the Upload
-    API replaces any existing FileUpload for the alias instead of rejecting the request.
+    API replaces any existing FileUpload for a given alias instead of rejecting the request.
 
     Returns a ``BatchPassResult`` describing which files failed and whether the pass was
     halted before all files were attempted.

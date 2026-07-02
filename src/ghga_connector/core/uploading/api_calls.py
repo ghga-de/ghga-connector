@@ -164,17 +164,16 @@ class UploadClient:
 
             try:
                 items = page["items"]
-                total_count = page["total_count"]
                 uploads.extend(UploadedFileInfo.model_validate(item) for item in items)
             except (ValidationError, KeyError, TypeError) as error:
                 raise exceptions.UnexpectedError(
                     f"The Upload API returned an invalid box upload listing: {error}"
                 ) from error
-            skip += len(items)  # Don't assume API always allows our limit
 
             # Stop once the whole box has been collected
-            if len(uploads) >= total_count or not items:
+            if not items:
                 break
+            skip += len(items)  # Don't assume API always allows our limit
 
         return uploads
 

@@ -164,6 +164,7 @@ class UploadClient:
 
             try:
                 items = page["items"]
+                total_count = page["total_count"]
                 uploads.extend(UploadedFileInfo.model_validate(item) for item in items)
             except (ValidationError, KeyError, TypeError) as error:
                 raise exceptions.UnexpectedError(
@@ -171,7 +172,7 @@ class UploadClient:
                 ) from error
 
             # Stop once the whole box has been collected
-            if not items:
+            if len(uploads) >= total_count:
                 break
             skip += len(items)  # Don't assume API always allows our limit
 

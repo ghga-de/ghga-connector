@@ -179,10 +179,8 @@ class UploadClient:
     ) -> tuple[UUID4, str]:
         """Contact the Upload API to initiate a new upload for a file alias.
 
-        When ``overwrite`` is True, the Upload API automatically replaces any existing
-        FileUpload for this alias that is in a cancelled or failed state (or an active
-        init/inbox state), rather than rejecting the request. This is used when
-        re-initiating an upload for a file that previously failed or was cancelled.
+        When ``overwrite`` is True, the Upload API will replace any existing FileUpload
+        for this alias that is in the "init" or "inbox" state instead of rejecting it.
         """
         rdub_id, fub_id = await self._work_package_client.get_package_box_ids()
 

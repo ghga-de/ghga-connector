@@ -222,12 +222,14 @@ class FileNotInBoxError(RuntimeError):
 
 
 class FileUploadStateError(RuntimeError):
-    """Raised when the requested action is incompatible with the FileUpload's state."""
+    """Raised when the requested action is incompatible with the FileUpload's state.
 
-    def __init__(self):
-        msg = (
-            "The requested action is incompatible with the file upload's current state."
-        )
+    At the moment, this is only raised when trying to complete a failed or cancelled
+    file upload.
+    """
+
+    def __init__(self, *, alias: str):
+        msg = f"Cannot complete {alias} because it appears to be cancelled or failed."
         super().__init__(msg)
 
 

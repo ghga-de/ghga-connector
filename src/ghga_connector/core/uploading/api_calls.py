@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import httpx
-from pydantic import UUID4
+from pydantic import UUID4, ValidationError
 from tenacity import RetryError
 
 from ghga_connector import exceptions
@@ -155,16 +155,27 @@ class UploadClient:
                     file_upload_box_id=fub_id,
                 )
 
-            page = response.json()
-            uploads.extend(
-                UploadedFileInfo.model_validate(item) for item in page["items"]
-            )
+            try:
+                page = response.json()
+            except ValueError as error:
+                raise exceptions.UnexpectedError(
+                    "The Upload API returned a box upload listing without a valid"
+                    " JSON body."
+                ) from error
 
-            # Stop once the whole box has been collected. The empty-page guard protects
-            #  against an unexpectedly low total_count causing an infinite loop.
-            if not page["items"] or len(uploads) >= page["total_count"]:
+            try:
+                items = page["items"]
+                total_count = page["total_count"]
+                uploads.extend(UploadedFileInfo.model_validate(item) for item in items)
+            except (ValidationError, KeyError, TypeError) as error:
+                raise exceptions.UnexpectedError(
+                    f"The Upload API returned an invalid box upload listing: {error}"
+                ) from error
+            skip += len(items)  # Don't assume API always allows our limit
+
+            # Stop once the whole box has been collected
+            if len(uploads) >= total_count or not items:
                 break
-            skip += UPLOAD_LISTING_PAGE_SIZE
 
         return uploads
 

@@ -16,7 +16,6 @@
 """This module provides a client class for contacting the Upload API"""
 
 import logging
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 import httpx
@@ -484,9 +483,7 @@ def _handle_409(
         case "fileUploadStateError":
             # This exception ID is used for a few things in UCS, but only gets raised
             #  here for trying to complete a failed or cancelled file
-            if TYPE_CHECKING:
-                assert isinstance(file_alias, str)
-            raise exceptions.FileUploadStateError(alias=file_alias)
+            raise exceptions.FileUploadStateError(alias=file_alias)  # type: ignore
         case "orphanedMultipartUpload":
             raise exceptions.OrphanedUploadError(
                 file_alias=file_alias,  # type: ignore

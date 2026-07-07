@@ -428,7 +428,11 @@ async def run_batch_upload(  # noqa: PLR0913
     If `overwrite` is True, each uploaded file replaces any existing FileUpload for
     its alias as long as it has not reached the "interrogated" state (re-encrypted).
     """
-    already_uploaded = await _already_uploaded_aliases(upload_client)
+    try:
+        already_uploaded = await _already_uploaded_aliases(upload_client)
+    except Exception as err:
+        CLIMessageDisplay.failure(f"Batch upload failed: {err!s}")
+
     skipped = [fi.alias for fi in file_info_list if fi.alias in already_uploaded]
     if skipped:
         CLIMessageDisplay.display(

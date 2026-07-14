@@ -10,9 +10,9 @@ annotated-types==0.7.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   pydantic
-anyio==4.14.1 \
-    --hash=sha256:4e5533c5b8ff0a24f5d7a176cbe6877129cd183893f66b537f8f227d10527d72 \
-    --hash=sha256:8d648a3544c1a700e3ff78615cd679e4c5c3f149904287e73687b2596963629e
+anyio==4.14.2 \
+    --hash=sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494 \
+    --hash=sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f
     # via
     #   -c lock/requirements-dev.txt
     #   anysqlite
@@ -97,15 +97,15 @@ bcrypt==5.0.0 \
     # via
     #   -c lock/requirements-dev.txt
     #   crypt4gh
-boto3==1.43.41 \
-    --hash=sha256:0f56811f13677bfb4542daa0cce8532c95d9afd27b4ba7b681af36a0568624ad \
-    --hash=sha256:f48f862d2720ea9203ed2d842d436b8eb2d459ea31654a7ad7c0756fdf36c6b2
+boto3==1.43.47 \
+    --hash=sha256:09a8ce4abab4391bf08315e2dcc449b4b33e97ce7654ee9398d9fe4ef73a33da \
+    --hash=sha256:aef0cccd5bc4a443fb3e64fada023f7b5b9da36864cb4255b68cf93067476676
     # via
     #   -c lock/requirements-dev.txt
     #   hexkit
-botocore==1.43.41 \
-    --hash=sha256:0cc6e79b30a2a98374f16a31cd9c7a9106a51b60650bd8c34cc8223f58ae6b8d \
-    --hash=sha256:27627d79af0df7dcb7ecf78d8d3d1310da09a5e9460be30bf759f1c2ed095ee8
+botocore==1.43.47 \
+    --hash=sha256:4d16559a3a1866fa7b9e651dd1422c1a033497e069f8a73cae5eebafe70ff39c \
+    --hash=sha256:9e04d8da7f9cff8a911b14284829f78b74e1ce785444833199837decb5ecc17a
     # via
     #   -c lock/requirements-dev.txt
     #   boto3
@@ -746,9 +746,9 @@ rich==14.3.4 \
     #   -c lock/requirements-dev.txt
     #   ghga-connector (pyproject.toml)
     #   typer
-s3transfer==0.19.0 \
-    --hash=sha256:777cc2415536f1debadb5c2ef7779275d0fc0fe0e042411cdd6caebeb2685262 \
-    --hash=sha256:ce436931687addc4c1712d52d40b32f53e88315723f107ffa20ba82b05a0f685
+s3transfer==0.19.1 \
+    --hash=sha256:d3d6371dc3f1e5c5427b2b457bcf13bcf87bec334c95aed18642eae61f6926f3 \
+    --hash=sha256:d5fd7005ee39307455ad5f310b5ea67f4b1960d7fed5b3671ee50c249de675de
     # via
     #   -c lock/requirements-dev.txt
     #   boto3

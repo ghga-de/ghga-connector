@@ -33,7 +33,7 @@ from .state import FILES  # noqa: F401
 
 @pytest_asyncio.fixture()
 async def set_runtime_test_config():
-    """Set runtime config to dummy values so httpx mock can be used without mock api"""
+    """Set runtime config to dummy values so httpx2 mock can be used without mock api"""
     async with (
         set_context_var(upload_api_url_var, "http://127.0.0.1/upload"),
         set_context_var(download_api_url_var, "http://127.0.0.1/download"),

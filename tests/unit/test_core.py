@@ -16,16 +16,40 @@
 
 """Tests for the core functions of the cli"""
 
+from typing import Any
+
+import httpx2
 import pytest
-from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
+from ghga_service_commons.api.mock_router import MockRouter
 
 from ghga_connector.core.api_calls import is_service_healthy
 
 
-@pytest.mark.httpx_mock(
-    assert_all_responses_were_requested=False,
-    assert_all_requests_were_expected=False,
-)
+@pytest.fixture()
+def mock_health_endpoint(monkeypatch):
+    """Serve https://ghga.de/health and refuse every other connection.
+
+    `is_service_healthy` makes a module level `httpx2.get` call, so that call is what
+    gets replaced here, leaving the URL handling and response parsing under test.
+    """
+    router: MockRouter = MockRouter()
+
+    @router.get("https://ghga.de/health")
+    def health() -> httpx2.Response:
+        """Report GHGA as healthy."""
+        return httpx2.Response(200, json={"status": "OK"})
+
+    transport = router.as_transport()
+
+    def mock_get(*, url: str, timeout: Any) -> httpx2.Response:
+        if not url.startswith("https://ghga.de"):
+            raise httpx2.ConnectError("mocked connection failure")
+        with httpx2.Client(transport=transport) as client:
+            return client.get(url, timeout=timeout)
+
+    monkeypatch.setattr(httpx2, "get", mock_get)
+
+
 @pytest.mark.parametrize(
     "api_url,timeout_in_seconds,expected_response",
     [
@@ -40,11 +64,8 @@ def test_is_service_healthy(
     api_url: str,
     timeout_in_seconds: int,
     expected_response: bool,
-    httpx_mock: HTTPXMock,  # noqa: F811
+    mock_health_endpoint,
 ):
     """Test healthy check function"""
-    httpx_mock.add_response(
-        url="https://ghga.de/health", status_code=200, json={"status": "OK"}
-    )
     response = is_service_healthy(api_url, timeout_in_seconds=timeout_in_seconds)
     assert response == expected_response

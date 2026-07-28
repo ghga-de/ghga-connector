@@ -16,33 +16,26 @@
 """Unit tests for Download Client caching"""
 
 import base64
-from functools import partial
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
-import httpx
+import httpx2
 import pytest
+from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import SecretBytes
-from pytest_httpx import HTTPXMock
 
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.structs import RetryResponse
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures.mock_api.router import mock_router  # noqa: F401
 from tests.fixtures.utils import (
     RecordingClient,
     patch_work_package_functions,  # noqa: F401
 )
 
-pytestmark = [
-    pytest.mark.asyncio,
-    pytest.mark.httpx_mock(
-        assert_all_responses_were_requested=False,
-        can_send_already_matched_responses=True,
-        should_mock=lambda request: True,
-    ),
-]
+pytestmark = [pytest.mark.asyncio]
 
 FAKE_DRS_OBJECT = {
     "access_methods": [{"access_url": {"url": "https://test.url"}, "type": "s3"}],
@@ -53,23 +46,30 @@ FAKE_DRS_OBJECT = {
 
 async def test_get_drs_object_caching(
     monkeypatch,
-    httpx_mock: HTTPXMock,
+    mock_router: MockRouter,  # noqa: F811
     set_runtime_test_config,  # noqa: F811
 ):
     """Test that get_drs_object results are cached and can be invalidated."""
-    monkeypatch.setattr("ghga_connector.core.client.httpx.AsyncClient", RecordingClient)
+    monkeypatch.setattr(
+        "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
+    )
+
+    @mock_router.get("/objects/{file_id}")
+    def get_drs_object(file_id: str) -> httpx2.Response:
+        """Return the staged DRS object."""
+        return httpx2.Response(200, json=FAKE_DRS_OBJECT)
+
     async with async_client() as client:
         assert isinstance(client, RecordingClient)
         work_pkg_client = Mock()
         work_pkg_client.get_download_wot = AsyncMock(return_value="fake-wot")
-        work_pkg_client.make_auth_headers = AsyncMock(return_value=httpx.Headers())
+        work_pkg_client.make_auth_headers = AsyncMock(return_value=httpx2.Headers())
 
         download_client = DownloadClient(
             client=client, work_package_client=work_pkg_client
         )
 
         file_id = "test-file-id"
-        httpx_mock.add_response(json=FAKE_DRS_OBJECT, status_code=200)
 
         # First call should hit the network
         await download_client.get_drs_object(file_id)
@@ -82,14 +82,13 @@ async def test_get_drs_object_caching(
 
         # After invalidation, call should hit the network again
         download_client.get_drs_object.cache_invalidate(file_id)
-        httpx_mock.add_response(json=FAKE_DRS_OBJECT, status_code=200)
         await download_client.get_drs_object(file_id)
         assert client.calls, "DRS object should NOT have been provided by the cache"
 
 
 async def test_retry_response_is_not_cached(
     monkeypatch,
-    httpx_mock: HTTPXMock,
+    mock_router: MockRouter,  # noqa: F811
     set_runtime_test_config,  # noqa: F811
 ):
     """Test that we don't serve 202/retry-after from the cache.
@@ -98,12 +97,29 @@ async def test_retry_response_is_not_cached(
     cache TTL, so the staging poll loop kept reporting the file as "being staged" even
     after it had actually been staged.
     """
-    monkeypatch.setattr("ghga_connector.core.client.httpx.AsyncClient", RecordingClient)
+    monkeypatch.setattr(
+        "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
+    )
+
+    # The file finishes staging between the first and the second poll. Neither status
+    # code is retryable, so each poll consumes exactly one of these responses.
+    polls = iter(
+        [
+            httpx2.Response(202, headers={"retry-after": "1"}),
+            httpx2.Response(200, json=FAKE_DRS_OBJECT),
+        ]
+    )
+
+    @mock_router.get("/objects/{file_id}")
+    def get_drs_object(file_id: str) -> httpx2.Response:
+        """Report the file as still staging on the first poll, staged on the second."""
+        return next(polls)
+
     async with async_client() as client:
         assert isinstance(client, RecordingClient)
         work_pkg_client = Mock()
         work_pkg_client.get_download_wot = AsyncMock(return_value="fake-wot")
-        work_pkg_client.make_auth_headers = AsyncMock(return_value=httpx.Headers())
+        work_pkg_client.make_auth_headers = AsyncMock(return_value=httpx2.Headers())
 
         download_client = DownloadClient(
             client=client, work_package_client=work_pkg_client
@@ -112,7 +128,6 @@ async def test_retry_response_is_not_cached(
         file_id = "test-file-id"
 
         # First poll: file is still being staged -> 202 with a retry-after header
-        httpx_mock.add_response(status_code=202, headers={"retry-after": "1"})
         response = await download_client.get_drs_object(file_id)
 
         assert isinstance(response, RetryResponse)
@@ -125,7 +140,6 @@ async def test_retry_response_is_not_cached(
 
         # Second poll: the file is now staged -> the live API must be hit and the fresh
         #  DRS object returned, NOT the cached RetryResponse.
-        httpx_mock.add_response(json=FAKE_DRS_OBJECT, status_code=200)
         response = await download_client.get_drs_object(file_id)
         assert client.calls, "Second poll should hit the network, not the stale cache"
         assert response == FAKE_DRS_OBJECT
@@ -133,7 +147,7 @@ async def test_retry_response_is_not_cached(
 
 async def test_get_work_order_token_caching(
     monkeypatch,
-    httpx_mock: HTTPXMock,
+    mock_router: MockRouter,  # noqa: F811
     set_runtime_test_config,  # noqa: F811
     patch_work_package_functions,  # noqa: F811
 ):
@@ -142,7 +156,15 @@ async def test_get_work_order_token_caching(
     monkeypatch.setattr(
         "ghga_connector.core.work_package.crypt.decrypt", lambda data, key: "test"
     )
-    monkeypatch.setattr("ghga_connector.core.client.httpx.AsyncClient", RecordingClient)
+    monkeypatch.setattr(
+        "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
+    )
+
+    @mock_router.post("/boxes/{box_id}/work-order-tokens")
+    def get_upload_wot(box_id: str) -> httpx2.Response:
+        """Hand out an encrypted work order token."""
+        return httpx2.Response(201, json=base64.b64encode(b"1234567890" * 5).decode())
+
     async with async_client() as client:
         assert isinstance(client, RecordingClient)
         work_pkg_client = WorkPackageClient(
@@ -151,12 +173,6 @@ async def test_get_work_order_token_caching(
             my_public_key=b"",
         )
         file_id = uuid4()
-        add_httpx_response = partial(
-            httpx_mock.add_response,
-            status_code=201,
-            json=base64.b64encode(b"1234567890" * 5).decode(),
-        )
-        add_httpx_response()
         rdub_id = uuid4()
         await work_pkg_client.get_upload_wot(
             work_type="upload", file_id=file_id, research_data_upload_box_id=rdub_id
@@ -177,7 +193,6 @@ async def test_get_work_order_token_caching(
         work_pkg_client.get_upload_wot.cache_invalidate(
             work_type="upload", file_id=file_id, research_data_upload_box_id=rdub_id
         )
-        add_httpx_response()
         await work_pkg_client.get_upload_wot(
             work_type="upload", file_id=file_id, research_data_upload_box_id=rdub_id
         )

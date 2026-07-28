@@ -34,14 +34,7 @@ from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
 from tests.fixtures.utils import TEST_STORAGE_ALIAS1
 
-pytestmark = [
-    pytest.mark.asyncio,
-    pytest.mark.httpx_mock(
-        assert_all_responses_were_requested=False,
-        can_send_already_matched_responses=True,
-        should_mock=lambda request: True,
-    ),
-]
+pytestmark = [pytest.mark.asyncio]
 
 
 @pytest.fixture(scope="function", autouse=True)

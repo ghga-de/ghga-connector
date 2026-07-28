@@ -24,9 +24,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-import httpx
 import pytest
-from pytest_httpx import HTTPXMock, httpx_mock  # noqa: F401
 
 from ghga_connector import exceptions
 from ghga_connector.constants import C4GH, DEFAULT_PART_SIZE
@@ -38,6 +36,7 @@ from tests.fixtures.mock_api.app import (
     mock_external_calls,  # noqa: F401
     url_expires_after,
 )
+from tests.fixtures.mock_api.router import mock_health_checks
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -62,15 +61,7 @@ ENVIRON_DEFAULTS = {
 FAKE_ENVELOPE = "Thisisafakeenvelope"
 SHORT_LIFESPAN = 10
 
-pytestmark = [
-    pytest.mark.asyncio(loop_scope="session"),
-    pytest.mark.httpx_mock(
-        assert_all_responses_were_requested=False,
-        assert_all_requests_were_expected=False,
-        can_send_already_matched_responses=True,
-        should_mock=lambda request: str(request.url).endswith("/health"),
-    ),
-]
+pytestmark = [pytest.mark.asyncio(loop_scope="session")]
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -152,7 +143,6 @@ def set_presigned_url_update_endpoint(
 async def test_multipart_download(
     file_size: int,
     part_size: int,
-    httpx_mock: HTTPXMock,  # noqa: F811
     s3_fixture: S3Fixture,  # noqa F811
     tmp_path: pathlib.Path,
     monkeypatch,
@@ -167,8 +157,8 @@ async def test_multipart_download(
 
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
-    # The intercepted health check API calls will return the following mock response
-    httpx_mock.add_response(json={"status": "OK"})
+    # Report every service the connector checks as reachable
+    mock_health_checks(monkeypatch)
 
     # Patch get_package_files
     monkeypatch.setattr(
@@ -222,7 +212,6 @@ async def test_download(
     bad_outdir: bool,
     file_name: str,
     expected_exception: Any,
-    httpx_mock: HTTPXMock,  # noqa: F811
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
@@ -252,8 +241,8 @@ async def test_download(
 
     monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(os.path.getsize(file.file_path)))
 
-    # The intercepted health check API calls will return the following mock response
-    httpx_mock.add_response(json={"status": "OK"})
+    # Report every service the connector checks as reachable
+    mock_health_checks(monkeypatch)
 
     with expected_exception:
         await async_download(
@@ -276,7 +265,6 @@ async def test_download(
 
 
 async def test_file_not_downloadable(
-    httpx_mock: HTTPXMock,  # noqa: F811
     s3_fixture: S3Fixture,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
@@ -291,8 +279,8 @@ async def test_file_not_downloadable(
     """
     output_dir = tmp_path
 
-    # The intercepted health check API calls will return the following mock response
-    httpx_mock.add_response(json={"status": "OK"})
+    # Report every service the connector checks as reachable
+    mock_health_checks(monkeypatch)
 
     # Patch get_package_files
     file = state.FILES["file_not_downloadable"]
@@ -355,14 +343,13 @@ async def test_file_not_downloadable(
 
 
 async def test_download_bad_url(
-    httpx_mock: HTTPXMock,  # noqa: F811
     tmp_path: pathlib.Path,
     monkeypatch,
     mock_external_calls,  # noqa: F811
     apply_common_download_mocks,
 ):
     """Check that the right error is raised for a bad URL in the download logic."""
-    httpx_mock.add_exception(httpx.RequestError(""))
+    mock_health_checks(monkeypatch, reachable=False)
 
     # Patch get_package_files
     file = state.FILES["file_downloadable"]

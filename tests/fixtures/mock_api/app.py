@@ -30,14 +30,14 @@ from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
-import httpx
+import httpx2
 import pytest
 from fastapi import Body, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from ghga_service_commons.api.api import ApiConfigBase, configure_app
 from ghga_service_commons.api.di import DependencyDummy
 from ghga_service_commons.httpyexpect.server.exceptions import HttpException
-from ghga_service_commons.transports import CompositeCacheConfig
+from ghga_service_commons.transports import CompositeConfig
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from pydantic import BaseModel
 
@@ -389,17 +389,17 @@ configure_app(mock_external_app, config)
 
 
 def get_test_mounts(
-    config: CompositeCacheConfig,
-    base_transport: httpx.AsyncHTTPTransport | None = None,
-    limits: httpx.Limits | None = None,
+    config: CompositeConfig,
+    base_transport: httpx2.AsyncHTTPTransport | None = None,
+    limits: httpx2.Limits | None = None,
 ):
     """Test-only version of `async_client` to route traffic to the specified app.
 
     Lets other traffic go out as usual, e.g. to the S3 testcontainer, while still using
-    the same caching logic as the real client.
+    the same transport logic as the real client.
     """
     mock_app_transport = get_ratelimiting_retry_transport(
-        base_transport=httpx.ASGITransport(app=mock_external_app), limits=limits
+        base_transport=httpx2.ASGITransport(app=mock_external_app), limits=limits
     )
     mounts = {
         "all://127.0.0.1": mock_app_transport,  # route traffic to the mock app

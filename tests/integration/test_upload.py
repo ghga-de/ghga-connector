@@ -19,10 +19,8 @@ from pathlib import Path
 from unittest.mock import patch
 from uuid import UUID
 
-import httpx
 import pytest
 from ghga_service_commons.utils.temp_files import big_temp_file
-from pytest_httpx import HTTPXMock
 
 from ghga_connector import exceptions
 from ghga_connector.config import set_runtime_config
@@ -32,6 +30,7 @@ from ghga_connector.core.uploading.structs import CoreFileInfo
 from ghga_connector.core.utils import modify_for_debug
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.app import mock_external_calls  # noqa: F401
+from tests.fixtures.mock_api.router import mock_health_checks
 from tests.fixtures.s3 import S3Fixture, s3_fixture  # noqa: F401
 from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
@@ -44,15 +43,7 @@ SIZE = 10 * 1024 * 1024
 PART_SIZE = 5 * 1024**2
 FILE_ID = UUID("550e8400-e29b-41d4-a716-446655440002")
 SHORT_LIFESPAN = 10
-pytestmark = [
-    pytest.mark.asyncio,
-    pytest.mark.httpx_mock(
-        assert_all_responses_were_requested=False,
-        assert_all_requests_were_expected=False,
-        can_send_already_matched_responses=True,
-        should_mock=lambda request: str(request.url).endswith("/health"),
-    ),
-]
+pytestmark = [pytest.mark.asyncio]
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -140,7 +131,6 @@ def set_init_upload_placeholder(
 
 async def test_upload_journey(
     s3_fixture: S3Fixture,  # noqa: F811
-    httpx_mock: HTTPXMock,
     mock_external_calls,  # noqa: F811
     monkeypatch,
     patch_work_package_functions,  # noqa: F811
@@ -200,14 +190,13 @@ async def test_upload_journey(
 
 
 async def test_upload_bad_url(
-    httpx_mock: HTTPXMock,
     mock_external_calls,  # noqa: F811
     monkeypatch,
     patch_work_package_functions,  # noqa: F811
 ):
     """Check that the right error is raised for a bad URL in the upload logic."""
-    # The intercepted health check API call will return the following mock response
-    httpx_mock.add_exception(httpx.RequestError(""))
+    # The Upload API is reported as unreachable by the health check
+    mock_health_checks(monkeypatch, reachable=False)
     with big_temp_file(SIZE) as file, pytest.raises(exceptions.ApiNotReachableError):
         actual_size = Path(file.name).stat().st_size
         modify_for_debug(debug=True)

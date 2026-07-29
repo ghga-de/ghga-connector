@@ -673,6 +673,7 @@ httpx==0.28.1 \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
     # via
     #   -r lock/requirements-dev-template.in
+    #   ghga-connector (pyproject.toml)
     #   ghga-service-commons
     #   pytest-httpx
 identify==2.6.19 \
@@ -1317,12 +1318,15 @@ typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548
     # via
+    #   anyio
     #   fastapi
     #   hishel
     #   mypy
     #   opentelemetry-api
     #   pydantic
     #   pydantic-core
+    #   pytest-asyncio
+    #   starlette
     #   testcontainers
     #   typing-inspection
 typing-inspection==0.4.2 \

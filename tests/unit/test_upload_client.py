@@ -703,21 +703,21 @@ def make_retry_error(exception: Exception) -> RetryError:
     return RetryError(last_attempt=mock_attempt)
 
 
-def test_check_for_request_errors_connect_error():
+async def test_check_for_request_errors_connect_error():
     """Make sure a RetryError wrapping ConnectError is translated to ConnectionFailedError."""
     retry_error = make_retry_error(httpx2.ConnectError("connection refused"))
     with pytest.raises(exceptions.ConnectionFailedError):
         _check_for_request_errors(retry_error, "http://example.com")
 
 
-def test_check_for_request_errors_connect_timeout():
+async def test_check_for_request_errors_connect_timeout():
     """Make sure a RetryError wrapping ConnectTimeout is translated to ConnectionFailedError."""
     retry_error = make_retry_error(httpx2.ConnectTimeout("timed out"))
     with pytest.raises(exceptions.ConnectionFailedError):
         _check_for_request_errors(retry_error, "http://example.com")
 
 
-def test_check_for_request_errors_other_request_error():
+async def test_check_for_request_errors_other_request_error():
     """Make sure a RetryError wrapping a non-connect RequestError is translated to RequestFailedError."""
     retry_error = make_retry_error(httpx2.ReadTimeout("read timeout"))
     with pytest.raises(exceptions.RequestFailedError):

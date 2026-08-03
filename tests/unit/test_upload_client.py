@@ -16,6 +16,7 @@
 """Unit tests for the HTTP client for the Upload API"""
 
 import json
+import re
 from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -58,6 +59,16 @@ CHECKSUMS: dict[str, Any] = {
 UPLOADS_PATH = "/boxes/{box_id}/uploads"
 UPLOAD_PATH = f"{UPLOADS_PATH}/{{file_id}}"
 PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
+
+
+def upload_api_url(upload_client: UploadClient, path: str) -> str:
+    """Build a `MockRouter` pattern for `path` on the configured Upload API.
+
+    `MockRouter` matches its patterns against the whole request URL, so the API URL has
+    to be part of the pattern. Without it, the pattern would just as happily match the
+    same path served by a different API.
+    """
+    return re.escape(upload_client._upload_api_url) + path
 
 
 @pytest_asyncio.fixture()
@@ -108,7 +119,7 @@ async def test_create_file_upload_success(
         "overwrite": False,
     }
 
-    @mock_router.post(UPLOADS_PATH)
+    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
     def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Create the file upload, but only for the expected request body."""
         assert box_id == str(TEST_FUB_ID)
@@ -146,9 +157,10 @@ async def test_create_file_upload_error(
 ):
     """Test that an unsuccessful status code triggers the error translation."""
 
-    @mock_router.post(UPLOADS_PATH)
+    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
     def create_file_upload(box_id: str) -> httpx2.Response:
         """Refuse to create the file upload."""
+        assert box_id == str(TEST_FUB_ID)
         return httpx2.Response(500)
 
     with pytest.raises(exceptions.UnexpectedError):
@@ -177,9 +189,10 @@ async def test_create_file_upload_sends_overwrite(
         "overwrite": overwrite,
     }
 
-    @mock_router.post(UPLOADS_PATH)
+    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
     def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Create the file upload, checking the forwarded overwrite flag."""
+        assert box_id == str(TEST_FUB_ID)
         assert json.loads(request.read()) == expected_body
         return httpx2.Response(
             201,
@@ -222,7 +235,7 @@ async def test_get_box_uploads(
 
     # The listing endpoint is queried with pagination parameters, so the registered
     # path has to tolerate a query string.
-    @mock_router.get(f"{UPLOADS_PATH}.*")
+    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
     def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Return the single page of the listing."""
         assert box_id == str(TEST_FUB_ID)
@@ -253,9 +266,10 @@ async def test_get_box_uploads_error(
 ):
     """Test that an unsuccessful status code triggers the error translation."""
 
-    @mock_router.get(f"{UPLOADS_PATH}.*")
+    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
     def get_box_uploads(box_id: str) -> httpx2.Response:
         """Refuse to list the box contents."""
+        assert box_id == str(TEST_FUB_ID)
         return httpx2.Response(500)
 
     with pytest.raises(exceptions.UnexpectedError):
@@ -278,9 +292,10 @@ async def test_get_box_uploads_pagination(
             "state": "inbox",
         }
 
-    @mock_router.get(f"{UPLOADS_PATH}.*")
+    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
     def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Serve a full first page, then a second page with the remaining item."""
+        assert box_id == str(TEST_FUB_ID)
         assert request.url.params["limit"] == str(UPLOAD_LISTING_PAGE_SIZE)
         skip = int(request.url.params["skip"])
         items = (
@@ -303,7 +318,7 @@ async def test_get_part_upload_url(
 ):
     """Test that get_part_upload_url returns the presigned URL from the API."""
 
-    @mock_router.get(PART_PATH)
+    @mock_router.get(upload_api_url(upload_client, PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Hand out the presigned upload URL for the requested part."""
         assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
@@ -327,9 +342,10 @@ async def test_get_part_upload_url_error(
 ):
     """Test that an unsuccessful status code triggers the error translation."""
 
-    @mock_router.get(PART_PATH)
+    @mock_router.get(upload_api_url(upload_client, PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Refuse to hand out an upload URL."""
+        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
         return httpx2.Response(500)
 
     with pytest.raises(exceptions.UnexpectedError):
@@ -342,9 +358,10 @@ async def test_upload_file_part(
 ):
     """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
 
-    @mock_router.get(PART_PATH)
+    @mock_router.get(upload_api_url(upload_client, PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Hand out the presigned upload URL for the requested part."""
+        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
         return httpx2.Response(200, json=UPLOAD_URL)
 
     @mock_router.put(f"{UPLOAD_URL}/?")
@@ -362,7 +379,7 @@ async def test_complete_file_upload(
 ):
     """Test that complete_file_upload sends the correct checksums in the PATCH request."""
 
-    @mock_router.patch(UPLOAD_PATH)
+    @mock_router.patch(upload_api_url(upload_client, UPLOAD_PATH))
     def complete_file_upload(
         box_id: str, file_id: str, request: httpx2.Request
     ) -> httpx2.Response:
@@ -390,9 +407,10 @@ async def test_complete_file_upload_error(
 ):
     """Test that an unsuccessful status code triggers the error translation."""
 
-    @mock_router.patch(UPLOAD_PATH)
+    @mock_router.patch(upload_api_url(upload_client, UPLOAD_PATH))
     def complete_file_upload(box_id: str, file_id: str) -> httpx2.Response:
         """Refuse to complete the upload."""
+        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
         return httpx2.Response(500)
 
     with pytest.raises(exceptions.UnexpectedError):
@@ -407,7 +425,7 @@ async def test_delete_file(
 ):
     """Test that delete_file sends a DELETE request and uses the correct work order token."""
 
-    @mock_router.delete(UPLOAD_PATH)
+    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
     def delete_file(box_id: str, file_id: str) -> httpx2.Response:
         """Delete the file upload."""
         assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
@@ -430,9 +448,10 @@ async def test_delete_file_error(
 ):
     """Test that an unsuccessful status code triggers the error translation."""
 
-    @mock_router.delete(UPLOAD_PATH)
+    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
     def delete_file(box_id: str, file_id: str) -> httpx2.Response:
         """Refuse to delete the file upload."""
+        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
         return httpx2.Response(500)
 
     with pytest.raises(exceptions.UnexpectedError):
@@ -445,9 +464,10 @@ async def test_delete_file_not_in_box(
 ):
     """Test that a "fileUploadNotFound" 404 means the file is no longer in the box."""
 
-    @mock_router.delete(UPLOAD_PATH)
+    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
     def delete_file(box_id: str, file_id: str) -> httpx2.Response:
         """Report the file upload as unknown."""
+        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
         return httpx2.Response(404, json={"exception_id": "fileUploadNotFound"})
 
     with pytest.raises(exceptions.FileNotInBoxError):
@@ -731,9 +751,10 @@ async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
 
     # Return 403 on both attempts (first call and the bust_cache retry)
-    @mock_router.get(PART_PATH)
+    @mock_router.get(upload_api_url(upload_client, PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Refuse to hand out an upload URL."""
+        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
         return httpx2.Response(403, json={"exception_id": "authorizationError"})
 
     # Replace the AsyncMock auto-attribute with a plain MagicMock so calling

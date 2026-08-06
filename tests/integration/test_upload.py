@@ -195,7 +195,6 @@ async def test_upload_bad_url(
     patch_work_package_functions,  # noqa: F811
 ):
     """Check that the right error is raised for a bad URL in the upload logic."""
-    # The Upload API is reported as unreachable by the health check
     mock_health_checks(monkeypatch, reachable=False)
     with big_temp_file(SIZE) as file, pytest.raises(exceptions.ApiNotReachableError):
         actual_size = Path(file.name).stat().st_size

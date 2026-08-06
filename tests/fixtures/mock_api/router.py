@@ -16,6 +16,7 @@
 
 """Serve connector HTTP calls from a `MockRouter` instead of the network."""
 
+import re
 from typing import Any
 
 import httpx2
@@ -23,8 +24,25 @@ import pytest
 from ghga_service_commons.api.mock_router import MockRouter
 
 from ghga_connector.core.client import get_ratelimiting_retry_transport
+from tests.fixtures.config import get_test_config
 
-__all__ = ["mock_health_checks", "mock_router"]
+__all__ = [
+    "api_url",
+    "mock_health_checks",
+    "mock_router",
+    "serve_httpx2_get_from",
+]
+
+
+def api_url(base_url: str, path: str) -> str:
+    """Build a `MockRouter` pattern for `path` as served by the API at `base_url`.
+
+    `MockRouter` matches its patterns against the whole request URL, and `mock_router`
+    serves every host from a single router, so the API URL has to be part of the
+    pattern. Without it, the pattern would just as happily match the same path served
+    by a different API.
+    """
+    return re.escape(base_url) + path
 
 
 @pytest.fixture()
@@ -35,18 +53,22 @@ def mock_router(monkeypatch) -> MockRouter:
     through the real retry and rate limiting transports first, just like in
     `ghga_connector.core.client.async_client`.
 
-    Tests register the endpoints they need, e.g.:
+    Tests register the endpoints they need, anchoring each path to the API that serves
+    it with `api_url`, e.g.:
     ```
-    @mock_router.get("/work-packages/{package_id}")
+    @mock_router.get(api_url(get_work_package_api_url(), "/work-packages/{package_id}"))
     def get_work_package(package_id: str) -> httpx2.Response:
         return httpx2.Response(200, json={"files": {}})
     ```
     A request that matches no registered endpoint raises an `HttpException` instead of
     being answered, so unexpected calls fail the test rather than passing silently.
     """
+    # Mocked responses pass through the real retry transport, so without the test
+    # config's `client_num_retries=0` every mocked 5xx would cost a real backoff sleep.
+    monkeypatch.setattr("ghga_connector.config.CONFIG", get_test_config())
     router: MockRouter = MockRouter()
 
-    def mock_mounts(config, base_transport=None, limits=None):
+    def mock_mounts(config, limits=None):
         """Stand in for `ratelimiting_retry_proxies` and capture all traffic."""
         return {
             "all://": get_ratelimiting_retry_transport(
@@ -60,27 +82,45 @@ def mock_router(monkeypatch) -> MockRouter:
     return router
 
 
-def mock_health_checks(monkeypatch, *, reachable: bool = True) -> None:
-    """Answer the health checks performed by `is_service_healthy`.
+def serve_httpx2_get_from(monkeypatch, router: MockRouter) -> None:
+    """Answer module level `httpx2.get` calls from `router`.
 
-    Those are made with a module level `httpx2.get` call rather than the client built
-    by `async_client`, so they cannot be routed through the client's transport and
-    `httpx2.get` itself has to be replaced.
+    `is_service_healthy` checks health endpoints with a module level `httpx2.get` call
+    rather than the client built by `async_client`, so those calls cannot be routed
+    through the client's transport and `httpx2.get` itself has to be replaced.
     """
-    router: MockRouter = MockRouter()
-
-    @router.get(".*/health")
-    def health(request: httpx2.Request) -> httpx2.Response:
-        """Report the service as reachable or refuse the connection."""
-        if not reachable:
-            raise httpx2.ConnectError("mocked connection failure", request=request)
-        return httpx2.Response(200, json={"status": "OK"})
-
     transport = router.as_transport()
 
     def mock_get(*, url: str, timeout: Any) -> httpx2.Response:
-        """Stand in for `httpx2.get`, using the health check router as transport."""
+        """Stand in for `httpx2.get`, using the given router as transport."""
         with httpx2.Client(transport=transport) as client:
             return client.get(url, timeout=timeout)
 
     monkeypatch.setattr(httpx2, "get", mock_get)
+
+
+def mock_health_checks(
+    monkeypatch, *, reachable: bool = True, healthy_url: str = ".*"
+) -> None:
+    """Report the services the connector health checks as reachable or unreachable.
+
+    `healthy_url` is a regex for the API URLs to report as healthy, defaulting to all of
+    them. Pass `re.escape(...)` of a single API URL to pin down which URL the connector
+    derives its health endpoint from; anything else then refuses the connection.
+    """
+    router: MockRouter = MockRouter()
+
+    if reachable:
+
+        @router.get(f"{healthy_url}/health")
+        def health() -> httpx2.Response:
+            """Report the service as reachable."""
+            return httpx2.Response(200, json={"status": "OK"})
+
+    # Endpoints are matched in registration order, so this only catches what is left.
+    @router.get(".*")
+    def unreachable(request: httpx2.Request) -> httpx2.Response:
+        """Refuse to connect to any URL not reported as healthy."""
+        raise httpx2.ConnectError("mocked connection failure", request=request)
+
+    serve_httpx2_get_from(monkeypatch, router)

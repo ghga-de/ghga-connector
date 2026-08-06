@@ -16,8 +16,7 @@
 """Unit tests for the HTTP client for the Upload API"""
 
 import json
-import re
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
@@ -26,11 +25,11 @@ import httpx2
 import pytest
 import pytest_asyncio
 from ghga_service_commons.api.mock_router import MockRouter
-from httpx2 import Response
 from pydantic import UUID4
 from tenacity import RetryError
 
 from ghga_connector import exceptions
+from ghga_connector.config import get_upload_api_url
 from ghga_connector.constants import UPLOAD_LISTING_PAGE_SIZE
 from ghga_connector.core.client import async_client
 from ghga_connector.core.uploading.api_calls import (
@@ -38,7 +37,10 @@ from ghga_connector.core.uploading.api_calls import (
     _check_for_request_errors,
 )
 from tests.fixtures import set_runtime_test_config  # noqa: F401
-from tests.fixtures.mock_api.router import mock_router  # noqa: F401
+from tests.fixtures.mock_api.router import (
+    api_url,
+    mock_router,  # noqa: F401
+)
 from tests.fixtures.utils import TEST_FUB_ID, TEST_RDUB_ID, TEST_STORAGE_ALIAS1
 
 pytestmark = [pytest.mark.asyncio]
@@ -61,14 +63,9 @@ UPLOAD_PATH = f"{UPLOADS_PATH}/{{file_id}}"
 PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
 
 
-def upload_api_url(upload_client: UploadClient, path: str) -> str:
-    """Build a `MockRouter` pattern for `path` on the configured Upload API.
-
-    `MockRouter` matches its patterns against the whole request URL, so the API URL has
-    to be part of the pattern. Without it, the pattern would just as happily match the
-    same path served by a different API.
-    """
-    return re.escape(upload_client._upload_api_url) + path
+def upload_api(path: str) -> str:
+    """Build a `MockRouter` pattern for `path` as served by the configured Upload API."""
+    return api_url(get_upload_api_url(), path)
 
 
 @pytest_asyncio.fixture()
@@ -119,7 +116,7 @@ async def test_create_file_upload_success(
         "overwrite": False,
     }
 
-    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
+    @mock_router.post(upload_api(UPLOADS_PATH))
     def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Create the file upload, but only for the expected request body."""
         assert box_id == str(TEST_FUB_ID)
@@ -151,27 +148,6 @@ async def test_create_file_upload_success(
     )
 
 
-async def test_create_file_upload_error(
-    upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-):
-    """Test that an unsuccessful status code triggers the error translation."""
-
-    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
-    def create_file_upload(box_id: str) -> httpx2.Response:
-        """Refuse to create the file upload."""
-        assert box_id == str(TEST_FUB_ID)
-        return httpx2.Response(500)
-
-    with pytest.raises(exceptions.UnexpectedError):
-        _ = await upload_client.create_file_upload(
-            file_alias=FILE_ALIAS,
-            decrypted_size=2000,
-            encrypted_size=2124,
-            part_size=100,
-        )
-
-
 @pytest.mark.parametrize("overwrite", [True, False])
 async def test_create_file_upload_sends_overwrite(
     upload_client: UploadClient,
@@ -189,7 +165,7 @@ async def test_create_file_upload_sends_overwrite(
         "overwrite": overwrite,
     }
 
-    @mock_router.post(upload_api_url(upload_client, UPLOADS_PATH))
+    @mock_router.post(upload_api(UPLOADS_PATH))
     def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Create the file upload, checking the forwarded overwrite flag."""
         assert box_id == str(TEST_FUB_ID)
@@ -235,7 +211,7 @@ async def test_get_box_uploads(
 
     # The listing endpoint is queried with pagination parameters, so the registered
     # path has to tolerate a query string.
-    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
+    @mock_router.get(upload_api(f"{UPLOADS_PATH}.*"))
     def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Return the single page of the listing."""
         assert box_id == str(TEST_FUB_ID)
@@ -260,22 +236,6 @@ async def test_get_box_uploads(
     )
 
 
-async def test_get_box_uploads_error(
-    upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-):
-    """Test that an unsuccessful status code triggers the error translation."""
-
-    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
-    def get_box_uploads(box_id: str) -> httpx2.Response:
-        """Refuse to list the box contents."""
-        assert box_id == str(TEST_FUB_ID)
-        return httpx2.Response(500)
-
-    with pytest.raises(exceptions.UnexpectedError):
-        _ = await upload_client.get_box_uploads()
-
-
 async def test_get_box_uploads_pagination(
     upload_client: UploadClient,
     mock_router: MockRouter,  # noqa: F811
@@ -292,7 +252,7 @@ async def test_get_box_uploads_pagination(
             "state": "inbox",
         }
 
-    @mock_router.get(upload_api_url(upload_client, f"{UPLOADS_PATH}.*"))
+    @mock_router.get(upload_api(f"{UPLOADS_PATH}.*"))
     def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
         """Serve a full first page, then a second page with the remaining item."""
         assert box_id == str(TEST_FUB_ID)
@@ -318,7 +278,7 @@ async def test_get_part_upload_url(
 ):
     """Test that get_part_upload_url returns the presigned URL from the API."""
 
-    @mock_router.get(upload_api_url(upload_client, PART_PATH))
+    @mock_router.get(upload_api(PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Hand out the presigned upload URL for the requested part."""
         assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
@@ -336,35 +296,19 @@ async def test_get_part_upload_url(
     )
 
 
-async def test_get_part_upload_url_error(
-    upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-):
-    """Test that an unsuccessful status code triggers the error translation."""
-
-    @mock_router.get(upload_api_url(upload_client, PART_PATH))
-    def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
-        """Refuse to hand out an upload URL."""
-        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
-        return httpx2.Response(500)
-
-    with pytest.raises(exceptions.UnexpectedError):
-        _ = await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
-
-
 async def test_upload_file_part(
     upload_client: UploadClient,
     mock_router: MockRouter,  # noqa: F811
 ):
     """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
 
-    @mock_router.get(upload_api_url(upload_client, PART_PATH))
+    @mock_router.get(upload_api(PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Hand out the presigned upload URL for the requested part."""
         assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
         return httpx2.Response(200, json=UPLOAD_URL)
 
-    @mock_router.put(f"{UPLOAD_URL}/?")
+    @mock_router.put(api_url(UPLOAD_URL, "/?"))
     def upload_part(request: httpx2.Request) -> httpx2.Response:
         """Accept the part content at the presigned URL."""
         assert request.read() == b"abc123"
@@ -379,7 +323,7 @@ async def test_complete_file_upload(
 ):
     """Test that complete_file_upload sends the correct checksums in the PATCH request."""
 
-    @mock_router.patch(upload_api_url(upload_client, UPLOAD_PATH))
+    @mock_router.patch(upload_api(UPLOAD_PATH))
     def complete_file_upload(
         box_id: str, file_id: str, request: httpx2.Request
     ) -> httpx2.Response:
@@ -401,31 +345,13 @@ async def test_complete_file_upload(
     )
 
 
-async def test_complete_file_upload_error(
-    upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-):
-    """Test that an unsuccessful status code triggers the error translation."""
-
-    @mock_router.patch(upload_api_url(upload_client, UPLOAD_PATH))
-    def complete_file_upload(box_id: str, file_id: str) -> httpx2.Response:
-        """Refuse to complete the upload."""
-        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
-        return httpx2.Response(500)
-
-    with pytest.raises(exceptions.UnexpectedError):
-        await upload_client.complete_file_upload(
-            file_id=FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
-        )
-
-
 async def test_delete_file(
     upload_client: UploadClient,
     mock_router: MockRouter,  # noqa: F811
 ):
     """Test that delete_file sends a DELETE request and uses the correct work order token."""
 
-    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
+    @mock_router.delete(upload_api(UPLOAD_PATH))
     def delete_file(box_id: str, file_id: str) -> httpx2.Response:
         """Delete the file upload."""
         assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
@@ -442,29 +368,13 @@ async def test_delete_file(
     )
 
 
-async def test_delete_file_error(
-    upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-):
-    """Test that an unsuccessful status code triggers the error translation."""
-
-    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
-    def delete_file(box_id: str, file_id: str) -> httpx2.Response:
-        """Refuse to delete the file upload."""
-        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
-        return httpx2.Response(500)
-
-    with pytest.raises(exceptions.UnexpectedError):
-        await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
-
-
 async def test_delete_file_not_in_box(
     upload_client: UploadClient,
     mock_router: MockRouter,  # noqa: F811
 ):
     """Test that a "fileUploadNotFound" 404 means the file is no longer in the box."""
 
-    @mock_router.delete(upload_api_url(upload_client, UPLOAD_PATH))
+    @mock_router.delete(upload_api(UPLOAD_PATH))
     def delete_file(box_id: str, file_id: str) -> httpx2.Response:
         """Report the file upload as unknown."""
         assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
@@ -472,6 +382,62 @@ async def test_delete_file_not_in_box(
 
     with pytest.raises(exceptions.FileNotInBoxError):
         await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
+
+
+@pytest.mark.parametrize(
+    "method, call",
+    [
+        pytest.param(
+            "post",
+            lambda client: client.create_file_upload(
+                file_alias=FILE_ALIAS,
+                decrypted_size=2000,
+                encrypted_size=2124,
+                part_size=100,
+            ),
+            id="create_file_upload",
+        ),
+        pytest.param(
+            "get", lambda client: client.get_box_uploads(), id="get_box_uploads"
+        ),
+        pytest.param(
+            "get",
+            lambda client: client.get_part_upload_url(file_id=FILE_ID, part_no=1),
+            id="get_part_upload_url",
+        ),
+        pytest.param(
+            "patch",
+            lambda client: client.complete_file_upload(
+                file_id=FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
+            ),
+            id="complete_file_upload",
+        ),
+        pytest.param(
+            "delete",
+            lambda client: client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS),
+            id="delete_file",
+        ),
+    ],
+)
+async def test_error_status_triggers_error_translation(
+    upload_client: UploadClient,
+    mock_router: MockRouter,  # noqa: F811
+    method: str,
+    call: Callable[[UploadClient], Awaitable[Any]],
+):
+    """Test that an unsuccessful status code triggers the error translation.
+
+    Every Upload API endpoint funnels unsuccessful status codes through the same
+    translation, so the endpoint is matched by a catch-all rather than by its own path.
+    """
+
+    @getattr(mock_router, method)(upload_api(".*"))
+    def refuse() -> httpx2.Response:
+        """Refuse the request."""
+        return httpx2.Response(500)
+
+    with pytest.raises(exceptions.UnexpectedError):
+        await call(upload_client)
 
 
 @pytest.mark.parametrize(
@@ -705,7 +671,7 @@ async def test_handle_bad_status_codes(
     expected_error: type[Exception],
 ):
     """Make sure _handle_bad_status_codes translates HTTP errors to the correct exception types."""
-    response = Response(status_code=status_code, json=response_json)
+    response = httpx2.Response(status_code=status_code, json=response_json)
     with pytest.raises(expected_error):
         upload_client._handle_bad_status_codes(
             status_code=status_code,
@@ -723,25 +689,21 @@ def make_retry_error(exception: Exception) -> RetryError:
     return RetryError(last_attempt=mock_attempt)
 
 
-async def test_check_for_request_errors_connect_error():
-    """Make sure a RetryError wrapping ConnectError is translated to ConnectionFailedError."""
-    retry_error = make_retry_error(httpx2.ConnectError("connection refused"))
-    with pytest.raises(exceptions.ConnectionFailedError):
-        _check_for_request_errors(retry_error, "http://example.com")
-
-
-async def test_check_for_request_errors_connect_timeout():
-    """Make sure a RetryError wrapping ConnectTimeout is translated to ConnectionFailedError."""
-    retry_error = make_retry_error(httpx2.ConnectTimeout("timed out"))
-    with pytest.raises(exceptions.ConnectionFailedError):
-        _check_for_request_errors(retry_error, "http://example.com")
-
-
-async def test_check_for_request_errors_other_request_error():
-    """Make sure a RetryError wrapping a non-connect RequestError is translated to RequestFailedError."""
-    retry_error = make_retry_error(httpx2.ReadTimeout("read timeout"))
-    with pytest.raises(exceptions.RequestFailedError):
-        _check_for_request_errors(retry_error, "http://example.com")
+@pytest.mark.parametrize(
+    "wrapped_error, expected_error",
+    [
+        (httpx2.ConnectError("connection refused"), exceptions.ConnectionFailedError),
+        (httpx2.ConnectTimeout("timed out"), exceptions.ConnectionFailedError),
+        (httpx2.ReadTimeout("read timeout"), exceptions.RequestFailedError),
+    ],
+    ids=["connect_error", "connect_timeout", "other_request_error"],
+)
+async def test_check_for_request_errors(
+    wrapped_error: Exception, expected_error: type[Exception]
+):
+    """Make sure a RetryError-wrapped request error is translated to the right error."""
+    with pytest.raises(expected_error):
+        _check_for_request_errors(make_retry_error(wrapped_error), "http://example.com")
 
 
 async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_raises(
@@ -751,7 +713,7 @@ async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
 
     # Return 403 on both attempts (first call and the bust_cache retry)
-    @mock_router.get(upload_api_url(upload_client, PART_PATH))
+    @mock_router.get(upload_api(PART_PATH))
     def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
         """Refuse to hand out an upload URL."""
         assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)

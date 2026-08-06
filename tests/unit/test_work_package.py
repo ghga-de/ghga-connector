@@ -22,10 +22,14 @@ from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
+from ghga_connector.config import get_work_package_api_url
 from ghga_connector.core.client import async_client
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
-from tests.fixtures.mock_api.router import mock_router  # noqa: F401
+from tests.fixtures.mock_api.router import (
+    api_url,
+    mock_router,  # noqa: F401
+)
 from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
     mock_work_package_token,
@@ -60,7 +64,7 @@ async def test_get_work_package_file_info(
         mock_work_package_token,
     )
 
-    @mock_router.get("/work-packages/{package_id}")
+    @mock_router.get(api_url(get_work_package_api_url(), "/work-packages/{package_id}"))
     def get_work_package(package_id: str) -> httpx2.Response:
         """Return the work package with the status code under test."""
         return httpx2.Response(status_code, json={"files": FILES})

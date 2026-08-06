@@ -1546,7 +1546,7 @@ websockets==16.1.1 \
     --hash=sha256:fce6c48559c86d1ac3632ccb1bebc7d5442fbe79bd9bb0e40379ee54be2a4051 \
     --hash=sha256:fd46fff7eb62c24804d234f0051c7a8ea81285ad63e0337d3dcf33ca82aee58a
     # via
-    #   ghga-connector (pyproject.toml)
+    #   -r lock/requirements-dev.in
     #   uvicorn
 wrapt==2.3.0 \
     --hash=sha256:0a45ffae742ce91a16e11cb6c7cd71e7f9994f3cbd283b962ab093f5c6dcf525 \

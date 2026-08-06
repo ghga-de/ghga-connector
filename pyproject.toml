@@ -32,7 +32,6 @@ dependencies = [
     "rich>=14.0, <15",
     "async-lru >= 2.1.0, <3",
     "prompt_toolkit>=3.0, <4",
-    "websockets<17",
 ]
 
 [project.license]

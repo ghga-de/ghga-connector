@@ -34,7 +34,7 @@ def get_ratelimiting_retry_transport(
 ) -> AsyncRetryTransport:
     """Construct an async rate-limiting retry transport.
 
-    The `wrapped_transport` parameter can be used for testing to inject, for example,
+    The `base_transport` parameter can be used for testing to inject, for example,
     an httpx2.ASGITransport pointing to a FastAPI app.
     """
     return CompositeTransportFactory.create_ratelimiting_retry_transport(

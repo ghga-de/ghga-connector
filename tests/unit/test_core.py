@@ -16,48 +16,34 @@
 
 """Tests for the core functions of the cli"""
 
-from typing import Any
+import re
 
-import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
 
 from ghga_connector.core.api_calls import is_service_healthy
+from tests.fixtures.mock_api.router import mock_health_checks
+
+HEALTHY_API_URL = "https://ghga.de"
 
 
 @pytest.fixture()
 def mock_health_endpoint(monkeypatch):
     """Serve https://ghga.de/health and refuse every other connection.
 
-    `is_service_healthy` makes a module level `httpx2.get` call, so that call is what
-    gets replaced here, leaving the URL handling and response parsing under test.
+    Only the one URL is reported as healthy, so this also pins down which URL
+    `is_service_healthy` derives from the API URL it is given.
     """
-    router: MockRouter = MockRouter()
-
-    @router.get("https://ghga.de/health")
-    def health() -> httpx2.Response:
-        """Report GHGA as healthy."""
-        return httpx2.Response(200, json={"status": "OK"})
-
-    transport = router.as_transport()
-
-    def mock_get(*, url: str, timeout: Any) -> httpx2.Response:
-        if not url.startswith("https://ghga.de"):
-            raise httpx2.ConnectError("mocked connection failure")
-        with httpx2.Client(transport=transport) as client:
-            return client.get(url, timeout=timeout)
-
-    monkeypatch.setattr(httpx2, "get", mock_get)
+    mock_health_checks(monkeypatch, healthy_url=re.escape(HEALTHY_API_URL))
 
 
 @pytest.mark.parametrize(
     "api_url,timeout_in_seconds,expected_response",
     [
         ("https://bad_url", 5, False),
-        ("https://ghga.de", 5, True),
-        ("https://ghga.de/", 5, True),
-        ("https://ghga.de/health", 5, True),
-        ("https://ghga.de/health/", 5, True),
+        (HEALTHY_API_URL, 5, True),
+        (f"{HEALTHY_API_URL}/", 5, True),
+        (f"{HEALTHY_API_URL}/health", 5, True),
+        (f"{HEALTHY_API_URL}/health/", 5, True),
     ],
 )
 def test_is_service_healthy(

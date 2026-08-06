@@ -6,3 +6,7 @@
 # additional requirements can be listed here
 testcontainers[kafka,mongo]>=3.4.1
 ghga-service-commons[api]>=8.0.0
+
+# pulled in by uvicorn[standard] via ghga-service-commons[api]; websockets 17 dropped
+# Python 3.10, which this package still supports
+websockets<17

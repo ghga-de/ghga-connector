@@ -24,12 +24,16 @@ import pytest
 from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import SecretBytes
 
+from ghga_connector.config import get_download_api_url, get_work_package_api_url
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.structs import RetryResponse
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
-from tests.fixtures.mock_api.router import mock_router  # noqa: F401
+from tests.fixtures.mock_api.router import (
+    api_url,
+    mock_router,  # noqa: F401
+)
 from tests.fixtures.utils import (
     RecordingClient,
     patch_work_package_functions,  # noqa: F401
@@ -54,7 +58,7 @@ async def test_get_drs_object_caching(
         "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
     )
 
-    @mock_router.get("/objects/{file_id}")
+    @mock_router.get(api_url(get_download_api_url(), "/objects/{file_id}"))
     def get_drs_object(file_id: str) -> httpx2.Response:
         """Return the staged DRS object."""
         return httpx2.Response(200, json=FAKE_DRS_OBJECT)
@@ -110,7 +114,7 @@ async def test_retry_response_is_not_cached(
         ]
     )
 
-    @mock_router.get("/objects/{file_id}")
+    @mock_router.get(api_url(get_download_api_url(), "/objects/{file_id}"))
     def get_drs_object(file_id: str) -> httpx2.Response:
         """Report the file as still staging on the first poll, staged on the second."""
         return next(polls)
@@ -160,8 +164,13 @@ async def test_get_work_order_token_caching(
         "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
     )
 
-    @mock_router.post("/boxes/{box_id}/work-order-tokens")
-    def get_upload_wot(box_id: str) -> httpx2.Response:
+    @mock_router.post(
+        api_url(
+            get_work_package_api_url(),
+            "/work-packages/{package_id}/boxes/{box_id}/work-order-tokens",
+        )
+    )
+    def get_upload_wot(package_id: str, box_id: str) -> httpx2.Response:
         """Hand out an encrypted work order token."""
         return httpx2.Response(201, json=base64.b64encode(b"1234567890" * 5).decode())
 

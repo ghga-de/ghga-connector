@@ -157,7 +157,6 @@ async def test_multipart_download(
 
     big_object = await get_big_s3_object(s3_fixture, object_size=file_size)
 
-    # Report every service the connector checks as reachable
     mock_health_checks(monkeypatch)
 
     # Patch get_package_files
@@ -241,7 +240,6 @@ async def test_download(
 
     monkeypatch.setenv("S3_DOWNLOAD_FIELD_SIZE", str(os.path.getsize(file.file_path)))
 
-    # Report every service the connector checks as reachable
     mock_health_checks(monkeypatch)
 
     with expected_exception:
@@ -279,7 +277,6 @@ async def test_file_not_downloadable(
     """
     output_dir = tmp_path
 
-    # Report every service the connector checks as reachable
     mock_health_checks(monkeypatch)
 
     # Patch get_package_files

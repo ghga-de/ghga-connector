@@ -26,7 +26,6 @@ from ghga_connector.config import (
 )
 from tests.fixtures.utils import TEST_PUBLIC_KEYS
 
-from .mock_api import UploadStatus  # noqa: F401
 from .s3 import s3_fixture  # noqa: F401
 from .state import FILES  # noqa: F401
 

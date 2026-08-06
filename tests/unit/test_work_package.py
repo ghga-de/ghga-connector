@@ -16,19 +16,20 @@
 """Unit tests for Work Package operations"""
 
 import crypt4gh.keys
-import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import SecretBytes
 
 from ghga_connector import exceptions
-from ghga_connector.config import get_work_package_api_url
 from ghga_connector.core.client import async_client
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures.mock_api.apis import (
+    WorkPackageApiMock,
+    work_package_api,  # noqa: F401
+)
 from tests.fixtures.mock_api.router import (
-    api_url,
     mock_router,  # noqa: F401
+    respond,
 )
 from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
@@ -53,9 +54,8 @@ FILES = {"file_1": ".tar.gz"}
 async def test_get_work_package_file_info(
     status_code: int,
     expected_error: type[Exception] | None,
-    mock_router: MockRouter,  # noqa: F811
+    work_package_api: WorkPackageApiMock,  # noqa: F811
     monkeypatch,
-    set_runtime_test_config,  # noqa: F811
 ):
     """Test response handling with some mock - just make sure code paths work"""
     private_key = SecretBytes(crypt4gh.keys.get_private_key(PRIVATE_KEY_FILE, ""))
@@ -64,10 +64,7 @@ async def test_get_work_package_file_info(
         mock_work_package_token,
     )
 
-    @mock_router.get(api_url(get_work_package_api_url(), "/work-packages/{package_id}"))
-    def get_work_package(package_id: str) -> httpx2.Response:
-        """Return the work package with the status code under test."""
-        return httpx2.Response(status_code, json={"files": FILES})
+    work_package_api.on_get_work_package = respond(status_code, json={"files": FILES})
 
     async with async_client() as client:
         work_package_client = WorkPackageClient(

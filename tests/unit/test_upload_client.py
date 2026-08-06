@@ -19,7 +19,7 @@ import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import httpx2
 import pytest
@@ -29,7 +29,6 @@ from pydantic import UUID4
 from tenacity import RetryError
 
 from ghga_connector import exceptions
-from ghga_connector.config import get_upload_api_url
 from ghga_connector.constants import UPLOAD_LISTING_PAGE_SIZE
 from ghga_connector.core.client import async_client
 from ghga_connector.core.uploading.api_calls import (
@@ -37,17 +36,26 @@ from ghga_connector.core.uploading.api_calls import (
     _check_for_request_errors,
 )
 from tests.fixtures import set_runtime_test_config  # noqa: F401
+from tests.fixtures.mock_api.apis import (
+    UPLOAD_URL,
+    UploadApiMock,
+    upload_api,  # noqa: F401
+)
 from tests.fixtures.mock_api.router import (
     api_url,
     mock_router,  # noqa: F401
+    respond,
 )
-from tests.fixtures.utils import TEST_FUB_ID, TEST_RDUB_ID, TEST_STORAGE_ALIAS1
+from tests.fixtures.utils import (
+    TEST_FILE_ID,
+    TEST_FUB_ID,
+    TEST_RDUB_ID,
+    TEST_STORAGE_ALIAS1,
+)
 
 pytestmark = [pytest.mark.asyncio]
 
-FILE_ID = UUID("550e8400-e29b-41d4-a716-446655440002")
 FILE_ALIAS = "test-file-1"
-UPLOAD_URL = "http://upload_url"
 
 # The checksums announced when completing an upload, which are also the request body
 CHECKSUMS: dict[str, Any] = {
@@ -57,21 +65,10 @@ CHECKSUMS: dict[str, Any] = {
     "encrypted_parts_sha256": ["part1_sha256"],
 }
 
-# The paths the Upload API serves, relative to the configured Upload API URL
-UPLOADS_PATH = "/boxes/{box_id}/uploads"
-UPLOAD_PATH = f"{UPLOADS_PATH}/{{file_id}}"
-PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
-
-
-def upload_api(path: str) -> str:
-    """Build a `MockRouter` pattern for `path` as served by the configured Upload API."""
-    return api_url(get_upload_api_url(), path)
-
 
 @pytest_asyncio.fixture()
 async def upload_client(
-    set_runtime_test_config,  # noqa: F811
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
     monkeypatch,
 ) -> AsyncGenerator[UploadClient, None]:
     """Create a configured UploadClient.
@@ -103,32 +100,11 @@ async def upload_client(
 
 async def test_create_file_upload_success(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that create_file_upload posts the correct body and returns the file ID."""
     decrypted_size = 20 * 1024**3
     encrypted_size = 20 * 1024**3 + 2000  # larger due to encryption padding & envelope
-    expected_body = {
-        "alias": FILE_ALIAS,
-        "decrypted_size": decrypted_size,
-        "encrypted_size": encrypted_size,
-        "part_size": 100,
-        "overwrite": False,
-    }
-
-    @mock_router.post(upload_api(UPLOADS_PATH))
-    def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
-        """Create the file upload, but only for the expected request body."""
-        assert box_id == str(TEST_FUB_ID)
-        assert json.loads(request.read()) == expected_body
-        return httpx2.Response(
-            201,
-            json={
-                "file_id": str(FILE_ID),
-                "alias": FILE_ALIAS,
-                "storage_alias": TEST_STORAGE_ALIAS1,
-            },
-        )
 
     file_id, storage_alias = await upload_client.create_file_upload(
         file_alias=FILE_ALIAS,
@@ -136,8 +112,18 @@ async def test_create_file_upload_success(
         encrypted_size=encrypted_size,
         part_size=100,
     )
-    assert file_id == FILE_ID
+    assert file_id == TEST_FILE_ID
     assert storage_alias == TEST_STORAGE_ALIAS1
+
+    request = upload_api.last_request
+    assert request.url.path.endswith(f"/boxes/{TEST_FUB_ID}/uploads")
+    assert json.loads(request.read()) == {
+        "alias": FILE_ALIAS,
+        "decrypted_size": decrypted_size,
+        "encrypted_size": encrypted_size,
+        "part_size": 100,
+        "overwrite": False,
+    }
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
@@ -151,33 +137,12 @@ async def test_create_file_upload_success(
 @pytest.mark.parametrize("overwrite", [True, False])
 async def test_create_file_upload_sends_overwrite(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
     overwrite: bool,
 ):
     """Make sure create_file_upload forwards the overwrite flag in the request body."""
     decrypted_size = 2000
     encrypted_size = 2124
-    expected_body = {
-        "alias": FILE_ALIAS,
-        "decrypted_size": decrypted_size,
-        "encrypted_size": encrypted_size,
-        "part_size": 100,
-        "overwrite": overwrite,
-    }
-
-    @mock_router.post(upload_api(UPLOADS_PATH))
-    def create_file_upload(box_id: str, request: httpx2.Request) -> httpx2.Response:
-        """Create the file upload, checking the forwarded overwrite flag."""
-        assert box_id == str(TEST_FUB_ID)
-        assert json.loads(request.read()) == expected_body
-        return httpx2.Response(
-            201,
-            json={
-                "file_id": str(FILE_ID),
-                "alias": FILE_ALIAS,
-                "storage_alias": TEST_STORAGE_ALIAS1,
-            },
-        )
 
     file_id, _ = await upload_client.create_file_upload(
         file_alias=FILE_ALIAS,
@@ -186,46 +151,51 @@ async def test_create_file_upload_sends_overwrite(
         part_size=100,
         overwrite=overwrite,
     )
-    assert file_id == FILE_ID
+    assert file_id == TEST_FILE_ID
+    assert json.loads(upload_api.last_request.read()) == {
+        "alias": FILE_ALIAS,
+        "decrypted_size": decrypted_size,
+        "encrypted_size": encrypted_size,
+        "part_size": 100,
+        "overwrite": overwrite,
+    }
 
 
 async def test_get_box_uploads(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that get_box_uploads requests a view WOT and parses the listing."""
-    response_body = {
-        "items": [
-            {
-                "id": str(FILE_ID),
-                "alias": FILE_ALIAS,
-                "decrypted_size": 2048,
-                "encrypted_size": 4096,
-                "state": "inbox",
-                # An unexpected extra field should be ignored, not cause a failure
-                "some_unmodeled_field": "ignored",
-            }
-        ],
-        "total_count": 1,
-    }
-
-    # The listing endpoint is queried with pagination parameters, so the registered
-    # path has to tolerate a query string.
-    @mock_router.get(upload_api(f"{UPLOADS_PATH}.*"))
-    def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
-        """Return the single page of the listing."""
-        assert box_id == str(TEST_FUB_ID)
-        assert request.url.params["skip"] == "0"
-        assert request.url.params["limit"] == str(UPLOAD_LISTING_PAGE_SIZE)
-        return httpx2.Response(200, json=response_body)
+    upload_api.on_get_box_uploads = respond(
+        200,
+        json={
+            "items": [
+                {
+                    "id": str(TEST_FILE_ID),
+                    "alias": FILE_ALIAS,
+                    "decrypted_size": 2048,
+                    "encrypted_size": 4096,
+                    "state": "inbox",
+                    # An unexpected extra field should be ignored, not cause a failure
+                    "some_unmodeled_field": "ignored",
+                }
+            ],
+            "total_count": 1,
+        },
+    )
 
     uploads = await upload_client.get_box_uploads()
 
     assert len(uploads) == 1
-    assert uploads[0].file_id == FILE_ID
+    assert uploads[0].file_id == TEST_FILE_ID
     assert uploads[0].alias == FILE_ALIAS
     assert uploads[0].decrypted_size == 2048
     assert uploads[0].state == "inbox"
+
+    request = upload_api.last_request
+    assert request.url.path.endswith(f"/boxes/{TEST_FUB_ID}/uploads")
+    assert request.url.params["skip"] == "0"
+    assert request.url.params["limit"] == str(UPLOAD_LISTING_PAGE_SIZE)
 
     # Check that we request a "view" WOT for the box
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
@@ -238,7 +208,7 @@ async def test_get_box_uploads(
 
 async def test_get_box_uploads_pagination(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that get_box_uploads fetches every page of a paginated listing."""
     total_count = UPLOAD_LISTING_PAGE_SIZE + 1
@@ -252,11 +222,8 @@ async def test_get_box_uploads_pagination(
             "state": "inbox",
         }
 
-    @mock_router.get(upload_api(f"{UPLOADS_PATH}.*"))
-    def get_box_uploads(box_id: str, request: httpx2.Request) -> httpx2.Response:
+    def paginate(request: httpx2.Request, **path_variables: Any) -> httpx2.Response:
         """Serve a full first page, then a second page with the remaining item."""
-        assert box_id == str(TEST_FUB_ID)
-        assert request.url.params["limit"] == str(UPLOAD_LISTING_PAGE_SIZE)
         skip = int(request.url.params["skip"])
         items = (
             [_item(index) for index in range(UPLOAD_LISTING_PAGE_SIZE)]
@@ -265,33 +232,43 @@ async def test_get_box_uploads_pagination(
         )
         return httpx2.Response(200, json={"items": items, "total_count": total_count})
 
+    upload_api.on_get_box_uploads = paginate
+
     uploads = await upload_client.get_box_uploads()
     assert len(uploads) == total_count
     assert {upload.alias for upload in uploads} == {
         f"file-{i}" for i in range(total_count)
     }
 
+    # Both pages have to have been requested, with the full page size each time
+    assert [request.url.params["skip"] for request in upload_api.requests] == [
+        "0",
+        str(UPLOAD_LISTING_PAGE_SIZE),
+    ]
+    assert all(
+        request.url.params["limit"] == str(UPLOAD_LISTING_PAGE_SIZE)
+        for request in upload_api.requests
+    )
+
 
 async def test_get_part_upload_url(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that get_part_upload_url returns the presigned URL from the API."""
-
-    @mock_router.get(upload_api(PART_PATH))
-    def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
-        """Hand out the presigned upload URL for the requested part."""
-        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
-        return httpx2.Response(200, json=UPLOAD_URL)
-
-    upload_url = await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
+    upload_url = await upload_client.get_part_upload_url(
+        file_id=TEST_FILE_ID, part_no=1
+    )
     assert upload_url == UPLOAD_URL
+    assert upload_api.last_request.url.path.endswith(
+        f"/boxes/{TEST_FUB_ID}/uploads/{TEST_FILE_ID}/parts/1"
+    )
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
         work_type="upload",
         research_data_upload_box_id=TEST_RDUB_ID,
-        file_id=FILE_ID,
+        file_id=TEST_FILE_ID,
         alias=None,
     )
 
@@ -301,94 +278,80 @@ async def test_upload_file_part(
     mock_router: MockRouter,  # noqa: F811
 ):
     """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
-
-    @mock_router.get(upload_api(PART_PATH))
-    def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
-        """Hand out the presigned upload URL for the requested part."""
-        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
-        return httpx2.Response(200, json=UPLOAD_URL)
+    uploaded: list[bytes] = []
 
     @mock_router.put(api_url(UPLOAD_URL, "/?"))
     def upload_part(request: httpx2.Request) -> httpx2.Response:
         """Accept the part content at the presigned URL."""
-        assert request.read() == b"abc123"
+        uploaded.append(request.read())
         return httpx2.Response(200)
 
-    await upload_client.upload_file_part(file_id=FILE_ID, content=b"abc123", part_no=1)
+    await upload_client.upload_file_part(
+        file_id=TEST_FILE_ID, content=b"abc123", part_no=1
+    )
+    assert uploaded == [b"abc123"]
 
 
 async def test_complete_file_upload(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that complete_file_upload sends the correct checksums in the PATCH request."""
-
-    @mock_router.patch(upload_api(UPLOAD_PATH))
-    def complete_file_upload(
-        box_id: str, file_id: str, request: httpx2.Request
-    ) -> httpx2.Response:
-        """Complete the upload, but only for the expected checksums."""
-        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
-        assert json.loads(request.read()) == CHECKSUMS
-        return httpx2.Response(204)
-
     await upload_client.complete_file_upload(
-        file_id=FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
+        file_id=TEST_FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
     )
+
+    request = upload_api.last_request
+    assert request.url.path.endswith(f"/boxes/{TEST_FUB_ID}/uploads/{TEST_FILE_ID}")
+    assert json.loads(request.read()) == CHECKSUMS
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
         work_type="close",
         research_data_upload_box_id=TEST_RDUB_ID,
-        file_id=FILE_ID,
+        file_id=TEST_FILE_ID,
         alias=None,
     )
 
 
 async def test_delete_file(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that delete_file sends a DELETE request and uses the correct work order token."""
+    await upload_client.delete_file(file_id=TEST_FILE_ID, file_alias=FILE_ALIAS)
 
-    @mock_router.delete(upload_api(UPLOAD_PATH))
-    def delete_file(box_id: str, file_id: str) -> httpx2.Response:
-        """Delete the file upload."""
-        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
-        return httpx2.Response(204)
-
-    await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
+    request = upload_api.last_request
+    assert request.method == "DELETE"
+    assert request.url.path.endswith(f"/boxes/{TEST_FUB_ID}/uploads/{TEST_FILE_ID}")
 
     # Check that we get the right type of WOT
     upload_client._work_package_client.get_upload_wot.assert_called_with(  # type: ignore
         work_type="delete",
         research_data_upload_box_id=TEST_RDUB_ID,
-        file_id=FILE_ID,
+        file_id=TEST_FILE_ID,
         alias=None,
     )
 
 
 async def test_delete_file_not_in_box(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Test that a "fileUploadNotFound" 404 means the file is no longer in the box."""
-
-    @mock_router.delete(upload_api(UPLOAD_PATH))
-    def delete_file(box_id: str, file_id: str) -> httpx2.Response:
-        """Report the file upload as unknown."""
-        assert (box_id, file_id) == (str(TEST_FUB_ID), str(FILE_ID))
-        return httpx2.Response(404, json={"exception_id": "fileUploadNotFound"})
+    upload_api.on_delete_file = respond(
+        404, json={"exception_id": "fileUploadNotFound"}
+    )
 
     with pytest.raises(exceptions.FileNotInBoxError):
-        await upload_client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS)
+        await upload_client.delete_file(file_id=TEST_FILE_ID, file_alias=FILE_ALIAS)
 
 
 @pytest.mark.parametrize(
-    "method, call",
+    "endpoint, call",
     [
         pytest.param(
-            "post",
+            "on_create_file_upload",
             lambda client: client.create_file_upload(
                 file_alias=FILE_ALIAS,
                 decrypted_size=2000,
@@ -398,43 +361,43 @@ async def test_delete_file_not_in_box(
             id="create_file_upload",
         ),
         pytest.param(
-            "get", lambda client: client.get_box_uploads(), id="get_box_uploads"
+            "on_get_box_uploads",
+            lambda client: client.get_box_uploads(),
+            id="get_box_uploads",
         ),
         pytest.param(
-            "get",
-            lambda client: client.get_part_upload_url(file_id=FILE_ID, part_no=1),
+            "on_get_part_upload_url",
+            lambda client: client.get_part_upload_url(file_id=TEST_FILE_ID, part_no=1),
             id="get_part_upload_url",
         ),
         pytest.param(
-            "patch",
+            "on_complete_file_upload",
             lambda client: client.complete_file_upload(
-                file_id=FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
+                file_id=TEST_FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
             ),
             id="complete_file_upload",
         ),
         pytest.param(
-            "delete",
-            lambda client: client.delete_file(file_id=FILE_ID, file_alias=FILE_ALIAS),
+            "on_delete_file",
+            lambda client: client.delete_file(
+                file_id=TEST_FILE_ID, file_alias=FILE_ALIAS
+            ),
             id="delete_file",
         ),
     ],
 )
 async def test_error_status_triggers_error_translation(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
-    method: str,
+    upload_api: UploadApiMock,  # noqa: F811
+    endpoint: str,
     call: Callable[[UploadClient], Awaitable[Any]],
 ):
     """Test that an unsuccessful status code triggers the error translation.
 
     Every Upload API endpoint funnels unsuccessful status codes through the same
-    translation, so the endpoint is matched by a catch-all rather than by its own path.
+    translation, so each of them is checked in turn.
     """
-
-    @getattr(mock_router, method)(upload_api(".*"))
-    def refuse() -> httpx2.Response:
-        """Refuse the request."""
-        return httpx2.Response(500)
+    setattr(upload_api, endpoint, respond(500))
 
     with pytest.raises(exceptions.UnexpectedError):
         await call(upload_client)
@@ -449,7 +412,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "noSuchStorage"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.S3StorageError,
         ),
         # 400 status code - checksumMismatch
@@ -458,7 +421,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "checksumMismatch"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.ChecksumMismatchError,
         ),
         # 400 status code - invalidPartSize
@@ -467,7 +430,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "invalidPartSize"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.InvalidPartSize,
         ),
         # 400 status code - uploadSizeMismatch
@@ -476,7 +439,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "uploadSizeMismatch"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UploadSizeMismatchError,
         ),
         # 400 status code - no matching exception id
@@ -485,7 +448,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "nosuchexceptionid"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UnexpectedError,
         ),
         # 401 status code
@@ -494,7 +457,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "authorizationError"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.AuthorizationError,
         ),
         # 403 status code
@@ -503,7 +466,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "authorizationError"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.AuthorizationError,
         ),
         # 404 status codes - boxNotFound
@@ -512,7 +475,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "boxNotFound"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.InvalidBoxError,
         ),
         # 404 status codes - fileUploadNotFound, alias known -> alias-based error
@@ -521,7 +484,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "fileUploadNotFound"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.FileNotInBoxError,
         ),
         # 404 status codes - s3UploadNotFound
@@ -530,7 +493,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "s3UploadNotFound"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.S3UploadMissingError,
         ),
         # 404 status codes - no matching exception id
@@ -539,7 +502,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "nosuchexceptionid"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UnexpectedError,
         ),
         # 409 status codes - boxStateError
@@ -548,7 +511,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "boxStateError"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UploadBoxLockedError,
         ),
         # 409 status codes - fileUploadAlreadyExists
@@ -557,7 +520,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "fileUploadAlreadyExists"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UploadAlreadyExistsError,
         ),
         # 409 status codes - orphanedMultipartUpload
@@ -566,7 +529,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "orphanedMultipartUpload"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.OrphanedUploadError,
         ),
         # 409 status codes - fileUploadStateError
@@ -575,7 +538,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "fileUploadStateError"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.FileUploadStateError,
         ),
         # 507 status code - boxMaxSizeExceeded
@@ -584,7 +547,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "boxMaxSizeExceeded"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UploadBoxSizeExceededError,
         ),
         # 429 status code
@@ -593,7 +556,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "tooManyOpenUploads"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.TooManyRequestsError,
         ),
         # 507 status code - no matching exception id
@@ -602,7 +565,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "nosuchexceptionid"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UnexpectedError,
         ),
         # 400 status codes - no matching exception id
@@ -611,7 +574,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "nosuchexceptionid"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UnexpectedError,
         ),
         # Unexpected status code
@@ -620,7 +583,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "internalServerError"},
             TEST_FUB_ID,
             FILE_ALIAS,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.UnexpectedError,
         ),
         # Test with None values for optional parameters - 404 boxNotFound
@@ -647,7 +610,7 @@ async def test_error_status_triggers_error_translation(
             {"exception_id": "fileUploadNotFound"},
             TEST_FUB_ID,
             None,
-            FILE_ID,
+            TEST_FILE_ID,
             exceptions.InvalidFileUploadError,
         ),
         # Test with partial None values - file_id None, others present
@@ -708,16 +671,13 @@ async def test_check_for_request_errors(
 
 async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_raises(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    upload_api: UploadApiMock,  # noqa: F811
 ):
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
-
     # Return 403 on both attempts (first call and the bust_cache retry)
-    @mock_router.get(upload_api(PART_PATH))
-    def get_part_upload_url(box_id: str, file_id: str, part_no: int) -> httpx2.Response:
-        """Refuse to hand out an upload URL."""
-        assert (box_id, file_id, part_no) == (str(TEST_FUB_ID), str(FILE_ID), 1)
-        return httpx2.Response(403, json={"exception_id": "authorizationError"})
+    upload_api.on_get_part_upload_url = respond(
+        403, json={"exception_id": "authorizationError"}
+    )
 
     # Replace the AsyncMock auto-attribute with a plain MagicMock so calling
     # cache_invalidate() doesn't create an unawaited coroutine warning.
@@ -727,7 +687,10 @@ async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_
     )
 
     with pytest.raises(exceptions.AuthorizationError):
-        await upload_client.get_part_upload_url(file_id=FILE_ID, part_no=1)
+        await upload_client.get_part_upload_url(file_id=TEST_FILE_ID, part_no=1)
+
+    # Both the first attempt and the bust_cache retry have to have reached the API
+    assert len(upload_api.requests) == 2
 
     # The cache should have been invalidated exactly once (on the bust_cache=True retry)
     cache_invalidate_mock.assert_called_once()

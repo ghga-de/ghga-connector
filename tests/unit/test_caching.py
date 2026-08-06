@@ -15,25 +15,27 @@
 
 """Unit tests for Download Client caching"""
 
-import base64
+from typing import Any
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import SecretBytes
 
-from ghga_connector.config import get_download_api_url, get_work_package_api_url
 from ghga_connector.core.client import async_client
 from ghga_connector.core.downloading.api_calls import DownloadClient
 from ghga_connector.core.downloading.structs import RetryResponse
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
-from tests.fixtures.mock_api.router import (
-    api_url,
-    mock_router,  # noqa: F401
+from tests.fixtures.mock_api.apis import (
+    DRS_OBJECT,
+    DownloadApiMock,
+    WorkPackageApiMock,
+    download_api,  # noqa: F401
+    work_package_api,  # noqa: F401
 )
+from tests.fixtures.mock_api.router import mock_router  # noqa: F401
 from tests.fixtures.utils import (
     RecordingClient,
     patch_work_package_functions,  # noqa: F401
@@ -41,27 +43,15 @@ from tests.fixtures.utils import (
 
 pytestmark = [pytest.mark.asyncio]
 
-FAKE_DRS_OBJECT = {
-    "access_methods": [{"access_url": {"url": "https://test.url"}, "type": "s3"}],
-    "id": "test-file-id",
-    "size": 1024,
-}
-
 
 async def test_get_drs_object_caching(
     monkeypatch,
-    mock_router: MockRouter,  # noqa: F811
-    set_runtime_test_config,  # noqa: F811
+    download_api: DownloadApiMock,  # noqa: F811
 ):
     """Test that get_drs_object results are cached and can be invalidated."""
     monkeypatch.setattr(
         "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
     )
-
-    @mock_router.get(api_url(get_download_api_url(), "/objects/{file_id}"))
-    def get_drs_object(file_id: str) -> httpx2.Response:
-        """Return the staged DRS object."""
-        return httpx2.Response(200, json=FAKE_DRS_OBJECT)
 
     async with async_client() as client:
         assert isinstance(client, RecordingClient)
@@ -92,8 +82,7 @@ async def test_get_drs_object_caching(
 
 async def test_retry_response_is_not_cached(
     monkeypatch,
-    mock_router: MockRouter,  # noqa: F811
-    set_runtime_test_config,  # noqa: F811
+    download_api: DownloadApiMock,  # noqa: F811
 ):
     """Test that we don't serve 202/retry-after from the cache.
 
@@ -110,14 +99,15 @@ async def test_retry_response_is_not_cached(
     polls = iter(
         [
             httpx2.Response(202, headers={"retry-after": "1"}),
-            httpx2.Response(200, json=FAKE_DRS_OBJECT),
+            httpx2.Response(200, json=DRS_OBJECT),
         ]
     )
 
-    @mock_router.get(api_url(get_download_api_url(), "/objects/{file_id}"))
-    def get_drs_object(file_id: str) -> httpx2.Response:
+    def poll(request: httpx2.Request, **path_variables: Any) -> httpx2.Response:
         """Report the file as still staging on the first poll, staged on the second."""
         return next(polls)
+
+    download_api.on_get_drs_object = poll
 
     async with async_client() as client:
         assert isinstance(client, RecordingClient)
@@ -146,13 +136,12 @@ async def test_retry_response_is_not_cached(
         #  DRS object returned, NOT the cached RetryResponse.
         response = await download_client.get_drs_object(file_id)
         assert client.calls, "Second poll should hit the network, not the stale cache"
-        assert response == FAKE_DRS_OBJECT
+        assert response == DRS_OBJECT
 
 
 async def test_get_work_order_token_caching(
     monkeypatch,
-    mock_router: MockRouter,  # noqa: F811
-    set_runtime_test_config,  # noqa: F811
+    work_package_api: WorkPackageApiMock,  # noqa: F811
     patch_work_package_functions,  # noqa: F811
 ):
     """Test the caching of call to the Work Package API to get an upload WOT."""
@@ -163,16 +152,6 @@ async def test_get_work_order_token_caching(
     monkeypatch.setattr(
         "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
     )
-
-    @mock_router.post(
-        api_url(
-            get_work_package_api_url(),
-            "/work-packages/{package_id}/boxes/{box_id}/work-order-tokens",
-        )
-    )
-    def get_upload_wot(package_id: str, box_id: str) -> httpx2.Response:
-        """Hand out an encrypted work order token."""
-        return httpx2.Response(201, json=base64.b64encode(b"1234567890" * 5).decode())
 
     async with async_client() as client:
         assert isinstance(client, RecordingClient)

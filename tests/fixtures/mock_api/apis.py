@@ -39,11 +39,15 @@ instead.
 
 import base64
 import json
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 import httpx2
 import pytest
 from ghga_service_commons.api.mock_router import MockRouter
+from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from ghga_connector.config import (
     get_download_api_url,
@@ -54,22 +58,30 @@ from tests.fixtures.mock_api.router import (
     MOCK_API_HOST,
     ResponseHandler,
     api_url,
+    caching_headers,
+    httpyexpect_error,
     respond,
 )
 from tests.fixtures.utils import TEST_FILE_ID, TEST_PUBLIC_KEYS, TEST_STORAGE_ALIAS1
 
 __all__ = [
+    "AUTH_FAILURE_TOKEN",
     "DOWNLOAD_API_URL",
     "DRS_OBJECT",
+    "FILE_ID_MISMATCH_TOKEN",
     "UPLOAD_API_URL",
     "UPLOAD_URL",
+    "URL_LIFESPAN",
     "WORK_ORDER_TOKEN",
     "WORK_PACKAGE_API_URL",
     "DownloadApiMock",
+    "StagedObject",
     "UploadApiMock",
     "WkvsMock",
     "WorkPackageApiMock",
     "download_api",
+    "envelope_response",
+    "no_such_drs_object",
     "upload_api",
     "work_package_api",
 ]
@@ -110,10 +122,26 @@ PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
 # The listing endpoint is queried with pagination parameters, so its pattern has to
 # tolerate a query string - but not the extra path segments of the endpoints above.
 UPLOAD_LISTING_PATH = rf"{UPLOADS_PATH}(\?.*)?"
+# A leftover of an older Upload API, which this connector no longer calls. It is kept
+# so that a call to it is still answered the way it used to be, rather than counting as
+# an unknown endpoint.
+SIGNED_URL_PATH = "/uploads/{upload_id}/parts/{part_no}/signed_urls"
 
 # The presigned URL the Upload API hands out for a part by default
 UPLOAD_URL = "http://upload_url"
 EMPTY_LISTING: dict[str, Any] = {"items": [], "total_count": 0}
+
+
+def _no_such_upload(
+    request: httpx2.Request, upload_id: str, **path_variables: Any
+) -> httpx2.Response:
+    """Report the multipart upload as unknown."""
+    return httpyexpect_error(
+        404,
+        "noSuchUpload",
+        f'The file with the upload id "{upload_id}" does not exist.',
+        {"upload_id": upload_id},
+    )
 
 
 def _created_file_upload(
@@ -139,7 +167,8 @@ class UploadApiMock(_ApiMock):
 
     By default every endpoint reports success: an upload is created for `TEST_FILE_ID`,
     the box lists no uploads, `UPLOAD_URL` is handed out for every part, and completing
-    or deleting an upload succeeds.
+    or deleting an upload succeeds. The exception is the retired `signed_urls` endpoint,
+    which reports every multipart upload as unknown.
     """
 
     def __init__(self, router: MockRouter, base_url: str = UPLOAD_API_URL) -> None:
@@ -149,10 +178,23 @@ class UploadApiMock(_ApiMock):
         self.on_get_part_upload_url: ResponseHandler = respond(200, json=UPLOAD_URL)
         self.on_complete_file_upload: ResponseHandler = respond(204)
         self.on_delete_file: ResponseHandler = respond(204)
+        self.on_get_part_signed_url: ResponseHandler = _no_such_upload
+
+        @router.post(api_url(base_url, SIGNED_URL_PATH))
+        async def get_part_signed_url(
+            upload_id: str, part_no: int, request: httpx2.Request
+        ) -> httpx2.Response:
+            """Hand out a signed URL for a part of a legacy multipart upload."""
+            return await self._handle(
+                request,
+                self.on_get_part_signed_url,
+                upload_id=upload_id,
+                part_no=part_no,
+            )
 
         @router.post(api_url(base_url, UPLOADS_PATH))
         async def create_file_upload(
-            box_id: str, request: httpx2.Request
+            box_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
             """Create a new file upload in the box."""
             return await self._handle(
@@ -161,14 +203,14 @@ class UploadApiMock(_ApiMock):
 
         @router.get(api_url(base_url, UPLOAD_LISTING_PATH))
         async def get_box_uploads(
-            box_id: str, request: httpx2.Request
+            box_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
             """List the uploads the box contains."""
             return await self._handle(request, self.on_get_box_uploads, box_id=box_id)
 
         @router.get(api_url(base_url, PART_PATH))
         async def get_part_upload_url(
-            box_id: str, file_id: str, part_no: int, request: httpx2.Request
+            box_id: UUID, file_id: UUID, part_no: int, request: httpx2.Request
         ) -> httpx2.Response:
             """Hand out the presigned upload URL for a part."""
             return await self._handle(
@@ -181,7 +223,7 @@ class UploadApiMock(_ApiMock):
 
         @router.patch(api_url(base_url, UPLOAD_PATH))
         async def complete_file_upload(
-            box_id: str, file_id: str, request: httpx2.Request
+            box_id: UUID, file_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
             """Complete the file upload."""
             return await self._handle(
@@ -190,7 +232,7 @@ class UploadApiMock(_ApiMock):
 
         @router.delete(api_url(base_url, UPLOAD_PATH))
         async def delete_file(
-            box_id: str, file_id: str, request: httpx2.Request
+            box_id: UUID, file_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
             """Delete the file upload."""
             return await self._handle(
@@ -212,11 +254,29 @@ WORK_ORDER_TOKEN = base64.b64encode(b"1234567890" * 5).decode()
 WOT_LIFESPAN = 5
 
 
+def _upload_work_order_token(
+    request: httpx2.Request, **path_variables: Any
+) -> httpx2.Response:
+    """Hand out a work order token naming what it authorizes.
+
+    Tests that leave the connector's token decryption as a no-op end up sending this
+    string as the bearer token, so it says what was asked for rather than being opaque.
+    """
+    body = json.loads(request.read())
+    subject = body["file_id"] or body["alias"]
+    return httpx2.Response(
+        201,
+        json=f"{body['work_type']}_wot_for_{subject}",
+        headers=caching_headers(WOT_LIFESPAN),
+    )
+
+
 class WorkPackageApiMock(_ApiMock):
     """A mock of the Work Package API endpoints the connector calls.
 
     By default the work package contains no files, and every work order token request
-    is granted with `WORK_ORDER_TOKEN`, cacheable for `WOT_LIFESPAN` seconds.
+    is granted, cacheable for `WOT_LIFESPAN` seconds - a download token as the opaque
+    `WORK_ORDER_TOKEN`, an upload token as a string naming the work it authorizes.
     """
 
     def __init__(
@@ -224,9 +284,7 @@ class WorkPackageApiMock(_ApiMock):
     ) -> None:
         super().__init__()
         self.on_get_work_package: ResponseHandler = respond(200, json={"files": {}})
-        self.on_get_upload_wot: ResponseHandler = respond(
-            201, json=WORK_ORDER_TOKEN, cache_for=WOT_LIFESPAN
-        )
+        self.on_get_upload_wot: ResponseHandler = _upload_work_order_token
         self.on_get_download_wot: ResponseHandler = respond(
             201, json=WORK_ORDER_TOKEN, cache_for=WOT_LIFESPAN
         )
@@ -242,7 +300,7 @@ class WorkPackageApiMock(_ApiMock):
 
         @router.post(api_url(base_url, UPLOAD_WOT_PATH))
         async def get_upload_wot(
-            package_id: str, box_id: str, request: httpx2.Request
+            package_id: UUID, box_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
             """Hand out a work order token for an upload box."""
             return await self._handle(
@@ -266,12 +324,58 @@ class WorkPackageApiMock(_ApiMock):
 DRS_OBJECT_PATH = "/objects/{file_id}"
 ENVELOPE_PATH = f"{DRS_OBJECT_PATH}/envelopes"
 
-# The staged DRS object the Download API describes by default
+# A plain staged DRS object, for tests that only need the Download API to answer
 DRS_OBJECT: dict[str, Any] = {
     "access_methods": [{"access_url": {"url": "https://test.url"}, "type": "s3"}],
     "id": "test-file-id",
     "size": 1024,
 }
+
+# How long a presigned download URL, and the DRS object announcing it, stay fresh
+URL_LIFESPAN = 10
+
+# The file the Download API always reports as still being staged, and the work order
+# tokens it refuses. Tests provoke the latter by patching what a token decrypts to.
+RETRY_FILE_ID = "retry"
+AUTH_FAILURE_TOKEN = "authfail_normal"
+FILE_ID_MISMATCH_TOKEN = "file_id_mismatch"
+
+
+@dataclass
+class StagedObject:
+    """An object the Download API reports as ready, and how to reach the bytes.
+
+    `presign_download_url` is called for every request, so the URL it hands out can be
+    short-lived without the object ever becoming unreachable - expiring URLs are what
+    makes the connector go and refresh them.
+    """
+
+    file_id: str
+    size: int
+    presign_download_url: Callable[[int], Awaitable[str]]
+    url_lifespan: int = URL_LIFESPAN
+    envelope: bytes | None = None
+
+
+def refused_work_order_token(request: httpx2.Request) -> httpx2.Response | None:
+    """Refuse the request if it carries one of the work order tokens tests provoke.
+
+    A plain 403 explains itself in `detail`, an httpyexpect one in `description`. The
+    connector reads whichever is there, so both flavors get exercised.
+    """
+    token = request.headers.get("authorization", "").removeprefix("Bearer ")
+    if token == AUTH_FAILURE_TOKEN:
+        return httpx2.Response(
+            403, json={"detail": "This is not the token you're looking for."}
+        )
+    if token == FILE_ID_MISMATCH_TOKEN:
+        return httpyexpect_error(
+            403,
+            "wrongFileAuthorizationError",
+            "Endpoint file ID did not match file ID announced in work order token.",
+            {},
+        )
+    return None
 
 
 def envelope_response(envelope: bytes) -> httpx2.Response:
@@ -283,20 +387,43 @@ def envelope_response(envelope: bytes) -> httpx2.Response:
     )
 
 
+def no_such_drs_object(file_id: str) -> httpx2.Response:
+    """Report the DRS object as unknown, the way the object endpoint does.
+
+    Unlike the rest of the Download API's errors, this one is not in the httpyexpect
+    schema - it only carries a `detail`, and the connector copes with either.
+    """
+    return httpx2.Response(
+        404, json={"detail": f'The DRSObject with the id "{file_id}" does not exist.'}
+    )
+
+
+def no_such_envelope(
+    request: httpx2.Request, file_id: str, **path_variables: Any
+) -> httpx2.Response:
+    """Report the envelope as unknown, the way the envelope endpoint does."""
+    return httpyexpect_error(
+        404,
+        "noSuchObject",
+        f'The DRSObject with the id "{file_id}" does not exist.',
+        {"file_id": file_id},
+    )
+
+
 class DownloadApiMock(_ApiMock):
     """A mock of the Download API endpoints the connector calls.
 
-    By default the requested file is reported as staged, described by `DRS_OBJECT`, and
-    its envelope is missing - a test that wants one serves it with
-    `envelope_response`, since envelopes are not JSON.
+    Nothing is staged to begin with, so every file is reported as unknown; assign
+    `staged` to have one described as ready for download. A request carrying one of the
+    work order tokens the tests provoke is refused, and `RETRY_FILE_ID` is always
+    reported as still being staged, whatever `staged` says.
     """
 
     def __init__(self, router: MockRouter, base_url: str = DOWNLOAD_API_URL) -> None:
         super().__init__()
-        self.on_get_drs_object: ResponseHandler = respond(200, json=DRS_OBJECT)
-        self.on_get_envelope: ResponseHandler = respond(
-            404, json={"exception_id": "noSuchObject"}
-        )
+        self.staged: StagedObject | None = None
+        self.on_get_drs_object: ResponseHandler = self._describe_drs_object
+        self.on_get_envelope: ResponseHandler = self._hand_out_envelope
 
         # Registered first, so that it wins over the DRS object endpoint below.
         @router.get(api_url(base_url, ENVELOPE_PATH))
@@ -312,6 +439,46 @@ class DownloadApiMock(_ApiMock):
         ) -> httpx2.Response:
             """Describe the DRS object, including where to download it from."""
             return await self._handle(request, self.on_get_drs_object, file_id=file_id)
+
+    async def _describe_drs_object(
+        self, request: httpx2.Request, file_id: str, **path_variables: Any
+    ) -> httpx2.Response:
+        """Describe the object, or explain why it cannot be downloaded."""
+        if refusal := refused_work_order_token(request):
+            return refusal
+        if file_id == RETRY_FILE_ID:
+            return httpx2.Response(
+                202, headers={"Retry-After": "10", "Cache-Control": "no-store"}
+            )
+
+        staged = self.staged
+        if staged is None or file_id != staged.file_id:
+            return no_such_drs_object(file_id)
+
+        download_url = await staged.presign_download_url(staged.url_lifespan)
+        now = now_as_utc().isoformat()
+        return httpx2.Response(
+            200,
+            json={
+                "file_id": staged.file_id,
+                "self_uri": f"drs://localhost:8080//{staged.file_id}",
+                "size": staged.size,
+                "created_time": now,
+                "updated_time": now,
+                "checksums": [{"checksum": "1", "type": "md5"}],
+                "access_methods": [{"access_url": {"url": download_url}, "type": "s3"}],
+            },
+            headers=caching_headers(staged.url_lifespan),
+        )
+
+    def _hand_out_envelope(
+        self, request: httpx2.Request, file_id: str, **path_variables: Any
+    ) -> httpx2.Response:
+        """Hand out the Crypt4GH envelope, for an object that has one."""
+        staged = self.staged
+        if staged is None or file_id != staged.file_id or staged.envelope is None:
+            return no_such_envelope(request, file_id)
+        return envelope_response(staged.envelope)
 
 
 class WkvsMock(_ApiMock):

@@ -16,6 +16,7 @@
 
 """Serve connector HTTP calls from a `MockRouter` instead of the network."""
 
+import json
 import re
 from collections.abc import Awaitable, Callable
 from email.utils import format_datetime
@@ -23,7 +24,7 @@ from typing import Any
 
 import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
+from ghga_service_commons.api.mock_router import HttpException, MockRouter
 from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from ghga_connector.core.client import get_ratelimiting_retry_transport
@@ -34,6 +35,8 @@ __all__ = [
     "ResponseHandler",
     "api_url",
     "caching_headers",
+    "httpyexpect_error",
+    "httpyexpect_response",
     "mock_health_checks",
     "mock_router",
     "respond",
@@ -84,6 +87,43 @@ def respond(
     return handler
 
 
+def httpyexpect_error(
+    status_code: int, exception_id: str, description: str, data: dict[str, Any]
+) -> httpx2.Response:
+    """The response a GHGA service sends for an error, in the httpyexpect schema.
+
+    `data` is serialized leniently, because it does not always hold plain JSON: the
+    422 `MockRouter` raises for a path variable it cannot cast reports the type it
+    tried to cast to, and that is a class.
+    """
+    body = {"exception_id": exception_id, "description": description, "data": data}
+    return httpx2.Response(
+        status_code,
+        content=json.dumps(body, default=str),
+        headers={"content-type": "application/json"},
+    )
+
+
+def httpyexpect_response(
+    request: httpx2.Request, exception: HttpException
+) -> httpx2.Response:
+    """Answer with an `HttpException` rather than letting it propagate.
+
+    `MockRouter` raises one when no endpoint matches a request, or when a path variable
+    doesn't fit the type its endpoint declares, and the exception carries whatever
+    status code was chosen for it - 4xx or 5xx. Turning it into a response is what
+    `configure_exception_handler` did for the FastAPI mock app these mocks replaced, and
+    it keeps the connector's own error translation in the loop for a call the mocks
+    don't cover, instead of the exception surfacing straight out of the transport.
+    """
+    return httpyexpect_error(
+        exception.status_code,
+        exception.body.exception_id,
+        exception.body.description,
+        exception.body.data,
+    )
+
+
 def api_url(base_url: str, path: str) -> str:
     """Build a `MockRouter` pattern for `path` as served by the API at `base_url`.
 
@@ -132,18 +172,45 @@ def mock_router(monkeypatch) -> MockRouter:
     return router
 
 
+class OffLimitsError(RuntimeError):
+    """Raised when a test is about to send a request out to the internet."""
+
+    def __init__(self, url: httpx2.URL):
+        """Name the request that was refused, and what to do about it."""
+        super().__init__(
+            f"A test tried to reach {url}, which is neither one of the mocked GHGA APIs"
+            f" (at {MOCK_API_HOST}) nor the S3 testcontainer (at {S3_HOST}). Mock the"
+            " API it belongs to rather than letting the request out."
+        )
+
+
+class RefusingTransport(httpx2.AsyncBaseTransport):
+    """A transport that lets nothing through, for hosts no test may talk to."""
+
+    async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
+        """Refuse the request rather than sending it."""
+        raise OffLimitsError(request.url)
+
+
 def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
-    """Answer calls to the mock API host from `router`, letting other traffic out.
+    """Answer calls to the mock API host from `router`, letting S3 traffic out.
 
     Unlike `mock_router`, which swallows every request, this leaves the connector free
     to reach the S3 testcontainer - which integration tests need, since the presigned
-    URLs the mocked APIs hand out point at real storage. Both mounts keep the real
-    retry and rate limiting transports in front of them.
+    URLs the mocked APIs hand out point at real storage. Both of those mounts keep the
+    real retry and rate limiting transports in front of them.
+
+    Every other host is mounted on a transport that refuses to send. Without it, a
+    request the mocks don't cover would go out to the internet for real: the connector's
+    own default for `wkvs_api_url` is a live GHGA URL, so a test that failed to apply
+    the test config would quietly call production. `httpx2` picks the most specific
+    mount, so the two real ones still win for the hosts they name.
     """
 
     def mock_mounts(config, base_transport=None, limits=None):
         """Stand in for `ratelimiting_retry_proxies`, splitting mock from S3 traffic."""
         return {
+            "all://": RefusingTransport(),
             f"all://{MOCK_API_HOST}": get_ratelimiting_retry_transport(
                 base_transport=router.as_transport(), limits=limits
             ),

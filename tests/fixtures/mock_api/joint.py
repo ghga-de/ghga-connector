@@ -25,8 +25,9 @@ out worth handing out.
 
 from dataclasses import dataclass
 
+import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
+from ghga_service_commons.api.mock_router import HttpException, MockRouter
 
 from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.apis import (
@@ -35,7 +36,12 @@ from tests.fixtures.mock_api.apis import (
     WkvsMock,
     WorkPackageApiMock,
 )
-from tests.fixtures.mock_api.router import serve_mock_api_host_from
+from tests.fixtures.mock_api.router import (
+    MOCK_API_HOST,
+    api_url,
+    httpyexpect_response,
+    serve_mock_api_host_from,
+)
 
 __all__ = [
     "MockApis",
@@ -58,14 +64,40 @@ class MockApis:
     upload: UploadApiMock
 
 
+def _serve_service_probes(router: MockRouter) -> None:
+    """Serve the readiness and liveness probes every GHGA service exposes.
+
+    The connector's own health checks go out through a module level `httpx2.get` and are
+    mocked by `mock_health_checks` instead, so nothing here reaches these - they exist
+    so that a call to the mock host lands on an endpoint rather than a "not found".
+    """
+
+    @router.get(api_url(MOCK_API_HOST, "/"))
+    def ready() -> httpx2.Response:
+        """Report the service as ready."""
+        return httpx2.Response(204)
+
+    @router.get(api_url(MOCK_API_HOST, "/health"))
+    def health() -> httpx2.Response:
+        """Report the service as alive."""
+        return httpx2.Response(200, json={"status": "OK"})
+
+
 @pytest.fixture()
 def mock_apis(monkeypatch) -> MockApis:
     """Serve every GHGA API from a mock, while letting S3 traffic reach the container.
 
     The config is left to the test's own `apply_test_config`, so that a test overriding
     a config value keeps it; only the WKVS URL is read here, to know where to serve it.
+
+    A request no endpoint matches is answered with the 404 the `MockRouter` raises for
+    it, rather than that exception surfacing out of the transport, so the connector sees
+    an error response from an unmocked call just as it did from the FastAPI mock app.
     """
-    router: MockRouter = MockRouter()
+    router: MockRouter[HttpException] = MockRouter(
+        exception_handler=httpyexpect_response,
+        exceptions_to_handle=(HttpException,),
+    )
     mocks = MockApis(
         router=router,
         wkvs=WkvsMock(router, get_test_config().wkvs_api_url),
@@ -73,5 +105,6 @@ def mock_apis(monkeypatch) -> MockApis:
         download=DownloadApiMock(router),
         upload=UploadApiMock(router),
     )
+    _serve_service_probes(router)
     serve_mock_api_host_from(monkeypatch, router)
     return mocks

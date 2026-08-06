@@ -35,7 +35,10 @@ from tests.fixtures.mock_api.apis import (
     download_api,  # noqa: F401
     work_package_api,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import mock_router  # noqa: F401
+from tests.fixtures.mock_api.router import (
+    mock_router,  # noqa: F401
+    respond,
+)
 from tests.fixtures.utils import (
     RecordingClient,
     patch_work_package_functions,  # noqa: F401
@@ -52,6 +55,7 @@ async def test_get_drs_object_caching(
     monkeypatch.setattr(
         "ghga_connector.core.client.httpx2.AsyncClient", RecordingClient
     )
+    download_api.on_get_drs_object = respond(200, json=DRS_OBJECT)
 
     async with async_client() as client:
         assert isinstance(client, RecordingClient)

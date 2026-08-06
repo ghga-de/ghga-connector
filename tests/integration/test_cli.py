@@ -19,27 +19,28 @@
 import os
 import pathlib
 from contextlib import nullcontext
-from dataclasses import dataclass
 from filecmp import cmp
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-import httpx2
 import pytest
-from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from ghga_connector import exceptions
 from ghga_connector.constants import C4GH, DEFAULT_PART_SIZE
 from ghga_connector.core.main import async_download
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.apis import DownloadApiMock, envelope_response
+from tests.fixtures.mock_api.apis import (
+    AUTH_FAILURE_TOKEN,
+    FILE_ID_MISMATCH_TOKEN,
+    StagedObject,
+)
 from tests.fixtures.mock_api.joint import (
     MockApis,
     mock_apis,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import caching_headers, mock_health_checks
+from tests.fixtures.mock_api.router import mock_health_checks
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -56,13 +57,6 @@ GET_PACKAGE_FILES_ATTR = (
     "ghga_connector.core.work_package.WorkPackageClient.get_package_files"
 )
 FAKE_ENVELOPE = b"Thisisafakeenvelope"
-SHORT_LIFESPAN = 10
-
-# The file ID the Download API reports as not staged yet, and the work order tokens it
-# refuses. Tests provoke the latter by patching what the connector decrypts a token to.
-RETRY_FILE_ID = "retry"
-AUTH_FAILURE_TOKEN = "authfail_normal"
-FILE_ID_MISMATCH_TOKEN = "file_id_mismatch"
 
 pytestmark = [pytest.mark.asyncio(loop_scope="session")]
 
@@ -74,109 +68,25 @@ def apply_test_config():
         yield
 
 
-@dataclass
-class StagedObject:
-    """An object the Download API reports as ready, and the S3 object behind it."""
-
-    file_id: str
-    bucket_id: str
-    size: int
-    envelope: bytes | None = FAKE_ENVELOPE
-
-
-def _refused_work_order_token(request: httpx2.Request) -> httpx2.Response | None:
-    """Refuse the request if it carries one of the work order tokens tests provoke.
-
-    A plain 403 explains itself in `detail`, an httpyexpect one in `description`. The
-    connector reads whichever is there, so both flavors are exercised.
-    """
-    token = request.headers.get("authorization", "").removeprefix("Bearer ")
-    if token == AUTH_FAILURE_TOKEN:
-        return httpx2.Response(
-            403, json={"detail": "This is not the token you're looking for."}
-        )
-    if token == FILE_ID_MISMATCH_TOKEN:
-        return httpx2.Response(
-            403,
-            json={
-                "exception_id": "wrongFileAuthorizationError",
-                "description": (
-                    "Endpoint file ID did not match file ID announced in work"
-                    " order token."
-                ),
-                "data": {},
-            },
-        )
-    return None
-
-
-def _no_such_object(file_id: str) -> httpx2.Response:
-    """Report the DRS object as unknown, the way the Download API does."""
-    return httpx2.Response(
-        404,
-        json={
-            "exception_id": "noSuchObject",
-            "description": f'The DRSObject with the id "{file_id}" does not exist.',
-            "data": {"file_id": file_id},
-        },
-    )
-
-
-def serve_download_api(
-    download_api: DownloadApiMock,
+def stage(
     s3_fixture: S3Fixture,  # noqa: F811
-    staged: StagedObject | None = None,
     *,
-    expires_after: int = SHORT_LIFESPAN,
-) -> None:
-    """Answer Download API requests the way the real Download API would.
+    file_id: str,
+    bucket_id: str,
+    size: int,
+    envelope: bytes | None = FAKE_ENVELOPE,
+) -> StagedObject:
+    """Describe an S3 object as staged, presigning its URL fresh on every request."""
 
-    `staged` is the one object that is ready for download. Its S3 URL is presigned anew
-    on every request, so it can carry the short lifespan these tests need without the
-    object ever becoming unreachable - which is the point, since expiring URLs are what
-    makes the connector refresh them. Any other file ID is reported as still being
-    staged or as unknown, and a work order token that doesn't check out is refused.
-    """
-
-    async def get_drs_object(request: httpx2.Request, file_id: str) -> httpx2.Response:
-        """Describe the object, or explain why it cannot be downloaded."""
-        if refusal := _refused_work_order_token(request):
-            return refusal
-        if file_id == RETRY_FILE_ID:
-            return httpx2.Response(
-                202, headers={"Retry-After": "10", "Cache-Control": "no-store"}
-            )
-        if staged is None or file_id != staged.file_id:
-            return _no_such_object(file_id)
-
-        download_url = await s3_fixture.storage.get_object_download_url(
-            bucket_id=staged.bucket_id,
-            object_id=staged.file_id,
-            expires_after=expires_after,
-        )
-        now = now_as_utc().isoformat()
-        return httpx2.Response(
-            200,
-            json={
-                "file_id": staged.file_id,
-                "self_uri": f"drs://localhost:8080//{staged.file_id}",
-                "size": staged.size,
-                "created_time": now,
-                "updated_time": now,
-                "checksums": [{"checksum": "1", "type": "md5"}],
-                "access_methods": [{"access_url": {"url": download_url}, "type": "s3"}],
-            },
-            headers=caching_headers(expires_after),
+    def presign(expires_after: int):
+        """Presign a download URL for the object."""
+        return s3_fixture.storage.get_object_download_url(
+            bucket_id=bucket_id, object_id=file_id, expires_after=expires_after
         )
 
-    def get_envelope(request: httpx2.Request, file_id: str) -> httpx2.Response:
-        """Hand out the Crypt4GH envelope, for the objects that have one."""
-        if staged is None or file_id != staged.file_id or staged.envelope is None:
-            return _no_such_object(file_id)
-        return envelope_response(staged.envelope)
-
-    download_api.on_get_drs_object = get_drs_object
-    download_api.on_get_envelope = get_envelope
+    return StagedObject(
+        file_id=file_id, size=size, presign_download_url=presign, envelope=envelope
+    )
 
 
 @pytest.mark.parametrize(
@@ -227,14 +137,11 @@ async def test_multipart_download(
     # approximately met by the provided big file:
     actual_file_size = len(big_object.content)
 
-    serve_download_api(
-        mock_apis.download,
+    mock_apis.download.staged = stage(
         s3_fixture,
-        StagedObject(
-            file_id=big_object.object_id,
-            bucket_id=big_object.bucket_id,
-            size=actual_file_size,
-        ),
+        file_id=big_object.object_id,
+        bucket_id=big_object.bucket_id,
+        size=actual_file_size,
     )
 
     big_file_content = FAKE_ENVELOPE + big_object.content
@@ -286,17 +193,14 @@ async def test_download(
     )
 
     # The envelope is only served for files that have one - "envelope-missing" doesn't.
-    staged = (
-        StagedObject(
+    if file.populate_storage:
+        mock_apis.download.staged = stage(
+            s3_fixture,
             file_id=file.file_id,
             bucket_id=file.grouping_label,
             size=os.path.getsize(file.file_path),
             envelope=None if file_name == "file_envelope_missing" else FAKE_ENVELOPE,
         )
-        if file.populate_storage
-        else None
-    )
-    serve_download_api(mock_apis.download, s3_fixture, staged)
 
     mock_health_checks(monkeypatch)
 
@@ -345,7 +249,6 @@ async def test_file_not_downloadable(
     )
 
     # Nothing is staged, so the Download API reports the file as unknown
-    serve_download_api(mock_apis.download, s3_fixture)
 
     # 403 caused by an invalid auth token
     with (

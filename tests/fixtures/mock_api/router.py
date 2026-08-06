@@ -16,6 +16,7 @@
 
 """Serve connector HTTP calls from a `MockRouter` instead of the network."""
 
+import ipaddress
 import json
 import re
 from collections.abc import Awaitable, Callable
@@ -31,23 +32,29 @@ from ghga_connector.core.client import get_ratelimiting_retry_transport
 from tests.fixtures.config import get_test_config
 
 __all__ = [
+    "LOOPBACK_HOSTS",
     "MOCK_API_HOST",
+    "OffLimitsError",
     "ResponseHandler",
     "api_url",
     "caching_headers",
     "httpyexpect_error",
     "httpyexpect_response",
+    "may_be_reached",
     "mock_health_checks",
     "mock_router",
     "respond",
     "serve_httpx2_get_from",
     "serve_mock_api_host_from",
+    "serves_a_mocked_api",
 ]
 
-# The host the mocked GHGA APIs are served from, and the one the S3 testcontainer is
-# reached at. Traffic is told apart by host, so the two may not be the same.
+# The host the mocked GHGA APIs are served from, and the other spellings of it they also
+# answer to. Which one the tests are handed depends on how Docker is reached, so a URL
+# naming any of them has to be recognized as pointing at the mocks.
 MOCK_API_HOST = "127.0.0.1"
-S3_HOST = "host.docker.internal"
+LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+_LOOPBACK_PATTERN = "(?:" + "|".join(re.escape(host) for host in LOOPBACK_HOSTS) + ")"
 
 # A handler answers one request. It is passed the request and, as keyword arguments,
 # the path variables of the endpoint it is registered on, so it can ignore either.
@@ -124,6 +131,11 @@ def httpyexpect_response(
     )
 
 
+def _host_of(base_url: str) -> str:
+    """The host `base_url` names, whether or not it carries a scheme."""
+    return httpx2.URL(base_url).host or base_url.split("/", 1)[0].split(":", 1)[0]
+
+
 def api_url(base_url: str, path: str) -> str:
     """Build a `MockRouter` pattern for `path` as served by the API at `base_url`.
 
@@ -131,8 +143,15 @@ def api_url(base_url: str, path: str) -> str:
     serves every host from a single router, so the API URL has to be part of the
     pattern. Without it, the pattern would just as happily match the same path served
     by a different API.
+
+    An API on the loopback interface is matched under any spelling of it, so that a
+    call to `localhost` reaches the same mock as one to `127.0.0.1`.
     """
-    return re.escape(base_url) + path
+    pattern = re.escape(base_url)
+    host = _host_of(base_url)
+    if host in LOOPBACK_HOSTS:
+        pattern = pattern.replace(re.escape(host), _LOOPBACK_PATTERN, 1)
+    return pattern + path
 
 
 @pytest.fixture()
@@ -179,44 +198,86 @@ class OffLimitsError(RuntimeError):
         """Name the request that was refused, and what to do about it."""
         super().__init__(
             f"A test tried to reach {url}, which is neither one of the mocked GHGA APIs"
-            f" (at {MOCK_API_HOST}) nor the S3 testcontainer (at {S3_HOST}). Mock the"
-            " API it belongs to rather than letting the request out."
+            " nor anything else the test environment runs. Mock the API it belongs to"
+            " rather than letting the request out."
         )
 
 
-class RefusingTransport(httpx2.AsyncBaseTransport):
-    """A transport that lets nothing through, for hosts no test may talk to."""
+def serves_a_mocked_api(url: httpx2.URL) -> bool:
+    """Whether `url` is addressed to one of the mocked GHGA APIs.
+
+    They are served on the loopback interface under the default port for their scheme.
+    Anything else on loopback is a container the test environment published on a port
+    of its own - the S3 testcontainer, in practice.
+    """
+    return url.host in LOOPBACK_HOSTS and url.port is None
+
+
+def may_be_reached(url: httpx2.URL) -> bool:
+    """Whether a request to `url` may leave the test suite for the real network.
+
+    Only what the test environment itself runs may be reached. Testcontainers reports
+    the address of the container it started as whatever the Docker host happens to be,
+    which is a loopback address when Docker is local, `host.docker.internal` from
+    inside a devcontainer, and a private bridge address when it is neither - so all
+    three have to pass, while the internet at large must not.
+    """
+    host = url.host
+    if host in LOOPBACK_HOSTS or host.endswith(".internal"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
+class MockApiTransport(httpx2.AsyncBaseTransport):
+    """Sends GHGA API calls to the mocks and refuses anything bound for the internet.
+
+    Requests to whatever else the test environment runs - the S3 testcontainer, whose
+    presigned URLs the mocked APIs hand out - go over the network as usual, since the
+    point of those URLs is that they address real storage.
+    """
+
+    def __init__(
+        self,
+        router: MockRouter,
+        *,
+        base_transport: httpx2.AsyncBaseTransport | None = None,
+        limits: httpx2.Limits | None = None,
+    ) -> None:
+        self._mocked = get_ratelimiting_retry_transport(
+            base_transport=router.as_transport(), limits=limits
+        )
+        self._network = get_ratelimiting_retry_transport(
+            base_transport=base_transport, limits=limits
+        )
 
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
-        """Refuse the request rather than sending it."""
+        """Send the request wherever it is allowed to go, or refuse to send it."""
+        if serves_a_mocked_api(request.url):
+            return await self._mocked.handle_async_request(request)
+        if may_be_reached(request.url):
+            return await self._network.handle_async_request(request)
         raise OffLimitsError(request.url)
 
 
 def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
-    """Answer calls to the mock API host from `router`, letting S3 traffic out.
+    """Answer calls to the mocked GHGA APIs from `router`, letting local traffic out.
 
     Unlike `mock_router`, which swallows every request, this leaves the connector free
-    to reach the S3 testcontainer - which integration tests need, since the presigned
-    URLs the mocked APIs hand out point at real storage. Both of those mounts keep the
-    real retry and rate limiting transports in front of them.
-
-    Every other host is mounted on a transport that refuses to send. Without it, a
-    request the mocks don't cover would go out to the internet for real: the connector's
-    own default for `wkvs_api_url` is a live GHGA URL, so a test that failed to apply
-    the test config would quietly call production. `httpx2` picks the most specific
-    mount, so the two real ones still win for the hosts they name.
+    to reach the S3 testcontainer, which integration tests need. Anything bound for the
+    internet is refused instead of sent: the connector's own default for `wkvs_api_url`
+    is a live GHGA URL, so a test that failed to apply the test config would otherwise
+    quietly call production.
     """
 
     def mock_mounts(config, base_transport=None, limits=None):
-        """Stand in for `ratelimiting_retry_proxies`, splitting mock from S3 traffic."""
+        """Stand in for `ratelimiting_retry_proxies`, sorting out where calls may go."""
         return {
-            "all://": RefusingTransport(),
-            f"all://{MOCK_API_HOST}": get_ratelimiting_retry_transport(
-                base_transport=router.as_transport(), limits=limits
-            ),
-            f"all://{S3_HOST}": get_ratelimiting_retry_transport(
-                base_transport=base_transport, limits=limits
-            ),
+            "all://": MockApiTransport(
+                router, base_transport=base_transport, limits=limits
+            )
         }
 
     monkeypatch.setattr(

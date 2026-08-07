@@ -355,7 +355,7 @@ async def test_delete_file_not_in_box(
 @pytest.mark.parametrize(
     "endpoint, call",
     [
-        pytest.param(
+        (
             "on_create_file_upload",
             lambda client: client.create_file_upload(
                 file_alias=FILE_ALIAS,
@@ -363,32 +363,31 @@ async def test_delete_file_not_in_box(
                 encrypted_size=2124,
                 part_size=100,
             ),
-            id="create_file_upload",
         ),
-        pytest.param(
-            "on_get_box_uploads",
-            lambda client: client.get_box_uploads(),
-            id="get_box_uploads",
-        ),
-        pytest.param(
+        ("on_get_box_uploads", lambda client: client.get_box_uploads()),
+        (
             "on_get_part_upload_url",
             lambda client: client.get_part_upload_url(file_id=TEST_FILE_ID, part_no=1),
-            id="get_part_upload_url",
         ),
-        pytest.param(
+        (
             "on_complete_file_upload",
             lambda client: client.complete_file_upload(
                 file_id=TEST_FILE_ID, file_alias=FILE_ALIAS, **CHECKSUMS
             ),
-            id="complete_file_upload",
         ),
-        pytest.param(
+        (
             "on_delete_file",
             lambda client: client.delete_file(
                 file_id=TEST_FILE_ID, file_alias=FILE_ALIAS
             ),
-            id="delete_file",
         ),
+    ],
+    ids=[
+        "create_file_upload",
+        "get_box_uploads",
+        "get_part_upload_url",
+        "complete_file_upload",
+        "delete_file",
     ],
 )
 async def test_error_status_triggers_error_translation(

@@ -31,7 +31,7 @@ from ghga_connector.constants import C4GH, DEFAULT_PART_SIZE
 from ghga_connector.core.main import async_download
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.apis import StagedObject
+from tests.fixtures.mock_api.apis import WORK_ORDER_TOKEN, StagedObject
 from tests.fixtures.mock_api.joint import (
     MockApis,
     mock_apis,  # noqa: F401
@@ -192,7 +192,8 @@ async def test_download(
         AsyncMock(return_value={file.file_id: ""}),
     )
 
-    # The envelope is only served for files that have one - "envelope-missing" doesn't.
+    # The envelope is only served for files that have one - "file_envelope_missing"
+    # doesn't.
     if file.populate_storage:
         mock_apis.download.staged = stage(
             s3_fixture,
@@ -206,7 +207,7 @@ async def test_download(
     # until the connector gives up waiting.
     if file_name == "file_retry":
         mock_apis.download.on_get_drs_object = respond(
-            202, headers={"Retry-After": "10", "Cache-Control": "no-store"}
+            202, headers={"Retry-After": "10"}
         )
 
     mock_health_checks(monkeypatch)
@@ -273,6 +274,13 @@ async def test_file_not_downloadable(
             my_public_key_path=Path(PUBLIC_KEY_FILE),
             my_private_key_path=Path(PRIVATE_KEY_FILE),
         )
+
+    # The work order token the connector fetched has to have reached the Download API as
+    # the bearer token - `patch_work_package_functions` leaves `_decrypt` as the identity.
+    assert (
+        mock_apis.download.last_request.headers["authorization"]
+        == f"Bearer {WORK_ORDER_TOKEN}"
+    )
 
     # 403 caused by requesting file ID that's not part of the work order token
     mock_apis.download.on_get_drs_object = lambda request, **path_variables: (

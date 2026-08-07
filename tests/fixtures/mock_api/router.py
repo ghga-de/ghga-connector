@@ -20,13 +20,11 @@ import ipaddress
 import json
 import re
 from collections.abc import Awaitable, Callable
-from email.utils import format_datetime
 from typing import Any
 
 import httpx2
 import pytest
 from ghga_service_commons.api.mock_router import HttpException, MockRouter
-from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from ghga_connector.core.client import get_ratelimiting_retry_transport
 from tests.fixtures.config import get_test_config
@@ -36,7 +34,6 @@ __all__ = [
     "OffLimitsError",
     "ResponseHandler",
     "api_url",
-    "caching_headers",
     "httpyexpect_error",
     "httpyexpect_response",
     "may_be_reached",
@@ -48,24 +45,16 @@ __all__ = [
 ]
 
 # The host the mocked GHGA APIs are served from, and the other spellings of it they also
-# answer to. Which one the tests are handed depends on how Docker is reached, so a URL
-# naming any of them has to be recognized as pointing at the mocks.
+# answer to, so that a caller naming `localhost` reaches the same mock as one naming
+# `127.0.0.1`.
 MOCK_API_HOST = "127.0.0.1"
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
 _LOOPBACK_PATTERN = "(?:" + "|".join(re.escape(host) for host in LOOPBACK_HOSTS) + ")"
 
-# A handler answers one request. It is passed the request and, as keyword arguments,
-# the path variables of the endpoint it is registered on, so it can ignore either.
-# Handlers may be `async`; `httpx2.MockTransport` awaits what they return.
+# A handler answers one request. It is passed the request and, as keyword arguments, the
+# path variables of the endpoint it is registered on, so it can ignore either. Handlers
+# may be `async`; `_ApiMock._handle` awaits what they return.
 ResponseHandler = Callable[..., httpx2.Response | Awaitable[httpx2.Response]]
-
-
-def caching_headers(max_age: int) -> dict[str, str]:
-    """Headers marking a response as cacheable by `hishel` for `max_age` seconds."""
-    return {
-        "Cache-Control": f"max-age={max_age}, private",
-        "date": format_datetime(now_as_utc()),
-    }
 
 
 def respond(
@@ -73,20 +62,15 @@ def respond(
     json: Any = None,
     *,
     headers: dict[str, str] | None = None,
-    cache_for: int | None = None,
 ) -> ResponseHandler:
     """Make a handler that always answers with the same status code and JSON body.
 
-    A `json` of `None` means no body at all. `cache_for` marks the response as cacheable
-    for that many seconds, freshly dated on every answer.
+    A `json` of `None` means no body at all.
     """
 
     def handler(request: httpx2.Request, **path_variables: Any) -> httpx2.Response:
         """Answer with the canned response."""
-        response_headers = dict(headers or {})
-        if cache_for is not None:
-            response_headers |= caching_headers(cache_for)
-        return httpx2.Response(status_code, json=json, headers=response_headers)
+        return httpx2.Response(status_code, json=json, headers=headers)
 
     return handler
 
@@ -128,25 +112,20 @@ def httpyexpect_response(
 
 
 def _host_of(base_url: str) -> str:
-    """The host `base_url` names, whether or not it carries a scheme."""
+    """The host `base_url` names. Empty for a URL without a scheme."""
     return httpx2.URL(base_url).host
 
 
 def api_url(base_url: str, path: str) -> str:
     """Build a `MockRouter` pattern for `path` as served by the API at `base_url`.
 
-    `MockRouter` matches its patterns against the whole request URL and serves every host
-    from a single router, so without the API URL in the pattern it would just as happily
-    match the same path served by a different API.
+    `MockRouter` anchors its patterns and matches them against the whole request URL, so
+    the pattern has to carry the API URL - otherwise it would match the same path served
+    by a different API - and a trailing query group, or a call with a query parameter
+    would 404 as an unregistered path. A path ending in a `{variable}` is the exception:
+    `MockRouter` compiles that to `[^/]+`, which swallows the query string itself.
 
-    An API on the loopback interface is matched under any spelling of it, so that a call
-    to `localhost` reaches the same mock as one to `127.0.0.1`.
-
-    Every pattern tolerates a query string, since `MockRouter` anchors its patterns and
-    matches them against the whole URL - without this, adding a query parameter to a
-    call would turn into a puzzling "no registered path" 404. A path ending in a
-    `{variable}` is the exception: `MockRouter` compiles that to `[^/]+`, which swallows
-    the query string into the variable rather than leaving it for this group.
+    Loopback hosts are matched under any spelling, per `LOOPBACK_HOSTS`.
     """
     pattern = re.escape(base_url)
     host = _host_of(base_url)

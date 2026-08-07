@@ -56,7 +56,6 @@ from tests.fixtures.mock_api.router import (
     MOCK_API_HOST,
     ResponseHandler,
     api_url,
-    caching_headers,
     httpyexpect_error,
     respond,
 )
@@ -67,6 +66,7 @@ __all__ = [
     "DRS_OBJECT",
     "UPLOAD_API_URL",
     "UPLOAD_URL",
+    "WORK_ORDER_TOKEN",
     "WORK_PACKAGE_API_URL",
     "DownloadApiMock",
     "StagedObject",
@@ -203,13 +203,9 @@ WORK_PACKAGE_PATH = "/work-packages/{package_id}"
 UPLOAD_WOT_PATH = f"{WORK_PACKAGE_PATH}/boxes/{{box_id}}/work-order-tokens"
 DOWNLOAD_WOT_PATH = f"{WORK_PACKAGE_PATH}/files/{{file_id}}/work-order-tokens"
 
-# The connector decrypts the work order tokens it is handed, so a token has to be long
-# enough to pass for a ciphertext.
+# Stands in for the encrypted token the WPS hands out. Tests patch `_decrypt` to the
+# identity, so this is also what travels as the bearer token.
 WORK_ORDER_TOKEN = base64.b64encode(b"1234567890" * 5).decode()
-
-# How long a work order token stays fresh. The connector asks for tokens with a
-# min-fresh of 3 seconds, so a cached one is reused for 2 seconds before it refetches.
-WOT_LIFESPAN = 5
 
 
 def _upload_work_order_token(
@@ -217,24 +213,20 @@ def _upload_work_order_token(
 ) -> httpx2.Response:
     """Hand out a work order token naming what it authorizes.
 
-    Tests that leave the connector's token decryption as a no-op send this string as the
-    bearer token, so it says what was asked for rather than being opaque.
+    Since `_decrypt` is patched to the identity, this string is what travels as the
+    bearer token - so it says what was asked for rather than being opaque.
     """
     body = json.loads(request.read())
     subject = body["file_id"] or body["alias"]
-    return httpx2.Response(
-        201,
-        json=f"{body['work_type']}_wot_for_{subject}",
-        headers=caching_headers(WOT_LIFESPAN),
-    )
+    return httpx2.Response(201, json=f"{body['work_type']}_wot_for_{subject}")
 
 
 class WorkPackageApiMock(_ApiMock):
     """A mock of the Work Package API endpoints the connector calls.
 
-    By default the work package contains no files, and every work order token request
-    is granted, cacheable for `WOT_LIFESPAN` seconds - a download token as the opaque
-    `WORK_ORDER_TOKEN`, an upload token as a string naming the work it authorizes.
+    By default the work package contains no files, and every work order token request is
+    granted - a download token as the opaque `WORK_ORDER_TOKEN`, an upload token as a
+    string naming the work it authorizes.
     """
 
     def __init__(
@@ -243,9 +235,7 @@ class WorkPackageApiMock(_ApiMock):
         super().__init__()
         self.on_get_work_package: ResponseHandler = respond(200, json={"files": {}})
         self.on_get_upload_wot: ResponseHandler = _upload_work_order_token
-        self.on_get_download_wot: ResponseHandler = respond(
-            201, json=WORK_ORDER_TOKEN, cache_for=WOT_LIFESPAN
-        )
+        self.on_get_download_wot: ResponseHandler = respond(201, json=WORK_ORDER_TOKEN)
 
         @router.get(api_url(base_url, WORK_PACKAGE_PATH))
         async def get_work_package(
@@ -289,7 +279,7 @@ DRS_OBJECT: dict[str, Any] = {
     "size": 1024,
 }
 
-# How long a presigned download URL, and the DRS object announcing it, stay fresh
+# How long the presigned download URLs the mock hands out stay valid
 URL_LIFESPAN = 10
 
 
@@ -309,12 +299,8 @@ class StagedObject:
 
 
 def envelope_response(envelope: bytes) -> httpx2.Response:
-    """Hand out `envelope` the way the Download API does, base64 encoded and uncached."""
-    return httpx2.Response(
-        200,
-        content=base64.b64encode(envelope),
-        headers={"Cache-Control": "no-store"},
-    )
+    """Hand out `envelope` the way the Download API does, base64 encoded."""
+    return httpx2.Response(200, content=base64.b64encode(envelope))
 
 
 def no_such_drs_object(file_id: str) -> httpx2.Response:
@@ -354,7 +340,6 @@ class DownloadApiMock(_ApiMock):
         self.on_get_drs_object: ResponseHandler = self._describe_drs_object
         self.on_get_envelope: ResponseHandler = self._hand_out_envelope
 
-        # Registered first, so that it wins over the DRS object endpoint below.
         @router.get(api_url(base_url, ENVELOPE_PATH))
         async def get_envelope(
             file_id: str, request: httpx2.Request
@@ -390,7 +375,6 @@ class DownloadApiMock(_ApiMock):
                 "checksums": [{"checksum": "1", "type": "md5"}],
                 "access_methods": [{"access_url": {"url": download_url}, "type": "s3"}],
             },
-            headers=caching_headers(URL_LIFESPAN),
         )
 
     def _hand_out_envelope(

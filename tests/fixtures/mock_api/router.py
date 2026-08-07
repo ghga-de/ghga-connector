@@ -32,7 +32,6 @@ from ghga_connector.core.client import get_ratelimiting_retry_transport
 from tests.fixtures.config import get_test_config
 
 __all__ = [
-    "LOOPBACK_HOSTS",
     "MOCK_API_HOST",
     "OffLimitsError",
     "ResponseHandler",
@@ -44,7 +43,6 @@ __all__ = [
     "mock_health_checks",
     "mock_router",
     "respond",
-    "serve_httpx2_get_from",
     "serve_mock_api_host_from",
     "serves_a_mocked_api",
 ]
@@ -131,7 +129,7 @@ def httpyexpect_response(
 
 def _host_of(base_url: str) -> str:
     """The host `base_url` names, whether or not it carries a scheme."""
-    return httpx2.URL(base_url).host or base_url.split("/", 1)[0].split(":", 1)[0]
+    return httpx2.URL(base_url).host
 
 
 def api_url(base_url: str, path: str) -> str:
@@ -143,12 +141,18 @@ def api_url(base_url: str, path: str) -> str:
 
     An API on the loopback interface is matched under any spelling of it, so that a call
     to `localhost` reaches the same mock as one to `127.0.0.1`.
+
+    Every pattern tolerates a query string, since `MockRouter` anchors its patterns and
+    matches them against the whole URL - without this, adding a query parameter to a
+    call would turn into a puzzling "no registered path" 404. A path ending in a
+    `{variable}` is the exception: `MockRouter` compiles that to `[^/]+`, which swallows
+    the query string into the variable rather than leaving it for this group.
     """
     pattern = re.escape(base_url)
     host = _host_of(base_url)
     if host in LOOPBACK_HOSTS:
         pattern = pattern.replace(re.escape(host), _LOOPBACK_PATTERN, 1)
-    return pattern + path
+    return pattern + path + r"(\?.*)?"
 
 
 @pytest.fixture()
@@ -238,15 +242,12 @@ class MockApiTransport(httpx2.AsyncBaseTransport):
         self,
         router: MockRouter,
         *,
-        base_transport: httpx2.AsyncBaseTransport | None = None,
         limits: httpx2.Limits | None = None,
     ) -> None:
         self._mocked = get_ratelimiting_retry_transport(
             base_transport=router.as_transport(), limits=limits
         )
-        self._network = get_ratelimiting_retry_transport(
-            base_transport=base_transport, limits=limits
-        )
+        self._network = get_ratelimiting_retry_transport(limits=limits)
 
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
         """Send the request wherever it is allowed to go, or refuse to send it."""
@@ -266,13 +267,9 @@ def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
     GHGA URL, so a test that failed to apply the test config would call production.
     """
 
-    def mock_mounts(config, base_transport=None, limits=None):
+    def mock_mounts(config, limits=None):
         """Stand in for `ratelimiting_retry_proxies`, sorting out where calls may go."""
-        return {
-            "all://": MockApiTransport(
-                router, base_transport=base_transport, limits=limits
-            )
-        }
+        return {"all://": MockApiTransport(router, limits=limits)}
 
     monkeypatch.setattr(
         "ghga_connector.core.client.ratelimiting_retry_proxies", mock_mounts
@@ -288,10 +285,14 @@ def serve_httpx2_get_from(monkeypatch, router: MockRouter) -> None:
     """
     transport = router.as_transport()
 
-    def mock_get(*, url: str, timeout: Any) -> httpx2.Response:
-        """Stand in for `httpx2.get`, using the given router as transport."""
+    def mock_get(*args: Any, **kwargs: Any) -> httpx2.Response:
+        """Stand in for `httpx2.get`, using the given router as transport.
+
+        The signature mirrors `httpx2.get` rather than the call `check_url` happens to
+        make, so rewriting that call site doesn't break the stand-in.
+        """
         with httpx2.Client(transport=transport) as client:
-            return client.get(url, timeout=timeout)
+            return client.get(*args, **kwargs)
 
     monkeypatch.setattr(httpx2, "get", mock_get)
 

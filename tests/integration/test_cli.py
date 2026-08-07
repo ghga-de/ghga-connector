@@ -31,16 +31,16 @@ from ghga_connector.constants import C4GH, DEFAULT_PART_SIZE
 from ghga_connector.core.main import async_download
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.apis import (
-    AUTH_FAILURE_TOKEN,
-    FILE_ID_MISMATCH_TOKEN,
-    StagedObject,
-)
+from tests.fixtures.mock_api.apis import StagedObject
 from tests.fixtures.mock_api.joint import (
     MockApis,
     mock_apis,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import mock_health_checks
+from tests.fixtures.mock_api.router import (
+    httpyexpect_error,
+    mock_health_checks,
+    respond,
+)
 from tests.fixtures.s3 import (  # noqa: F401
     S3Fixture,
     get_big_s3_object,
@@ -202,6 +202,13 @@ async def test_download(
             envelope=None if file_name == "file_envelope_missing" else FAKE_ENVELOPE,
         )
 
+    # "file_retry" is never staged - the API keeps reporting it as still being staged
+    # until the connector gives up waiting.
+    if file_name == "file_retry":
+        mock_apis.download.on_get_drs_object = respond(
+            202, headers={"Retry-After": "10", "Cache-Control": "no-store"}
+        )
+
     mock_health_checks(monkeypatch)
 
     with expected_exception:
@@ -249,17 +256,17 @@ async def test_file_not_downloadable(
     )
 
     # Nothing is staged, so the Download API reports the file as unknown
+    describe_drs_object = mock_apis.download.on_get_drs_object
 
-    # 403 caused by an invalid auth token
-    with (
-        patch(
-            "ghga_connector.core.work_package._decrypt",
-            lambda data, key: AUTH_FAILURE_TOKEN,
-        ),
-        pytest.raises(
-            exceptions.UnauthorizedAPICallError,
-            match=r"This is not the token you're looking for\.",
-        ),
+    # 403 caused by an invalid auth token. A plain 403 explains itself in `detail`, an
+    # httpyexpect one in `description`, and the connector reads whichever is there - so
+    # the two refusals below exercise both flavors.
+    mock_apis.download.on_get_drs_object = respond(
+        403, json={"detail": "This is not the token you're looking for."}
+    )
+    with pytest.raises(
+        exceptions.UnauthorizedAPICallError,
+        match=r"This is not the token you're looking for\.",
     ):
         await async_download(
             output_dir=output_dir,
@@ -268,22 +275,26 @@ async def test_file_not_downloadable(
         )
 
     # 403 caused by requesting file ID that's not part of the work order token
-    with (
-        patch(
-            "ghga_connector.core.work_package._decrypt",
-            lambda data, key: FILE_ID_MISMATCH_TOKEN,
-        ),
-        pytest.raises(
-            exceptions.UnauthorizedAPICallError,
-            match="Endpoint file ID did not match file ID"
-            " announced in work order token",
-        ),
+    mock_apis.download.on_get_drs_object = lambda request, **path_variables: (
+        httpyexpect_error(
+            403,
+            "wrongFileAuthorizationError",
+            "Endpoint file ID did not match file ID announced in work order token.",
+            {},
+        )
+    )
+    with pytest.raises(
+        exceptions.UnauthorizedAPICallError,
+        match="Endpoint file ID did not match file ID announced in work order token",
     ):
         await async_download(
             output_dir=output_dir,
             my_public_key_path=Path(PUBLIC_KEY_FILE),
             my_private_key_path=Path(PRIVATE_KEY_FILE),
         )
+
+    # Restore the default handler for the "file is unknown" case below
+    mock_apis.download.on_get_drs_object = describe_drs_object
 
     # Exception arising when the file ID is valid, but not found in the Download API (and the
     #  user inputs 'no' instead of 'yes' when prompted if they want to continue anyway)

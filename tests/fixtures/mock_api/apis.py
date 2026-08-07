@@ -63,14 +63,10 @@ from tests.fixtures.mock_api.router import (
 from tests.fixtures.utils import TEST_FILE_ID, TEST_PUBLIC_KEYS, TEST_STORAGE_ALIAS1
 
 __all__ = [
-    "AUTH_FAILURE_TOKEN",
     "DOWNLOAD_API_URL",
     "DRS_OBJECT",
-    "FILE_ID_MISMATCH_TOKEN",
     "UPLOAD_API_URL",
     "UPLOAD_URL",
-    "URL_LIFESPAN",
-    "WORK_ORDER_TOKEN",
     "WORK_PACKAGE_API_URL",
     "DownloadApiMock",
     "StagedObject",
@@ -78,8 +74,6 @@ __all__ = [
     "WkvsMock",
     "WorkPackageApiMock",
     "download_api",
-    "envelope_response",
-    "no_such_drs_object",
     "upload_api",
     "work_package_api",
 ]
@@ -117,29 +111,9 @@ class _ApiMock:
 UPLOADS_PATH = "/boxes/{box_id}/uploads"
 UPLOAD_PATH = f"{UPLOADS_PATH}/{{file_id}}"
 PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
-# The listing endpoint is queried with pagination parameters, so its pattern has to
-# tolerate a query string - but not the extra path segments of the endpoints above.
-UPLOAD_LISTING_PATH = rf"{UPLOADS_PATH}(\?.*)?"
-# A leftover of an older Upload API, which this connector no longer calls. It is kept
-# so that a call to it is still answered the way it used to be, rather than counting as
-# an unknown endpoint.
-SIGNED_URL_PATH = "/uploads/{upload_id}/parts/{part_no}/signed_urls"
-
 # The presigned URL the Upload API hands out for a part by default
 UPLOAD_URL = "http://upload_url"
 EMPTY_LISTING: dict[str, Any] = {"items": [], "total_count": 0}
-
-
-def _no_such_upload(
-    request: httpx2.Request, upload_id: str, **path_variables: Any
-) -> httpx2.Response:
-    """Report the multipart upload as unknown."""
-    return httpyexpect_error(
-        404,
-        "noSuchUpload",
-        f'The file with the upload id "{upload_id}" does not exist.',
-        {"upload_id": upload_id},
-    )
 
 
 def _created_file_upload(
@@ -165,8 +139,7 @@ class UploadApiMock(_ApiMock):
 
     By default every endpoint reports success: an upload is created for `TEST_FILE_ID`,
     the box lists no uploads, `UPLOAD_URL` is handed out for every part, and completing
-    or deleting an upload succeeds. Only the retired `signed_urls` endpoint differs,
-    reporting every multipart upload as unknown.
+    or deleting an upload succeeds.
     """
 
     def __init__(self, router: MockRouter, base_url: str = UPLOAD_API_URL) -> None:
@@ -176,19 +149,6 @@ class UploadApiMock(_ApiMock):
         self.on_get_part_upload_url: ResponseHandler = respond(200, json=UPLOAD_URL)
         self.on_complete_file_upload: ResponseHandler = respond(204)
         self.on_delete_file: ResponseHandler = respond(204)
-        self.on_get_part_signed_url: ResponseHandler = _no_such_upload
-
-        @router.post(api_url(base_url, SIGNED_URL_PATH))
-        async def get_part_signed_url(
-            upload_id: str, part_no: int, request: httpx2.Request
-        ) -> httpx2.Response:
-            """Hand out a signed URL for a part of a legacy multipart upload."""
-            return await self._handle(
-                request,
-                self.on_get_part_signed_url,
-                upload_id=upload_id,
-                part_no=part_no,
-            )
 
         @router.post(api_url(base_url, UPLOADS_PATH))
         async def create_file_upload(
@@ -199,7 +159,7 @@ class UploadApiMock(_ApiMock):
                 request, self.on_create_file_upload, box_id=box_id
             )
 
-        @router.get(api_url(base_url, UPLOAD_LISTING_PATH))
+        @router.get(api_url(base_url, UPLOADS_PATH))
         async def get_box_uploads(
             box_id: UUID, request: httpx2.Request
         ) -> httpx2.Response:
@@ -332,12 +292,6 @@ DRS_OBJECT: dict[str, Any] = {
 # How long a presigned download URL, and the DRS object announcing it, stay fresh
 URL_LIFESPAN = 10
 
-# The file the Download API always reports as still being staged, and the work order
-# tokens it refuses. Tests provoke the latter by patching what a token decrypts to.
-RETRY_FILE_ID = "retry"
-AUTH_FAILURE_TOKEN = "authfail_normal"
-FILE_ID_MISMATCH_TOKEN = "file_id_mismatch"
-
 
 @dataclass
 class StagedObject:
@@ -351,29 +305,7 @@ class StagedObject:
     file_id: str
     size: int
     presign_download_url: Callable[[int], Awaitable[str]]
-    url_lifespan: int = URL_LIFESPAN
     envelope: bytes | None = None
-
-
-def refused_work_order_token(request: httpx2.Request) -> httpx2.Response | None:
-    """Refuse the request if it carries one of the work order tokens tests provoke.
-
-    A plain 403 explains itself in `detail`, an httpyexpect one in `description`, and the
-    connector reads whichever is there - so both flavors get exercised.
-    """
-    token = request.headers.get("authorization", "").removeprefix("Bearer ")
-    if token == AUTH_FAILURE_TOKEN:
-        return httpx2.Response(
-            403, json={"detail": "This is not the token you're looking for."}
-        )
-    if token == FILE_ID_MISMATCH_TOKEN:
-        return httpyexpect_error(
-            403,
-            "wrongFileAuthorizationError",
-            "Endpoint file ID did not match file ID announced in work order token.",
-            {},
-        )
-    return None
 
 
 def envelope_response(envelope: bytes) -> httpx2.Response:
@@ -412,9 +344,8 @@ class DownloadApiMock(_ApiMock):
     """A mock of the Download API endpoints the connector calls.
 
     Nothing is staged to begin with, so every file is reported as unknown; assign
-    `staged` to have one described as ready for download. A request carrying one of the
-    work order tokens the tests provoke is refused, and `RETRY_FILE_ID` is always
-    reported as still being staged, whatever `staged` says.
+    `staged` to have one described as ready for download. Tests that want a refusal or a
+    still-being-staged answer swap `on_get_drs_object` for a handler of their own.
     """
 
     def __init__(self, router: MockRouter, base_url: str = DOWNLOAD_API_URL) -> None:
@@ -441,19 +372,12 @@ class DownloadApiMock(_ApiMock):
     async def _describe_drs_object(
         self, request: httpx2.Request, file_id: str, **path_variables: Any
     ) -> httpx2.Response:
-        """Describe the object, or explain why it cannot be downloaded."""
-        if refusal := refused_work_order_token(request):
-            return refusal
-        if file_id == RETRY_FILE_ID:
-            return httpx2.Response(
-                202, headers={"Retry-After": "10", "Cache-Control": "no-store"}
-            )
-
+        """Describe the object, or report it as unknown."""
         staged = self.staged
         if staged is None or file_id != staged.file_id:
             return no_such_drs_object(file_id)
 
-        download_url = await staged.presign_download_url(staged.url_lifespan)
+        download_url = await staged.presign_download_url(URL_LIFESPAN)
         now = now_as_utc().isoformat()
         return httpx2.Response(
             200,
@@ -466,7 +390,7 @@ class DownloadApiMock(_ApiMock):
                 "checksums": [{"checksum": "1", "type": "md5"}],
                 "access_methods": [{"access_url": {"url": download_url}, "type": "s3"}],
             },
-            headers=caching_headers(staged.url_lifespan),
+            headers=caching_headers(URL_LIFESPAN),
         )
 
     def _hand_out_envelope(

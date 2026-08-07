@@ -24,7 +24,6 @@ out over the network, which is what makes the presigned URLs worth handing out.
 
 from dataclasses import dataclass
 
-import httpx2
 import pytest
 from ghga_service_commons.api.mock_router import HttpException, MockRouter
 
@@ -36,8 +35,6 @@ from tests.fixtures.mock_api.apis import (
     WorkPackageApiMock,
 )
 from tests.fixtures.mock_api.router import (
-    MOCK_API_HOST,
-    api_url,
     httpyexpect_response,
     serve_mock_api_host_from,
 )
@@ -63,25 +60,6 @@ class MockApis:
     upload: UploadApiMock
 
 
-def _serve_service_probes(router: MockRouter) -> None:
-    """Serve the readiness and liveness probes every GHGA service exposes.
-
-    The connector's own health checks go out through a module level `httpx2.get` and are
-    mocked by `mock_health_checks` instead, so nothing here reaches these - they exist so
-    that a call to the mock host lands on an endpoint rather than a "not found".
-    """
-
-    @router.get(api_url(MOCK_API_HOST, "/"))
-    def ready() -> httpx2.Response:
-        """Report the service as ready."""
-        return httpx2.Response(204)
-
-    @router.get(api_url(MOCK_API_HOST, "/health"))
-    def health() -> httpx2.Response:
-        """Report the service as alive."""
-        return httpx2.Response(200, json={"status": "OK"})
-
-
 @pytest.fixture()
 def mock_apis(monkeypatch) -> MockApis:
     """Serve every GHGA API from a mock, while letting S3 traffic reach the container.
@@ -104,6 +82,5 @@ def mock_apis(monkeypatch) -> MockApis:
         download=DownloadApiMock(router),
         upload=UploadApiMock(router),
     )
-    _serve_service_probes(router)
     serve_mock_api_host_from(monkeypatch, router)
     return mocks

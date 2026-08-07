@@ -29,10 +29,9 @@ integration test answer out of the S3 testcontainer. Everything reaching a mock 
 recorded in its `requests`, so assertions about what the connector sent belong after the
 call under test, not inside a handler where a failure would surface as a request error.
 
-The per-API fixtures below serve one API each from `mock_router`, for unit tests that
-exercise a single client; a test module using one has to import `mock_router` and
-`set_runtime_test_config` as well. Integration tests want all of the APIs at once and
-take `mock_apis` from `tests.fixtures.mock_api.joint` instead.
+The `mock_apis` fixture at the bottom serves all of them at once, and is what every test
+uses: a unit test reaches for the one mock it cares about, an integration test lets the
+connector bootstrap itself from the WKVS mock and walk the rest.
 """
 
 import base64
@@ -44,19 +43,17 @@ from uuid import UUID
 
 import httpx2
 import pytest
-from ghga_service_commons.api.mock_router import MockRouter
+from ghga_service_commons.api.mock_router import HttpException, MockRouter
 from ghga_service_commons.utils.utc_dates import now_as_utc
 
-from ghga_connector.config import (
-    get_download_api_url,
-    get_upload_api_url,
-    get_work_package_api_url,
-)
+from tests.fixtures.config import get_test_config
 from tests.fixtures.mock_api.router import (
     MOCK_API_HOST,
+    MockApiTransport,
     ResponseHandler,
     api_url,
     httpyexpect_error,
+    httpyexpect_response,
     respond,
 )
 from tests.fixtures.utils import TEST_FILE_ID, TEST_PUBLIC_KEYS, TEST_STORAGE_ALIAS1
@@ -69,21 +66,33 @@ __all__ = [
     "WORK_ORDER_TOKEN",
     "WORK_PACKAGE_API_URL",
     "DownloadApiMock",
+    "MockApis",
     "StagedObject",
     "UploadApiMock",
     "WkvsMock",
     "WorkPackageApiMock",
-    "download_api",
-    "upload_api",
-    "work_package_api",
+    "mock_apis",
 ]
 
-# Where the mocked APIs live when they are all served at once, as the WKVS mock
-# announces them. Unit tests read the URL from the config instead, so that the
-# connector has to look it up the way it does in production.
+# Where the mocked APIs live. `set_runtime_test_config` points the connector's own
+# config at these same URLs, and the WKVS mock announces them, so a unit test and an
+# integration test reach the same mocks by the same addresses.
 UPLOAD_API_URL = f"http://{MOCK_API_HOST}/upload"
 DOWNLOAD_API_URL = f"http://{MOCK_API_HOST}/download"
 WORK_PACKAGE_API_URL = f"http://{MOCK_API_HOST}/work"
+# Stands in for object storage, which in integration tests is the S3 testcontainer at a
+# real address. Presigned URLs the mocks hand out live under here.
+STORAGE_URL = f"http://{MOCK_API_HOST}/storage"
+
+# Everything the mocks answer for. A request under one of these is served by the router;
+# anything else either belongs to the test environment or is refused outright.
+MOCKED_BASE_URLS = (
+    get_test_config().wkvs_api_url,
+    UPLOAD_API_URL,
+    DOWNLOAD_API_URL,
+    WORK_PACKAGE_API_URL,
+    STORAGE_URL,
+)
 
 
 class _ApiMock:
@@ -112,7 +121,7 @@ UPLOADS_PATH = "/boxes/{box_id}/uploads"
 UPLOAD_PATH = f"{UPLOADS_PATH}/{{file_id}}"
 PART_PATH = f"{UPLOAD_PATH}/parts/{{part_no}}"
 # The presigned URL the Upload API hands out for a part by default
-UPLOAD_URL = "http://upload_url"
+UPLOAD_URL = f"{STORAGE_URL}/part"
 EMPTY_LISTING: dict[str, Any] = {"items": [], "total_count": 0}
 
 
@@ -411,21 +420,57 @@ class WkvsMock(_ApiMock):
             return await self._handle(request, self.on_get_values)
 
 
-@pytest.fixture()
-def upload_api(mock_router: MockRouter, set_runtime_test_config) -> UploadApiMock:
-    """Serve the Upload API endpoints from `mock_router`."""
-    return UploadApiMock(mock_router, get_upload_api_url())
+@dataclass
+class MockApis:
+    """The mocked GHGA APIs, and the router serving all of them.
+
+    Everything a test needs to arrange is a handler swap on one of the mocks; `router` is
+    there for the rare endpoint no GHGA API serves.
+    """
+
+    router: MockRouter
+    wkvs: WkvsMock
+    work_package: WorkPackageApiMock
+    download: DownloadApiMock
+    upload: UploadApiMock
 
 
 @pytest.fixture()
-def work_package_api(
-    mock_router: MockRouter, set_runtime_test_config
-) -> WorkPackageApiMock:
-    """Serve the Work Package API endpoints from `mock_router`."""
-    return WorkPackageApiMock(mock_router, get_work_package_api_url())
+def mock_apis(monkeypatch) -> MockApis:
+    """Serve every GHGA API from a mock, and refuse anything bound for the internet.
 
+    Unit and integration tests share this one fixture: a unit test reaches for the single
+    mock it cares about (`mock_apis.upload`), an integration test lets the connector
+    bootstrap itself from `mock_apis.wkvs` and walk the rest. Traffic to the S3
+    testcontainer still goes out, which is what makes the presigned URLs worth handing
+    out; anything else is refused, since the connector's default `wkvs_api_url` is a live
+    GHGA URL that a misconfigured test would otherwise call for real.
 
-@pytest.fixture()
-def download_api(mock_router: MockRouter, set_runtime_test_config) -> DownloadApiMock:
-    """Serve the Download API endpoints from `mock_router`."""
-    return DownloadApiMock(mock_router, get_download_api_url())
+    A request no endpoint matches is answered with the 404 the `MockRouter` raises for it
+    rather than that exception surfacing out of the transport, so the connector sees an
+    error response from an unmocked call just as it did from the FastAPI mock app.
+    """
+    # Mocked responses pass through the real retry transport, so without the test
+    # config's `client_num_retries=0` every mocked 5xx would cost a real backoff sleep.
+    monkeypatch.setattr("ghga_connector.config.CONFIG", get_test_config())
+
+    router: MockRouter[HttpException] = MockRouter(
+        exception_handler=httpyexpect_response,
+        exceptions_to_handle=(HttpException,),
+    )
+    mocks = MockApis(
+        router=router,
+        wkvs=WkvsMock(router, get_test_config().wkvs_api_url),
+        work_package=WorkPackageApiMock(router),
+        download=DownloadApiMock(router),
+        upload=UploadApiMock(router),
+    )
+
+    def mock_mounts(config, limits=None):
+        """Stand in for `ratelimiting_retry_proxies`, sorting out where calls may go."""
+        return {"all://": MockApiTransport(router, MOCKED_BASE_URLS, limits=limits)}
+
+    monkeypatch.setattr(
+        "ghga_connector.core.client.ratelimiting_retry_proxies", mock_mounts
+    )
+    return mocks

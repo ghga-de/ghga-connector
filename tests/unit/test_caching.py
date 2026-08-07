@@ -31,14 +31,11 @@ from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.mock_api.apis import (
     DRS_OBJECT,
     DownloadApiMock,
+    MockApis,
     WorkPackageApiMock,
-    download_api,  # noqa: F401
-    work_package_api,  # noqa: F401
+    mock_apis,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import (
-    mock_router,  # noqa: F401
-    respond,
-)
+from tests.fixtures.mock_api.router import respond
 from tests.fixtures.utils import (
     RecordingClient,
     patch_work_package_functions,  # noqa: F401
@@ -47,9 +44,27 @@ from tests.fixtures.utils import (
 pytestmark = [pytest.mark.asyncio]
 
 
+@pytest.fixture()
+def download_api(
+    mock_apis: MockApis,  # noqa: F811
+    set_runtime_test_config,  # noqa: F811
+) -> DownloadApiMock:
+    """The Download API mock, with the connector pointed at it."""
+    return mock_apis.download
+
+
+@pytest.fixture()
+def work_package_api(
+    mock_apis: MockApis,  # noqa: F811
+    set_runtime_test_config,  # noqa: F811
+) -> WorkPackageApiMock:
+    """The Work Package API mock, with the connector pointed at it."""
+    return mock_apis.work_package
+
+
 async def test_get_drs_object_caching(
     monkeypatch,
-    download_api: DownloadApiMock,  # noqa: F811
+    download_api: DownloadApiMock,
 ):
     """Test that get_drs_object results are cached and can be invalidated."""
     monkeypatch.setattr(
@@ -86,7 +101,7 @@ async def test_get_drs_object_caching(
 
 async def test_retry_response_is_not_cached(
     monkeypatch,
-    download_api: DownloadApiMock,  # noqa: F811
+    download_api: DownloadApiMock,
 ):
     """Test that we don't serve 202/retry-after from the cache.
 
@@ -145,7 +160,7 @@ async def test_retry_response_is_not_cached(
 
 async def test_get_work_order_token_caching(
     monkeypatch,
-    work_package_api: WorkPackageApiMock,  # noqa: F811
+    work_package_api: WorkPackageApiMock,
     patch_work_package_functions,  # noqa: F811
 ):
     """Test the caching of call to the Work Package API to get an upload WOT."""

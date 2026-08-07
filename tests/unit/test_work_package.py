@@ -24,13 +24,11 @@ from ghga_connector.core.client import async_client
 from ghga_connector.core.work_package import WorkPackageClient
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.mock_api.apis import (
+    MockApis,
     WorkPackageApiMock,
-    work_package_api,  # noqa: F401
+    mock_apis,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import (
-    mock_router,  # noqa: F401
-    respond,
-)
+from tests.fixtures.mock_api.router import respond
 from tests.fixtures.utils import (
     PRIVATE_KEY_FILE,
     mock_work_package_token,
@@ -40,6 +38,15 @@ from tests.fixtures.utils import (
 pytestmark = [pytest.mark.asyncio]
 
 FILES = {"file_1": ".tar.gz"}
+
+
+@pytest.fixture()
+def work_package_api(
+    mock_apis: MockApis,  # noqa: F811
+    set_runtime_test_config,  # noqa: F811
+) -> WorkPackageApiMock:
+    """The Work Package API mock, with the connector pointed at it."""
+    return mock_apis.work_package
 
 
 @pytest.mark.parametrize(
@@ -54,7 +61,7 @@ FILES = {"file_1": ".tar.gz"}
 async def test_get_work_package_file_info(
     status_code: int,
     expected_error: type[Exception] | None,
-    work_package_api: WorkPackageApiMock,  # noqa: F811
+    work_package_api: WorkPackageApiMock,
     monkeypatch,
 ):
     """Test response handling with some mock - just make sure code paths work"""

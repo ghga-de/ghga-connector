@@ -14,42 +14,43 @@
 # limitations under the License.
 #
 
-"""Serve connector HTTP calls from a `MockRouter` instead of the network."""
+"""Plumbing for serving connector HTTP calls from a `MockRouter`.
+
+The mocked APIs themselves live in `apis.py`; this module only knows how to build
+patterns, canned responses, and the transport that decides where a request may go.
+"""
 
 import ipaddress
 import json
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 import httpx2
-import pytest
 from ghga_service_commons.api.mock_router import HttpException, MockRouter
 
 from ghga_connector.core.client import get_ratelimiting_retry_transport
-from tests.fixtures.config import get_test_config
 
 __all__ = [
     "MOCK_API_HOST",
+    "MockApiTransport",
     "OffLimitsError",
     "ResponseHandler",
     "api_url",
+    "canonical",
     "httpyexpect_error",
     "httpyexpect_response",
+    "is_mocked",
     "may_be_reached",
     "mock_health_checks",
-    "mock_router",
     "respond",
-    "serve_mock_api_host_from",
-    "serves_a_mocked_api",
 ]
 
 # The host the mocked GHGA APIs are served from, and the other spellings of it they also
-# answer to, so that a caller naming `localhost` reaches the same mock as one naming
-# `127.0.0.1`.
+# answer to. `canonical` folds those onto `MOCK_API_HOST`, so everything downstream -
+# patterns included - only ever sees the one spelling.
 MOCK_API_HOST = "127.0.0.1"
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
-_LOOPBACK_PATTERN = "(?:" + "|".join(re.escape(host) for host in LOOPBACK_HOSTS) + ")"
 
 # A handler answers one request. It is passed the request and, as keyword arguments, the
 # path variables of the endpoint it is registered on, so it can ignore either. Handlers
@@ -111,9 +112,14 @@ def httpyexpect_response(
     )
 
 
-def _host_of(base_url: str) -> str:
-    """The host `base_url` names. Empty for a URL without a scheme."""
-    return httpx2.URL(base_url).host
+def canonical(url: httpx2.URL) -> httpx2.URL:
+    """Fold the loopback aliases onto `MOCK_API_HOST`, leaving any other host alone.
+
+    Doing this once, on the way into the transport, is what lets everything downstream
+    assume the single spelling - so a call to `localhost` reaches a mock registered on
+    `127.0.0.1` without every pattern having to spell out the alternatives.
+    """
+    return url.copy_with(host=MOCK_API_HOST) if url.host in LOOPBACK_HOSTS else url
 
 
 def api_url(base_url: str, path: str) -> str:
@@ -124,50 +130,8 @@ def api_url(base_url: str, path: str) -> str:
     by a different API - and a trailing query group, or a call with a query parameter
     would 404 as an unregistered path. A path ending in a `{variable}` is the exception:
     `MockRouter` compiles that to `[^/]+`, which swallows the query string itself.
-
-    Loopback hosts are matched under any spelling, per `LOOPBACK_HOSTS`.
     """
-    pattern = re.escape(base_url)
-    host = _host_of(base_url)
-    if host in LOOPBACK_HOSTS:
-        pattern = pattern.replace(re.escape(host), _LOOPBACK_PATTERN, 1)
-    return pattern + path + r"(\?.*)?"
-
-
-@pytest.fixture()
-def mock_router(monkeypatch) -> MockRouter:
-    """Serve every call made through `async_client` from a `MockRouter`.
-
-    The router's transport is mounted as the innermost layer, so requests still pass
-    through the real retry and rate limiting transports first.
-
-    Tests register the endpoints they need, anchoring each path to the API that serves it
-    with `api_url`, e.g.:
-    ```
-    @mock_router.get(api_url(get_work_package_api_url(), "/work-packages/{package_id}"))
-    def get_work_package(package_id: str) -> httpx2.Response:
-        return httpx2.Response(200, json={"files": {}})
-    ```
-    A request matching no registered endpoint raises an `HttpException` instead of being
-    answered, so unexpected calls fail the test rather than passing silently.
-    """
-    # Mocked responses pass through the real retry transport, so without the test
-    # config's `client_num_retries=0` every mocked 5xx would cost a real backoff sleep.
-    monkeypatch.setattr("ghga_connector.config.CONFIG", get_test_config())
-    router: MockRouter = MockRouter()
-
-    def mock_mounts(config, limits=None):
-        """Stand in for `ratelimiting_retry_proxies` and capture all traffic."""
-        return {
-            "all://": get_ratelimiting_retry_transport(
-                base_transport=router.as_transport(), limits=limits
-            )
-        }
-
-    monkeypatch.setattr(
-        "ghga_connector.core.client.ratelimiting_retry_proxies", mock_mounts
-    )
-    return router
+    return re.escape(base_url) + path + r"(\?.*)?"
 
 
 class OffLimitsError(RuntimeError):
@@ -180,16 +144,6 @@ class OffLimitsError(RuntimeError):
             " nor anything else the test environment runs. Mock the API it belongs to"
             " rather than letting the request out."
         )
-
-
-def serves_a_mocked_api(url: httpx2.URL) -> bool:
-    """Whether `url` is addressed to one of the mocked GHGA APIs.
-
-    They are served on the loopback interface under the default port for their scheme.
-    Anything else on loopback is a container the test environment published on a port of
-    its own - the S3 testcontainer, in practice.
-    """
-    return url.host in LOOPBACK_HOSTS and url.port is None
 
 
 def may_be_reached(url: httpx2.URL) -> bool:
@@ -209,6 +163,22 @@ def may_be_reached(url: httpx2.URL) -> bool:
         return False
 
 
+def is_mocked(url: httpx2.URL, base_urls: Sequence[str]) -> bool:
+    """Whether `url` falls under one of the base URLs the mocks registered on.
+
+    This is what makes the guard exact rather than a guess: a URL is served by a mock
+    precisely when a mock claimed it, so a mocked API growing a port or moving to
+    another path cannot quietly start escaping to the network.
+    """
+    url = canonical(url)
+    return any(
+        url.scheme == base.scheme
+        and url.netloc == base.netloc
+        and url.path.startswith(base.path)
+        for base in (canonical(httpx2.URL(base_url)) for base_url in base_urls)
+    )
+
+
 class MockApiTransport(httpx2.AsyncBaseTransport):
     """Sends GHGA API calls to the mocks and refuses anything bound for the internet.
 
@@ -220,9 +190,11 @@ class MockApiTransport(httpx2.AsyncBaseTransport):
     def __init__(
         self,
         router: MockRouter,
+        base_urls: Sequence[str],
         *,
         limits: httpx2.Limits | None = None,
     ) -> None:
+        self._base_urls = tuple(base_urls)
         self._mocked = get_ratelimiting_retry_transport(
             base_transport=router.as_transport(), limits=limits
         )
@@ -230,29 +202,12 @@ class MockApiTransport(httpx2.AsyncBaseTransport):
 
     async def handle_async_request(self, request: httpx2.Request) -> httpx2.Response:
         """Send the request wherever it is allowed to go, or refuse to send it."""
-        if serves_a_mocked_api(request.url):
+        request.url = canonical(request.url)
+        if is_mocked(request.url, self._base_urls):
             return await self._mocked.handle_async_request(request)
         if may_be_reached(request.url):
             return await self._network.handle_async_request(request)
         raise OffLimitsError(request.url)
-
-
-def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
-    """Answer calls to the mocked GHGA APIs from `router`, letting local traffic out.
-
-    Unlike `mock_router`, which swallows every request, this leaves the connector free to
-    reach the S3 testcontainer, which integration tests need. Anything bound for the
-    internet is refused instead of sent: the connector's default `wkvs_api_url` is a live
-    GHGA URL, so a test that failed to apply the test config would call production.
-    """
-
-    def mock_mounts(config, limits=None):
-        """Stand in for `ratelimiting_retry_proxies`, sorting out where calls may go."""
-        return {"all://": MockApiTransport(router, limits=limits)}
-
-    monkeypatch.setattr(
-        "ghga_connector.core.client.ratelimiting_retry_proxies", mock_mounts
-    )
 
 
 def serve_httpx2_get_from(monkeypatch, router: MockRouter) -> None:

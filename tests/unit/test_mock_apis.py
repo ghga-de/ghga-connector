@@ -24,14 +24,15 @@ import pytest
 from ghga_connector.config import get_config
 from ghga_connector.core.client import async_client
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.joint import (
+from tests.fixtures.mock_api.apis import (
+    MOCKED_BASE_URLS,
     MockApis,
     mock_apis,  # noqa: F401
 )
 from tests.fixtures.mock_api.router import (
     OffLimitsError,
+    is_mocked,
     may_be_reached,
-    serves_a_mocked_api,
 )
 
 
@@ -45,7 +46,7 @@ def apply_test_config():
 def _destination(url: str) -> str:
     """Where a request to `url` would be sent."""
     parsed = httpx2.URL(url)
-    if serves_a_mocked_api(parsed):
+    if is_mocked(parsed, MOCKED_BASE_URLS):
         return "mock"
     return "network" if may_be_reached(parsed) else "refused"
 

@@ -31,9 +31,10 @@ from ghga_connector.constants import C4GH, DEFAULT_PART_SIZE
 from ghga_connector.core.main import async_download
 from tests.fixtures import state
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.apis import WORK_ORDER_TOKEN, StagedObject
-from tests.fixtures.mock_api.joint import (
+from tests.fixtures.mock_api.apis import (
+    WORK_ORDER_TOKEN,
     MockApis,
+    StagedObject,
     mock_apis,  # noqa: F401
 )
 from tests.fixtures.mock_api.router import (

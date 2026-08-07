@@ -24,7 +24,6 @@ from uuid import uuid4
 import httpx2
 import pytest
 import pytest_asyncio
-from ghga_service_commons.api.mock_router import MockRouter
 from pydantic import UUID4
 from tenacity import RetryError
 
@@ -38,14 +37,11 @@ from ghga_connector.core.uploading.api_calls import (
 from tests.fixtures import set_runtime_test_config  # noqa: F401
 from tests.fixtures.mock_api.apis import (
     UPLOAD_URL,
+    MockApis,
     UploadApiMock,
-    upload_api,  # noqa: F401
+    mock_apis,  # noqa: F401
 )
-from tests.fixtures.mock_api.router import (
-    api_url,
-    mock_router,  # noqa: F401
-    respond,
-)
+from tests.fixtures.mock_api.router import api_url, respond
 from tests.fixtures.utils import (
     TEST_FILE_ID,
     TEST_FUB_ID,
@@ -66,9 +62,18 @@ CHECKSUMS: dict[str, Any] = {
 }
 
 
+@pytest.fixture()
+def upload_api(
+    mock_apis: MockApis,  # noqa: F811
+    set_runtime_test_config,  # noqa: F811
+) -> UploadApiMock:
+    """The Upload API mock, with the connector pointed at it."""
+    return mock_apis.upload
+
+
 @pytest_asyncio.fixture()
 async def upload_client(
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
     monkeypatch,
 ) -> AsyncGenerator[UploadClient, None]:
     """Create a configured UploadClient.
@@ -100,7 +105,7 @@ async def upload_client(
 
 async def test_create_file_upload_success(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that create_file_upload posts the correct body and returns the file ID."""
     decrypted_size = 20 * 1024**3
@@ -137,7 +142,7 @@ async def test_create_file_upload_success(
 @pytest.mark.parametrize("overwrite", [True, False])
 async def test_create_file_upload_sends_overwrite(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
     overwrite: bool,
 ):
     """Make sure create_file_upload forwards the overwrite flag in the request body."""
@@ -163,7 +168,7 @@ async def test_create_file_upload_sends_overwrite(
 
 async def test_get_box_uploads(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that get_box_uploads requests a view WOT and parses the listing."""
     upload_api.on_get_box_uploads = respond(
@@ -208,7 +213,7 @@ async def test_get_box_uploads(
 
 async def test_get_box_uploads_pagination(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that get_box_uploads fetches every page of a paginated listing."""
     total_count = UPLOAD_LISTING_PAGE_SIZE + 1
@@ -253,7 +258,7 @@ async def test_get_box_uploads_pagination(
 
 async def test_get_part_upload_url(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that get_part_upload_url returns the presigned URL from the API."""
     upload_url = await upload_client.get_part_upload_url(
@@ -275,12 +280,12 @@ async def test_get_part_upload_url(
 
 async def test_upload_file_part(
     upload_client: UploadClient,
-    mock_router: MockRouter,  # noqa: F811
+    mock_apis: MockApis,  # noqa: F811
 ):
     """Test that upload_file_part fetches the presigned URL and PUTs the content to S3."""
     uploaded: list[bytes] = []
 
-    @mock_router.put(api_url(UPLOAD_URL, "/?"))
+    @mock_apis.router.put(api_url(UPLOAD_URL, ""))
     def upload_part(request: httpx2.Request) -> httpx2.Response:
         """Accept the part content at the presigned URL."""
         uploaded.append(request.read())
@@ -294,7 +299,7 @@ async def test_upload_file_part(
 
 async def test_complete_file_upload(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that complete_file_upload sends the correct checksums in the PATCH request."""
     await upload_client.complete_file_upload(
@@ -316,7 +321,7 @@ async def test_complete_file_upload(
 
 async def test_delete_file(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that delete_file sends a DELETE request and uses the correct work order token."""
     await upload_client.delete_file(file_id=TEST_FILE_ID, file_alias=FILE_ALIAS)
@@ -336,7 +341,7 @@ async def test_delete_file(
 
 async def test_delete_file_not_in_box(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Test that a "fileUploadNotFound" 404 means the file is no longer in the box."""
     upload_api.on_delete_file = respond(
@@ -388,7 +393,7 @@ async def test_delete_file_not_in_box(
 )
 async def test_error_status_triggers_error_translation(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
     endpoint: str,
     call: Callable[[UploadClient], Awaitable[Any]],
 ):
@@ -671,7 +676,7 @@ async def test_check_for_request_errors(
 
 async def test_get_part_upload_url_first_403_triggers_cache_bust_and_second_403_raises(
     upload_client: UploadClient,
-    upload_api: UploadApiMock,  # noqa: F811
+    upload_api: UploadApiMock,
 ):
     """Make sure a 403 on the first attempt triggers a bust_cache retry, and a 403 on that retry raises AuthorizationError."""
     # Return 403 on both attempts (first call and the bust_cache retry)

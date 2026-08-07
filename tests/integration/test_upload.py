@@ -31,7 +31,7 @@ from ghga_connector.core.main import upload_files
 from ghga_connector.core.uploading.structs import CoreFileInfo
 from ghga_connector.core.utils import modify_for_debug
 from tests.fixtures.config import get_test_config
-from tests.fixtures.mock_api.joint import (
+from tests.fixtures.mock_api.apis import (
     MockApis,
     mock_apis,  # noqa: F401
 )

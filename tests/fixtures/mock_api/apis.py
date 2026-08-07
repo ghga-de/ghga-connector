@@ -18,23 +18,21 @@
 
 Every API is modeled once, by a class registering all of its endpoints on the router it
 is handed. An endpoint answers with whatever handler is currently assigned to the
-matching `on_...` attribute, so a test only has to state how the endpoints it cares
-about behave, and inherits a successful response for the rest:
+matching `on_...` attribute, so a test only states how the endpoints it cares about
+behave and inherits a successful response for the rest:
 ```
 upload_api.on_delete_file = respond(404, json={"exception_id": "fileUploadNotFound"})
 ```
-Handlers come from `respond`, or are any callable taking the request plus the
-endpoint's path variables as keyword arguments. They may be `async`,
-which is what lets an integration test answer out of the S3 testcontainer. Everything
-that reaches a mock is recorded in its `requests`, so assertions about what the
-connector sent belong after the call under test rather than inside a handler, where a
-failed assertion would surface as a request error instead of a test failure.
+Handlers come from `respond`, or are any callable taking the request plus the endpoint's
+path variables as keyword arguments. They may be `async`, which is what lets an
+integration test answer out of the S3 testcontainer. Everything reaching a mock is
+recorded in its `requests`, so assertions about what the connector sent belong after the
+call under test, not inside a handler where a failure would surface as a request error.
 
-The per-API fixtures below serve a single API each from `mock_router`, for unit tests
-that exercise one client; they build on `mock_router` and `set_runtime_test_config`, so
-a test module using one has to import those two as well. Integration tests want all of
-the APIs at once and take the `mock_apis` fixture from `tests.fixtures.mock_api.joint`
-instead.
+The per-API fixtures below serve one API each from `mock_router`, for unit tests that
+exercise a single client; a test module using one has to import `mock_router` and
+`set_runtime_test_config` as well. Integration tests want all of the APIs at once and
+take `mock_apis` from `tests.fixtures.mock_api.joint` instead.
 """
 
 import base64
@@ -167,8 +165,8 @@ class UploadApiMock(_ApiMock):
 
     By default every endpoint reports success: an upload is created for `TEST_FILE_ID`,
     the box lists no uploads, `UPLOAD_URL` is handed out for every part, and completing
-    or deleting an upload succeeds. The exception is the retired `signed_urls` endpoint,
-    which reports every multipart upload as unknown.
+    or deleting an upload succeeds. Only the retired `signed_urls` endpoint differs,
+    reporting every multipart upload as unknown.
     """
 
     def __init__(self, router: MockRouter, base_url: str = UPLOAD_API_URL) -> None:
@@ -259,8 +257,8 @@ def _upload_work_order_token(
 ) -> httpx2.Response:
     """Hand out a work order token naming what it authorizes.
 
-    Tests that leave the connector's token decryption as a no-op end up sending this
-    string as the bearer token, so it says what was asked for rather than being opaque.
+    Tests that leave the connector's token decryption as a no-op send this string as the
+    bearer token, so it says what was asked for rather than being opaque.
     """
     body = json.loads(request.read())
     subject = body["file_id"] or body["alias"]
@@ -346,8 +344,8 @@ class StagedObject:
     """An object the Download API reports as ready, and how to reach the bytes.
 
     `presign_download_url` is called for every request, so the URL it hands out can be
-    short-lived without the object ever becoming unreachable - expiring URLs are what
-    makes the connector go and refresh them.
+    short-lived without the object ever becoming unreachable - which is what makes the
+    connector go and refresh an expired one.
     """
 
     file_id: str
@@ -360,8 +358,8 @@ class StagedObject:
 def refused_work_order_token(request: httpx2.Request) -> httpx2.Response | None:
     """Refuse the request if it carries one of the work order tokens tests provoke.
 
-    A plain 403 explains itself in `detail`, an httpyexpect one in `description`. The
-    connector reads whichever is there, so both flavors get exercised.
+    A plain 403 explains itself in `detail`, an httpyexpect one in `description`, and the
+    connector reads whichever is there - so both flavors get exercised.
     """
     token = request.headers.get("authorization", "").removeprefix("Bearer ")
     if token == AUTH_FAILURE_TOKEN:

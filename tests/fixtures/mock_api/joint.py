@@ -17,10 +17,9 @@
 """Every GHGA API the connector talks to, mocked at once.
 
 This is what integration tests use: the connector bootstraps itself from the WKVS mock,
-which points it at the other three mocks, so a whole up- or download runs against them
-without a single endpoint being registered by hand. Traffic to the S3 testcontainer
-still goes out over the network, which is what makes the presigned URLs the mocks hand
-out worth handing out.
+which points it at the other three, so a whole up- or download runs against them without
+a single endpoint being registered by hand. Traffic to the S3 testcontainer still goes
+out over the network, which is what makes the presigned URLs worth handing out.
 """
 
 from dataclasses import dataclass
@@ -53,8 +52,8 @@ __all__ = [
 class MockApis:
     """The mocked GHGA APIs, and the router serving all of them.
 
-    Everything a test needs to arrange is a handler swap on one of the mocks; `router`
-    is there for the rare endpoint no GHGA API serves.
+    Everything a test needs to arrange is a handler swap on one of the mocks; `router` is
+    there for the rare endpoint no GHGA API serves.
     """
 
     router: MockRouter
@@ -68,8 +67,8 @@ def _serve_service_probes(router: MockRouter) -> None:
     """Serve the readiness and liveness probes every GHGA service exposes.
 
     The connector's own health checks go out through a module level `httpx2.get` and are
-    mocked by `mock_health_checks` instead, so nothing here reaches these - they exist
-    so that a call to the mock host lands on an endpoint rather than a "not found".
+    mocked by `mock_health_checks` instead, so nothing here reaches these - they exist so
+    that a call to the mock host lands on an endpoint rather than a "not found".
     """
 
     @router.get(api_url(MOCK_API_HOST, "/"))
@@ -87,12 +86,12 @@ def _serve_service_probes(router: MockRouter) -> None:
 def mock_apis(monkeypatch) -> MockApis:
     """Serve every GHGA API from a mock, while letting S3 traffic reach the container.
 
-    The config is left to the test's own `apply_test_config`, so that a test overriding
-    a config value keeps it; only the WKVS URL is read here, to know where to serve it.
+    The config is left to the test's own `apply_test_config`, so that a test overriding a
+    config value keeps it; only the WKVS URL is read here, to know where to serve it.
 
-    A request no endpoint matches is answered with the 404 the `MockRouter` raises for
-    it, rather than that exception surfacing out of the transport, so the connector sees
-    an error response from an unmocked call just as it did from the FastAPI mock app.
+    A request no endpoint matches is answered with the 404 the `MockRouter` raises for it
+    rather than that exception surfacing out of the transport, so the connector sees an
+    error response from an unmocked call just as it did from the FastAPI mock app.
     """
     router: MockRouter[HttpException] = MockRouter(
         exception_handler=httpyexpect_response,

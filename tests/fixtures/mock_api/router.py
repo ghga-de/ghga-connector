@@ -79,9 +79,8 @@ def respond(
 ) -> ResponseHandler:
     """Make a handler that always answers with the same status code and JSON body.
 
-    A `json` of `None` means the response carries no body at all. `cache_for` marks the
-    response as cacheable for that many seconds, freshly dated on every answer;
-    without it the response says nothing about caching.
+    A `json` of `None` means no body at all. `cache_for` marks the response as cacheable
+    for that many seconds, freshly dated on every answer.
     """
 
     def handler(request: httpx2.Request, **path_variables: Any) -> httpx2.Response:
@@ -99,9 +98,9 @@ def httpyexpect_error(
 ) -> httpx2.Response:
     """The response a GHGA service sends for an error, in the httpyexpect schema.
 
-    `data` is serialized leniently, because it does not always hold plain JSON: the
-    422 `MockRouter` raises for a path variable it cannot cast reports the type it
-    tried to cast to, and that is a class.
+    `data` is serialized leniently, because it does not always hold plain JSON: the 422
+    `MockRouter` raises for an uncastable path variable reports a class as the type it
+    tried to cast to.
     """
     body = {"exception_id": exception_id, "description": description, "data": data}
     return httpx2.Response(
@@ -117,11 +116,10 @@ def httpyexpect_response(
     """Answer with an `HttpException` rather than letting it propagate.
 
     `MockRouter` raises one when no endpoint matches a request, or when a path variable
-    doesn't fit the type its endpoint declares, and the exception carries whatever
-    status code was chosen for it - 4xx or 5xx. Turning it into a response is what
-    `configure_exception_handler` did for the FastAPI mock app these mocks replaced, and
-    it keeps the connector's own error translation in the loop for a call the mocks
-    don't cover, instead of the exception surfacing straight out of the transport.
+    doesn't fit the type its endpoint declares. Turning it into a response, as
+    `configure_exception_handler` did for the FastAPI mock app these mocks replaced,
+    keeps the connector's own error translation in the loop for a call the mocks don't
+    cover, instead of the exception surfacing straight out of the transport.
     """
     return httpyexpect_error(
         exception.status_code,
@@ -139,13 +137,12 @@ def _host_of(base_url: str) -> str:
 def api_url(base_url: str, path: str) -> str:
     """Build a `MockRouter` pattern for `path` as served by the API at `base_url`.
 
-    `MockRouter` matches its patterns against the whole request URL, and `mock_router`
-    serves every host from a single router, so the API URL has to be part of the
-    pattern. Without it, the pattern would just as happily match the same path served
-    by a different API.
+    `MockRouter` matches its patterns against the whole request URL and serves every host
+    from a single router, so without the API URL in the pattern it would just as happily
+    match the same path served by a different API.
 
-    An API on the loopback interface is matched under any spelling of it, so that a
-    call to `localhost` reaches the same mock as one to `127.0.0.1`.
+    An API on the loopback interface is matched under any spelling of it, so that a call
+    to `localhost` reaches the same mock as one to `127.0.0.1`.
     """
     pattern = re.escape(base_url)
     host = _host_of(base_url)
@@ -159,18 +156,17 @@ def mock_router(monkeypatch) -> MockRouter:
     """Serve every call made through `async_client` from a `MockRouter`.
 
     The router's transport is mounted as the innermost layer, so requests still pass
-    through the real retry and rate limiting transports first, just like in
-    `ghga_connector.core.client.async_client`.
+    through the real retry and rate limiting transports first.
 
-    Tests register the endpoints they need, anchoring each path to the API that serves
-    it with `api_url`, e.g.:
+    Tests register the endpoints they need, anchoring each path to the API that serves it
+    with `api_url`, e.g.:
     ```
     @mock_router.get(api_url(get_work_package_api_url(), "/work-packages/{package_id}"))
     def get_work_package(package_id: str) -> httpx2.Response:
         return httpx2.Response(200, json={"files": {}})
     ```
-    A request that matches no registered endpoint raises an `HttpException` instead of
-    being answered, so unexpected calls fail the test rather than passing silently.
+    A request matching no registered endpoint raises an `HttpException` instead of being
+    answered, so unexpected calls fail the test rather than passing silently.
     """
     # Mocked responses pass through the real retry transport, so without the test
     # config's `client_num_retries=0` every mocked 5xx would cost a real backoff sleep.
@@ -207,8 +203,8 @@ def serves_a_mocked_api(url: httpx2.URL) -> bool:
     """Whether `url` is addressed to one of the mocked GHGA APIs.
 
     They are served on the loopback interface under the default port for their scheme.
-    Anything else on loopback is a container the test environment published on a port
-    of its own - the S3 testcontainer, in practice.
+    Anything else on loopback is a container the test environment published on a port of
+    its own - the S3 testcontainer, in practice.
     """
     return url.host in LOOPBACK_HOSTS and url.port is None
 
@@ -216,11 +212,10 @@ def serves_a_mocked_api(url: httpx2.URL) -> bool:
 def may_be_reached(url: httpx2.URL) -> bool:
     """Whether a request to `url` may leave the test suite for the real network.
 
-    Only what the test environment itself runs may be reached. Testcontainers reports
-    the address of the container it started as whatever the Docker host happens to be,
-    which is a loopback address when Docker is local, `host.docker.internal` from
-    inside a devcontainer, and a private bridge address when it is neither - so all
-    three have to pass, while the internet at large must not.
+    Only what the test environment itself runs may be reached. Testcontainers reports a
+    container's address as whatever the Docker host happens to be - loopback when Docker
+    is local, `host.docker.internal` from inside a devcontainer, a private bridge address
+    when neither - so all three pass, while the internet at large must not.
     """
     host = url.host
     if host in LOOPBACK_HOSTS or host.endswith(".internal"):
@@ -265,11 +260,10 @@ class MockApiTransport(httpx2.AsyncBaseTransport):
 def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
     """Answer calls to the mocked GHGA APIs from `router`, letting local traffic out.
 
-    Unlike `mock_router`, which swallows every request, this leaves the connector free
-    to reach the S3 testcontainer, which integration tests need. Anything bound for the
-    internet is refused instead of sent: the connector's own default for `wkvs_api_url`
-    is a live GHGA URL, so a test that failed to apply the test config would otherwise
-    quietly call production.
+    Unlike `mock_router`, which swallows every request, this leaves the connector free to
+    reach the S3 testcontainer, which integration tests need. Anything bound for the
+    internet is refused instead of sent: the connector's default `wkvs_api_url` is a live
+    GHGA URL, so a test that failed to apply the test config would call production.
     """
 
     def mock_mounts(config, base_transport=None, limits=None):
@@ -288,9 +282,9 @@ def serve_mock_api_host_from(monkeypatch, router: MockRouter) -> None:
 def serve_httpx2_get_from(monkeypatch, router: MockRouter) -> None:
     """Answer module level `httpx2.get` calls from `router`.
 
-    `is_service_healthy` checks health endpoints with a module level `httpx2.get` call
-    rather than the client built by `async_client`, so those calls cannot be routed
-    through the client's transport and `httpx2.get` itself has to be replaced.
+    `is_service_healthy` checks health endpoints with a module level `httpx2.get` rather
+    than the client built by `async_client`, so those calls cannot be routed through the
+    client's transport and `httpx2.get` itself has to be replaced.
     """
     transport = router.as_transport()
 

@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **GHGA Connector has moved.** Development continues in the GHGA monorepo at [ghga-de/ghga](https://github.com/ghga-de/ghga), under `tools/ghga-connector`. This repository is being archived and will become read-only; please open issues and pull requests in the monorepo. The `ghga-connector` package on PyPI is unaffected; future releases are published from the monorepo.
+
 [![tests](https://github.com/ghga-de/ghga-connector/actions/workflows/tests.yaml/badge.svg)](https://github.com/ghga-de/ghga-connector/actions/workflows/tests.yaml)
 [![Coverage Status](https://coveralls.io/repos/github/ghga-de/ghga-connector/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/ghga-connector?branch=main)
 

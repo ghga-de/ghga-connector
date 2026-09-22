@@ -10,3 +10,4 @@ scripts/update_openapi_docs.py
 .github/workflows/tests.yaml
 .pyproject_generation/pyproject_template.toml
 .devcontainer/Dockerfile
+.readme_generation/readme_template.md
